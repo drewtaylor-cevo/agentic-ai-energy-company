@@ -29,7 +29,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `simulate_savings` computes correct Green and Cheapest savings figures in code — the Green track saves ~$30/month and Cheapest saves ~$55/month for the flagship persona, verified against a spreadsheet
   3. At least 3 customer personas exist in S3 with meaningfully different usage profiles (high-usage, mid-usage, low-usage or seasonal-heavy)
   4. All billing records store usage in kWh so that a savings figure can be independently recalculated and defended on a call
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 01-01-PLAN.md — CDK scaffold, tariff catalog JSON (4 plans at verified rates), and 36-record billing seed module (3 personas x 12 months, Python + DynamoDB wire format)
+- [ ] 01-02-PLAN.md — Lambda handler with simulate_savings_pure + get_billing_history, TDD pytest suite (29 tests) proving DEMO-02 flagship targets $30/$55 and V5 input validation
+- [ ] 01-03-PLAN.md — CDK constructs (BillingTable, ToolsLambda, Seeder) + FoundationStack wiring + offline synth tests + post-deploy smoke tests with human-verified cdk deploy
 
 ### Phase 2: AgentCore Agent
 **Goal**: The Strands SDK agent orchestrates tool calls correctly and returns accurate Green and Cheapest recommendations for every demo persona
@@ -80,7 +83,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Dummy Data | 0/TBD | Not started | - |
+| 1. Foundation + Dummy Data | 0/3 | Planned | - |
 | 2. AgentCore Agent | 0/TBD | Not started | - |
 | 3. Backend API | 0/TBD | Not started | - |
 | 4. Agent-Assist UI | 0/TBD | Not started | - |
@@ -88,4 +91,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 ---
 *Roadmap created: 2026-04-23*
-*Last updated: 2026-04-23 after initialization*
+*Last updated: 2026-04-23 after phase 1 planning*
