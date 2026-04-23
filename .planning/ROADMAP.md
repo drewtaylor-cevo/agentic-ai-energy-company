@@ -12,7 +12,7 @@ Build a call centre agent-assist demo that turns a customer account lookup into 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation + Dummy Data** - AWS infrastructure, CDK skeleton, and engineered dummy data for 3+ customer personas
+- [x] **Phase 1: Foundation + Dummy Data** - AWS infrastructure, CDK skeleton, and engineered dummy data for 3+ customer personas (completed 2026-04-23)
 - [ ] **Phase 2: AgentCore Agent** - Strands SDK agent with deterministic savings tools, verified against all demo personas
 - [ ] **Phase 3: Backend API** - Lambda + API Gateway proxy that serves the full self-contained demo stack
 - [ ] **Phase 4: Agent-Assist UI** - React + Vite call centre panel with two recommendation cards above the fold
@@ -30,9 +30,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. At least 3 customer personas exist in S3 with meaningfully different usage profiles (high-usage, mid-usage, low-usage or seasonal-heavy)
   4. All billing records store usage in kWh so that a savings figure can be independently recalculated and defended on a call
 **Plans**: 3 plans
-- [ ] 01-01-PLAN.md — CDK scaffold, tariff catalog JSON (4 plans at verified rates), and 36-record billing seed module (3 personas x 12 months, Python + DynamoDB wire format)
-- [ ] 01-02-PLAN.md — Lambda handler with simulate_savings_pure + get_billing_history, TDD pytest suite (29 tests) proving DEMO-02 flagship targets $30/$55 and V5 input validation
-- [ ] 01-03-PLAN.md — CDK constructs (BillingTable, ToolsLambda, Seeder) + FoundationStack wiring + offline synth tests + post-deploy smoke tests with human-verified cdk deploy
+- [x] 01-01-PLAN.md — CDK scaffold, tariff catalog JSON (4 plans at verified rates), and 36-record billing seed module (3 personas x 12 months, Python + DynamoDB wire format)
+- [x] 01-02-PLAN.md — Lambda handler with simulate_savings_pure + get_billing_history, TDD pytest suite (29 tests) proving DEMO-02 flagship targets $30/$55 and V5 input validation
+- [x] 01-03-PLAN.md — CDK constructs (BillingTable, ToolsLambda, Seeder) + FoundationStack wiring + offline synth tests + post-deploy smoke tests with human-verified cdk deploy
 
 ### Phase 2: AgentCore Agent
 **Goal**: The Strands SDK agent orchestrates tool calls correctly and returns accurate Green and Cheapest recommendations for every demo persona
@@ -83,7 +83,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Dummy Data | 0/3 | Planned | - |
+| 1. Foundation + Dummy Data | 3/3 | Complete | 2026-04-23 |
 | 2. AgentCore Agent | 0/TBD | Not started | - |
 | 3. Backend API | 0/TBD | Not started | - |
 | 4. Agent-Assist UI | 0/TBD | Not started | - |
