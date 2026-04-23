@@ -7,13 +7,15 @@ available in ap-southeast-2. Never rely on environment default.
 """
 import aws_cdk as cdk
 
+from infrastructure.foundation_stack import FoundationStack
+
 app = cdk.App()
 
-# FoundationStack wiring is added in Plan 03 (03-01-PLAN). Until then this app
-# synthesizes to an empty cloud assembly so scaffolding can be verified.
-# from infrastructure.foundation_stack import FoundationStack
-# FoundationStack(app, "CustomerTariff",
-#     env=cdk.Environment(region="us-east-1"),
-#     description="Phase 1: Foundation + Dummy Data")
+FoundationStack(
+    app,
+    "CustomerTariff",
+    env=cdk.Environment(region="us-east-1"),
+    description="Phase 1: Foundation + Dummy Data",
+)
 
 app.synth()
