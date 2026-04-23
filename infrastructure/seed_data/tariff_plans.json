@@ -1,0 +1,42 @@
+[
+  {
+    "plan_id": "STD",
+    "plan_name": "Standard Rate",
+    "rate_per_kwh": 0.32,
+    "daily_supply_charge": 1.10,
+    "green_score": 0,
+    "plan_type": "flat_rate",
+    "renewable_pct": 0,
+    "description": "Standard variable rate. No fixed term."
+  },
+  {
+    "plan_id": "ECO",
+    "plan_name": "EcoFlex 100",
+    "rate_per_kwh": 0.26,
+    "daily_supply_charge": 1.10,
+    "green_score": 100,
+    "plan_type": "green_premium",
+    "renewable_pct": 100,
+    "description": "100% GreenPower accredited. Variable rate. No exit fee."
+  },
+  {
+    "plan_id": "VAL",
+    "plan_name": "Value 12",
+    "rate_per_kwh": 0.21,
+    "daily_supply_charge": 1.10,
+    "green_score": 0,
+    "plan_type": "flat_rate",
+    "renewable_pct": 0,
+    "description": "Lowest unit rate. Fixed 12-month term. $75 exit fee."
+  },
+  {
+    "plan_id": "TOU",
+    "plan_name": "Flex Time",
+    "rate_per_kwh": 0.36,
+    "daily_supply_charge": 1.10,
+    "green_score": 20,
+    "plan_type": "time_of_use",
+    "renewable_pct": 20,
+    "description": "Time-of-use: peak rate shown. Off-peak 0.14/kWh. Variable."
+  }
+]
