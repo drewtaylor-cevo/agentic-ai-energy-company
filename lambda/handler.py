@@ -1,0 +1,145 @@
+"""Tariff tools Lambda — get_billing_history and simulate_savings.
+
+Two entry points exposed to Phase 2 agent tools:
+  - get_billing_history(event, context): DynamoDB read for a customer_id
+  - simulate_savings(event, context):   deterministic savings arithmetic
+
+Both wrap pure helpers (`_query_billing`, `simulate_savings_pure`) so unit
+tests can exercise logic without AWS credentials.
+"""
+import json
+import os
+import re
+from typing import Any, Dict, List
+
+# --- Module-level init (cold start) ---
+
+# Load tariff catalog from the bundled JSON. In Lambda runtime /var/task is the
+# cwd and tariff_plans.json sits at the root of the asset zip. For local tests,
+# cwd varies, so use a path relative to this file as a fallback.
+_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+try:
+    with open("tariff_plans.json") as _f:
+        TARIFF_PLANS: List[Dict[str, Any]] = json.load(_f)
+except FileNotFoundError:
+    with open(os.path.join(_THIS_DIR, "tariff_plans.json")) as _f:
+        TARIFF_PLANS = json.load(_f)
+
+# DynamoDB table handle — only initialised when TABLE_NAME is present so the
+# module can be imported by unit tests running without AWS creds.
+table = None
+if os.environ.get("TABLE_NAME"):
+    import boto3  # imported lazily so pure-function tests do not require boto3
+    _dynamodb = boto3.resource("dynamodb")
+    table = _dynamodb.Table(os.environ["TABLE_NAME"])
+
+
+# --- Input validation ---
+
+_CUSTOMER_ID_PATTERN = re.compile(r"^CUST-\d{3,6}$")
+
+
+def _validate_customer_id(customer_id: Any) -> str:
+    """Raise ValueError on invalid customer_id; returns normalised string.
+
+    STRIDE: V5 Input Validation — rejects injection attempts, empty strings,
+    and non-string types before any DynamoDB query is issued.
+    """
+    if not isinstance(customer_id, str):
+        raise ValueError(f"customer_id must be a string, got {type(customer_id).__name__}")
+    if not _CUSTOMER_ID_PATTERN.match(customer_id):
+        raise ValueError(f"customer_id must match CUST-<digits>; got {customer_id!r}")
+    return customer_id
+
+
+# --- Pure savings arithmetic (testable offline) ---
+
+DAYS_PER_MONTH = 30.44  # 365.25/12; used to annualise daily supply charges
+
+
+def simulate_savings_pure(
+    billing_history: List[Dict[str, Any]],
+    plans: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Deterministic savings calculator — SAV-03 compliant (no LLM arithmetic).
+
+    Algorithm:
+      avg_kwh = mean(record["usage_kwh"])
+      current_plan = plan where plan_id == billing_history[0]["plan_id"]
+      projected_cost(plan) = avg_kwh * plan.rate_per_kwh + plan.daily_supply_charge * 30.44
+      saving(plan) = projected_cost(current_plan) - projected_cost(plan)
+      green_plan   = argmax(green_score) over plans where plan_type == "green_premium"
+                                                        and plan_id != current_plan_id
+      cheapest_plan = argmin(projected_cost) over all plans with plan_id != current_plan_id
+    """
+    if not billing_history:
+        raise ValueError("billing_history must not be empty")
+    if not plans:
+        raise ValueError("plans must not be empty")
+
+    avg_kwh = sum(float(r["usage_kwh"]) for r in billing_history) / len(billing_history)
+    current_plan_id = billing_history[0]["plan_id"]
+    current_plan = next((p for p in plans if p["plan_id"] == current_plan_id), None)
+    if current_plan is None:
+        raise ValueError(f"current plan {current_plan_id!r} not in catalog")
+
+    def projected_monthly_cost(plan: Dict[str, Any]) -> float:
+        return (
+            avg_kwh * float(plan["rate_per_kwh"])
+            + float(plan["daily_supply_charge"]) * DAYS_PER_MONTH
+        )
+
+    current_cost = projected_monthly_cost(current_plan)
+    candidates = [p for p in plans if p["plan_id"] != current_plan_id]
+
+    green_candidates = [p for p in candidates if p.get("plan_type") == "green_premium"]
+    if not green_candidates:
+        raise ValueError("No green_premium plan in catalog — demo cannot surface Green track")
+    green_plan = max(green_candidates, key=lambda p: p["green_score"])
+
+    cheapest_plan = min(candidates, key=projected_monthly_cost)
+
+    green_saving = round(current_cost - projected_monthly_cost(green_plan), 2)
+    cheapest_saving = round(current_cost - projected_monthly_cost(cheapest_plan), 2)
+
+    return {
+        "green": {
+            "plan_id": green_plan["plan_id"],
+            "plan_name": green_plan["plan_name"],
+            "saving_monthly": green_saving,
+            "saving_annual": round(green_saving * 12, 2),
+        },
+        "cheapest": {
+            "plan_id": cheapest_plan["plan_id"],
+            "plan_name": cheapest_plan["plan_name"],
+            "saving_monthly": cheapest_saving,
+            "saving_annual": round(cheapest_saving * 12, 2),
+        },
+    }
+
+
+# --- Lambda handler entry points ---
+
+def get_billing_history(event: Dict[str, Any], context) -> List[Dict[str, Any]]:
+    """Return 12 months of billing for a customer, sorted by month ASC.
+
+    Raises ValueError on malformed customer_id (V5 input validation).
+    Raises RuntimeError if TABLE_NAME env var is not set (fail-fast).
+    """
+    customer_id = _validate_customer_id(event.get("customer_id"))
+    if table is None:
+        raise RuntimeError("TABLE_NAME env var not set — Lambda misconfigured")
+    response = table.query(
+        KeyConditionExpression="customer_id = :cid",
+        ExpressionAttributeValues={":cid": customer_id},
+    )
+    items = response.get("Items", [])
+    return sorted(items, key=lambda x: x["month"])
+
+
+def simulate_savings(event: Dict[str, Any], context) -> Dict[str, Any]:
+    """Lambda wrapper: fetch billing, compute savings, return tracks."""
+    billing = get_billing_history(event, context)
+    if not billing:
+        raise ValueError(f"No billing history for {event.get('customer_id')!r}")
+    return simulate_savings_pure(billing, TARIFF_PLANS)
