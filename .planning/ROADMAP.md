@@ -69,8 +69,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Both the Green recommendation card and the Cheapest recommendation card are visible above the fold on a 1280px desktop display — a call centre agent does not need to scroll during a live call
   2. From entering a customer ID to both cards fully rendered takes under 3 seconds (loading skeleton states are shown immediately so the screen is never blank)
   3. Each card displays the plan name, projected monthly saving, annual equivalent, and a one-line savings methodology note
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 5 plans
+Plans:
+- [ ] 04-01-PLAN.md — Toolchain setup: shadcn/ui New York/Slate init, Tailwind, Vitest + testing-library, 7 shadcn components, scaffold cleanup, env files, UI-SPEC D-11 amendment
+- [ ] 04-02-PLAN.md — Foundation modules: TypeScript types (mirror backend schema), validate.ts (regex + normalize), errors.ts (status-to-copy map), personas.ts, mock fixture + unit tests
+- [ ] 04-03-PLAN.md — Data layer hook: useRecommendations with fetch/mock-fallback/abort/validation + comprehensive unit tests
+- [ ] 04-04-PLAN.md — UI components: RecommendationCard, LookupForm, PersonaChips, ErrorAlert, EmptyState, RecommendationSkeletons
+- [ ] 04-05-PLAN.md — App.tsx composition wiring all components + production build + 1280px smoke verification (human checkpoint)
 
 ### Phase 5: Demo Hardening
 **Goal**: The end-to-end demo runs cleanly for all planned personas under realistic conditions and the environment is locked before any presentation
@@ -85,16 +90,16 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation + Dummy Data | 3/3 | Complete | 2026-04-23 |
 | 2. AgentCore Agent | 3/3 | Complete | 2026-04-23 |
 | 3. Backend API | 3/3 | Complete (deploy deferred) | 2026-04-24 |
-| 4. Agent-Assist UI | 0/TBD | Not started | - |
+| 4. Agent-Assist UI | 0/5 | Planned | - |
 | 5. Demo Hardening | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-04-23*
-*Last updated: 2026-04-24 after phase 3 completion*
+*Last updated: 2026-04-24 after phase 4 planning*
