@@ -12,7 +12,7 @@ A call centre agent can open any customer account and immediately see exactly ho
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] Present both recommendations to the call centre agent via an agent-assist interface — validated in Phase 4 (UI-01 both cards above the fold at 1280px; UI-02 skeleton-first render)
 
 ### Active
 
@@ -20,8 +20,7 @@ A call centre agent can open any customer account and immediately see exactly ho
 - [ ] Recommend the most energy-efficient (Green) tariff plan available
 - [ ] Recommend the lowest-cost (Cheapest) tariff plan available
 - [ ] Simulate projected monthly savings (~$X/month) for each recommendation
-- [ ] Present both recommendations to the call centre agent via an agent-assist interface
-- [ ] Demo runs end-to-end with realistic dummy data (no live CRM required)
+- [ ] Demo runs end-to-end with realistic dummy data (no live CRM required) — targeted by Phase 5
 
 ### Out of Scope
 
@@ -85,4 +84,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-23 after initialization*
+*Last updated: 2026-04-24 after Phase 4 (Agent-Assist UI) completion*
