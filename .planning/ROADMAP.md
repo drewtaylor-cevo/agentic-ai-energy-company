@@ -85,7 +85,15 @@ Plans:
   1. The full persona sequence (all 3+ customers) can be walked end-to-end in the demo environment without a single failure, blank screen, or incorrect savings figure
   2. Total latency from customer ID entry to cards rendered is measured and confirmed under 3 seconds for all personas — not just the flagship customer
   3. The demo environment runs on dummy data with no live CRM connectivity confirmed by disabling any external data access and re-running all personas
-**Plans**: TBD
+**Plans**: 7 plans
+Plans:
+- [ ] 05-01-PLAN.md — Pre-deploy readiness: blocker confirmation, SSM amendment verification, lockfile+synth dry-run
+- [ ] 05-02-PLAN.md — Live deploy all 3 stacks + CfnOutput capture into 05-DEPLOY-OUTPUTS.md + live curl+AgentCore smoke
+- [ ] 05-03-PLAN.md — Dual production dists (primary ui/dist/ against live endpoint + fallback ui/dist-mock/ for emergency swap)
+- [ ] 05-04-PLAN.md — No-CRM structural audit + 05-VERIFICATION.md skeleton (D-16 code-path audit, grep commands re-runnable)
+- [ ] 05-05-PLAN.md — Rehearsal (cold + warm, 3 personas + 2 error paths) + D-10 latency table appended to 05-VERIFICATION.md
+- [ ] 05-06-PLAN.md — DEMO-RUNBOOK.md (D-17 six sections + D-19 T-24h/T-2h/T-0 checklist + presenter cheat sheet)
+- [ ] 05-07-PLAN.md — Environment lock: reproducibility gate + git tag demo-v1.0 + final VERIFICATION.md lock section
 
 ## Progress
 
@@ -98,8 +106,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. AgentCore Agent | 3/3 | Complete | 2026-04-23 |
 | 3. Backend API | 3/3 | Complete (deploy deferred) | 2026-04-24 |
 | 4. Agent-Assist UI | 0/5 | Planned | - |
-| 5. Demo Hardening | 0/TBD | Not started | - |
+| 5. Demo Hardening | 0/7 | Planned | - |
 
 ---
 *Roadmap created: 2026-04-23*
-*Last updated: 2026-04-24 after phase 4 planning*
+*Last updated: 2026-04-24 after phase 5 planning*
