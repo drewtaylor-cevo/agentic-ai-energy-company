@@ -516,8 +516,8 @@ pytestmark = [
 ```
 
 Delta for `test_backend_api_smoke.py`:
-- Guard var: `API_ENDPOINT = os.environ.get("API_ENDPOINT", "")`
-- Skip reason: `"API_ENDPOINT not set — skip live API smoke tests"`
+- Guard var: `BACKEND_API_URL = os.environ.get("BACKEND_API_URL", "")`
+- Skip reason: `"BACKEND_API_URL not set — skip live API smoke tests"`
 - Use `requests.get(...)` instead of boto3 `invoke_agent_runtime`
 - Tests use `@pytest.mark.parametrize("customer_id", ["CUST-001", "CUST-002", "CUST-003"])` — same three personas
 - The `@pytest.fixture scope="module"` for `agentcore_client` is replaced by a simple `requests` call (no fixture needed)
@@ -529,39 +529,39 @@ import os
 import pytest
 import requests
 
-API_ENDPOINT = os.environ.get("API_ENDPOINT", "")
+BACKEND_API_URL = os.environ.get("BACKEND_API_URL", "")
 
 pytestmark = [
     pytest.mark.smoke,
-    pytest.mark.skipif(not API_ENDPOINT, reason="API_ENDPOINT not set — skip live API smoke tests"),
+    pytest.mark.skipif(not BACKEND_API_URL, reason="BACKEND_API_URL not set — skip live API smoke tests"),
 ]
 
 @pytest.mark.parametrize("customer_id", ["CUST-001", "CUST-002", "CUST-003"])
 def test_all_personas_return_recommendations(customer_id):
-    r = requests.get(f"{API_ENDPOINT}recommendations/{customer_id}", timeout=60)
+    r = requests.get(f"{BACKEND_API_URL}recommendations/{customer_id}", timeout=60)
     assert r.status_code == 200
     body = r.json()
     assert "green" in body and "cheapest" in body
 
 def test_invalid_format_returns_400():
-    r = requests.get(f"{API_ENDPOINT}recommendations/NOTVALID", timeout=10)
+    r = requests.get(f"{BACKEND_API_URL}recommendations/NOTVALID", timeout=10)
     assert r.status_code == 400
     assert "error" in r.json()
 
 def test_unknown_customer_returns_404():
-    r = requests.get(f"{API_ENDPOINT}recommendations/CUST-999999", timeout=60)
+    r = requests.get(f"{BACKEND_API_URL}recommendations/CUST-999999", timeout=60)
     assert r.status_code == 404
     assert "error" in r.json()
 
 def test_fresh_session_no_bleed():
     """SC-3: Two consecutive calls for different customers must not share session state."""
-    r1 = requests.get(f"{API_ENDPOINT}recommendations/CUST-001", timeout=60)
-    r2 = requests.get(f"{API_ENDPOINT}recommendations/CUST-002", timeout=60)
+    r1 = requests.get(f"{BACKEND_API_URL}recommendations/CUST-001", timeout=60)
+    r2 = requests.get(f"{BACKEND_API_URL}recommendations/CUST-002", timeout=60)
     assert r1.status_code == 200 and r2.status_code == 200
     # Different customers have different saving amounts — confirms no bleed
     assert r1.json()["green"]["saving_monthly"] != r2.json()["green"]["saving_monthly"]
 ```
-Note: `API_ENDPOINT` from CDK output includes trailing slash (e.g., `https://xxx.execute-api.us-east-1.amazonaws.com/`). The URL construction `f"{API_ENDPOINT}recommendations/..."` is correct as-is.
+Note: `BACKEND_API_URL` from CDK output includes trailing slash (e.g., `https://xxx.execute-api.us-east-1.amazonaws.com/`). The URL construction `f"{BACKEND_API_URL}recommendations/..."` is correct as-is.
 
 ---
 
@@ -664,10 +664,10 @@ pytestmark = pytest.mark.skipif(not _CAN_IMPORT, reason="...")
 **Source:** `tests/test_agent_smoke.py` lines 23-31
 **Apply to:** `tests/test_backend_api_smoke.py`
 ```python
-API_ENDPOINT = os.environ.get("API_ENDPOINT", "")
+BACKEND_API_URL = os.environ.get("BACKEND_API_URL", "")
 pytestmark = [
     pytest.mark.smoke,
-    pytest.mark.skipif(not API_ENDPOINT, reason="API_ENDPOINT not set — skip live API smoke tests"),
+    pytest.mark.skipif(not BACKEND_API_URL, reason="BACKEND_API_URL not set — skip live API smoke tests"),
 ]
 ```
 

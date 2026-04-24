@@ -857,17 +857,15 @@ This is a greenfield phase (new Lambda + new API Gateway). No rename/refactor. N
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Agent response `statusCode` for customer-not-found**
+1. **Agent response `statusCode` for customer-not-found** — **RESOLVED**
    - What we know: `invoke_agent_runtime` response includes `statusCode` (integer) from the agent container. The agent always returns Python dict from `@app.entrypoint`. `BedrockAgentCoreApp` wraps this into an HTTP response.
-   - What's unclear: If the agent's fallback path encounters an exception, does `BedrockAgentCoreApp` return a non-200 statusCode, or always 200 with error body?
-   - Recommendation: The plan should add an explicit check: `if response.get("statusCode", 200) != 200: -> 502`. Belt-and-suspenders with the body key check.
+   - Resolution: plans use absent `green`/`cheapest` keys as the detection signal (Pitfall 5 pattern). The `statusCode` value is immaterial because the key-presence check is the robust ground truth regardless of how the agent surfaces the error.
 
-2. **Whether `qualifier` parameter is needed for `invoke_agent_runtime`**
+2. **Whether `qualifier` parameter is needed for `invoke_agent_runtime`** — **RESOLVED**
    - What we know: `qualifier` is optional in the service model. Phase 2 smoke test does not pass it.
-   - What's unclear: Whether a specific qualifier is needed for the default endpoint.
-   - Recommendation: Omit `qualifier` (consistent with Phase 2 smoke test pattern). If invocation fails with ResourceNotFoundException, add `qualifier="DEFAULT"`.
+   - Resolution: omit `qualifier` — consistent with the Phase 2 smoke test pattern that is already working in production. If a future ResourceNotFoundException surfaces, add `qualifier="DEFAULT"` as a targeted fix.
 
 ---
 
