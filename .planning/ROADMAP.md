@@ -72,7 +72,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 5 plans
 Plans:
 - [x] 04-01-PLAN.md — Toolchain setup: shadcn/ui New York/Slate init, Tailwind, Vitest + testing-library, 7 shadcn components, scaffold cleanup, env files, UI-SPEC D-11 amendment
-- [ ] 04-02-PLAN.md — Foundation modules: TypeScript types (mirror backend schema), validate.ts (regex + normalize), errors.ts (status-to-copy map), personas.ts, mock fixture + unit tests
+- [x] 04-02-PLAN.md — Foundation modules: TypeScript types (mirror backend schema), validate.ts (regex + normalize), errors.ts (status-to-copy map), personas.ts, mock fixture + unit tests
 - [ ] 04-03-PLAN.md — Data layer hook: useRecommendations with fetch/mock-fallback/abort/validation + comprehensive unit tests
 - [ ] 04-04-PLAN.md — UI components: RecommendationCard, LookupForm, PersonaChips, ErrorAlert, EmptyState, RecommendationSkeletons
 - [ ] 04-05-PLAN.md — App.tsx composition wiring all components + production build + 1280px smoke verification (human checkpoint)
