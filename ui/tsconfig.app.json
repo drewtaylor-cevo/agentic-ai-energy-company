@@ -19,7 +19,14 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* Path alias (shadcn convention).
+       TypeScript 6+ infers baseUrl from the tsconfig file location when
+       `paths` are present, so explicit baseUrl is omitted (deprecated in TS 7). */
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }

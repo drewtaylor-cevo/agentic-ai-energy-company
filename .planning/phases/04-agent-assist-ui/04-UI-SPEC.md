@@ -105,7 +105,7 @@ All user-facing strings are owned by the UI layer. The API returns plan data onl
 |---------|------|
 | Page title | Tariff Recommendations |
 | Form label | Customer ID |
-| Form placeholder | e.g. CUST001234 |
+| Form placeholder | e.g. CUST-001234 |
 | Primary CTA | Look up customer |
 | Primary CTA (loading) | Looking up… |
 | Empty state heading | No customer selected |
