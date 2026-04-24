@@ -4,6 +4,7 @@ Stack-level wiring only: no resource definitions inline. All resource logic
 lives in the construct classes under infrastructure/constructs/.
 """
 from aws_cdk import CfnOutput, Stack
+from aws_cdk import aws_ssm as ssm
 from constructs import Construct
 
 from infrastructure.constructs.billing_table import BillingTableConstruct
@@ -24,3 +25,13 @@ class FoundationStack(Stack):
         CfnOutput(self, "BillingTableArn", value=billing.table.table_arn)
         CfnOutput(self, "ToolsLambdaName", value=tools.function.function_name)
         CfnOutput(self, "ToolsLambdaArn", value=tools.function.function_arn)
+
+        # Cross-stack wiring: write ToolsLambda ARN to SSM so AgentCoreStack
+        # can read it without a hard CloudFormation export dependency (Pitfall 5).
+        ssm.StringParameter(
+            self,
+            "ToolsLambdaArnParam",
+            parameter_name="/customer-tariff/tools-lambda-arn",
+            string_value=tools.function.function_arn,
+            description="ToolsLambda ARN for AgentCoreStack cross-stack wiring",
+        )

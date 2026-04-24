@@ -18,3 +18,8 @@ cdk.out/
 .idea/
 *.swp
 .DS_Store
+
+# Node / UI
+node_modules/
+dist/
+*.local

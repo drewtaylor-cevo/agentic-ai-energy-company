@@ -13,8 +13,8 @@ Build a call centre agent-assist demo that turns a customer account lookup into 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation + Dummy Data** - AWS infrastructure, CDK skeleton, and engineered dummy data for 3+ customer personas (completed 2026-04-23)
-- [ ] **Phase 2: AgentCore Agent** - Strands SDK agent with deterministic savings tools, verified against all demo personas
-- [ ] **Phase 3: Backend API** - Lambda + API Gateway proxy that serves the full self-contained demo stack
+- [x] **Phase 2: AgentCore Agent** - Strands SDK agent with deterministic savings tools, verified against all demo personas (completed 2026-04-23)
+- [x] **Phase 3: Backend API** - Lambda + API Gateway proxy that serves the full self-contained demo stack (completed 2026-04-24; live deploy deferred to Phase 5)
 - [ ] **Phase 4: Agent-Assist UI** - React + Vite call centre panel with two recommendation cards above the fold
 - [ ] **Phase 5: Demo Hardening** - End-to-end persona rehearsal, performance validation, and environment lock
 
@@ -43,7 +43,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Each recommendation card carries a projected monthly saving in dollars and an annual equivalent figure, both computed by the deterministic `simulate_savings` tool (not by the LLM)
   3. The agent selects the most energy-efficient plan as Green and the lowest projected cost plan as Cheapest for each persona's usage pattern
   4. Savings figures for all 3+ personas pass manual verification — cheapest savings are always greater than or equal to green savings
-**Plans**: TBD
+**Plans**: 3 plans
+- [x] 02-01-PLAN.md — Agent source code (Strands @tool + BedrockAgentCoreApp + Pydantic schema), Dockerfile (linux/arm64), and offline test suite (tool shape + savings invariants)
+- [x] 02-02-PLAN.md — CDK infrastructure (SSM cross-stack wiring, AgentCoreStack with L2 Runtime construct, IAM policies, offline synth tests)
+- [x] 02-03-PLAN.md — Deploy both stacks + live smoke tests via invoke_agent_runtime for all 3 personas (human-verify checkpoint)
 
 ### Phase 3: Backend API
 **Goal**: A Lambda + API Gateway endpoint accepts a customer ID and returns streaming recommendations, making the demo fully self-contained with no live CRM dependency
@@ -53,7 +56,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. A curl or Postman call to the API endpoint with any demo persona's customer ID returns the correct streaming recommendation — no live CRM, no external data source required
   2. Error cases are handled gracefully: customer not found returns a clear error; agent timeout surfaces a user-friendly message rather than a raw exception
   3. Each customer lookup generates a fresh session ID — no recommendation bleed between consecutive persona lookups
-**Plans**: TBD
+**Plans**: 3 plans
+- [x] 03-01-PLAN.md — API Lambda handler (D-12 error taxonomy, D-11 fresh uuid4 session, botocore 25s timeout) + 24-case offline unit test suite
+- [x] 03-02-PLAN.md — CDK infrastructure (AgentCoreStack SSM amendment, BackendApiConstruct: Lambda + HTTP API v2 + CORS + IAM, BackendApiStack, 11 synth tests)
+- [x] 03-03-PLAN.md — Smoke test file written; live cdk deploy deferred to Phase 5 demo hardening
 
 ### Phase 4: Agent-Assist UI
 **Goal**: A call centre agent can open the panel, enter a customer ID, and read both recommendation cards within a single screen without scrolling
@@ -84,11 +90,11 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation + Dummy Data | 3/3 | Complete | 2026-04-23 |
-| 2. AgentCore Agent | 0/TBD | Not started | - |
-| 3. Backend API | 0/TBD | Not started | - |
+| 2. AgentCore Agent | 3/3 | Complete | 2026-04-23 |
+| 3. Backend API | 3/3 | Complete (deploy deferred) | 2026-04-24 |
 | 4. Agent-Assist UI | 0/TBD | Not started | - |
 | 5. Demo Hardening | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-04-23*
-*Last updated: 2026-04-23 after phase 1 planning*
+*Last updated: 2026-04-24 after phase 3 completion*
