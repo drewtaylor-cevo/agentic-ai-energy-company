@@ -55,8 +55,8 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   3. API Gateway is wired to a named Lambda alias (not `$LATEST`) with Provisioned Concurrency configurable via `cdk deploy -c demo_pc=1`.
   4. UI-01 (both cards above the fold at 1280px) and UI-02 (<3s lookup-to-rendered) still hold on live smoke with narratives included.
 **Plans**: 2 plans
-- [ ] 07-01-PLAN.md — Handler marker-strip + narrative_source log + ?prewarm=1 branch (D-01/D-02/D-04/D-05/D-06/D-07/D-08) + 6 pytest additions (D-13)
-- [ ] 07-02-PLAN.md — CDK alias `live` + conditional Provisioned Concurrency + integration swap + demo_pc context read (D-09/D-10/D-11) + 4 synth assertions (D-14); D-15 live-smoke runbook captured in 07-01 SUMMARY
+- [x] 07-01-PLAN.md — Handler marker-strip + narrative_source log + ?prewarm=1 branch (D-01/D-02/D-04/D-05/D-06/D-07/D-08) + 6 pytest additions (D-13)
+- [x] 07-02-PLAN.md — CDK alias `live` + conditional Provisioned Concurrency + integration swap + demo_pc context read (D-09/D-10/D-11) + 4 synth assertions (D-14); D-15 live-smoke runbook captured in 07-01 SUMMARY
 
 ### Phase 8: UI Integration + Feature Flag + Version Indicator
 **Goal**: Call centre agents see the narrative rows on each card with stable layout, and operators have a URL-level kill switch plus a visible build marker to defend against stale-bundle risk at demo time.
