@@ -40,7 +40,10 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   3. Banned-terms list (switch/action verbs, named competitors, environmental superlatives) rejects offending outputs and triggers the same fallback path.
   4. Eval pytest runs 10 invocations per persona × both cards with zero numeric tokens observed and 100% validator pass-or-fallback behaviour.
   5. Deployed AgentCore image in `us-east-1` serves the extended schema and the v1.0 locked $30/$55 DEMO-02 deltas remain unchanged in tool output.
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 06-01-PLAN.md — Narrative foundations (agent/narrative package, regex, shape-tokens, fallbacks, prompt.txt + Wave 0 offline tests)
+- [ ] 06-02-PLAN.md — Agent integration (Pydantic validator, retry-once-then-per-field-fallback in invoke(), _narrative_source marker, mocked-Strands + corpus tests)
+- [ ] 06-03-PLAN.md — Container fix + CDK deploy + live smoke + sample capture (autonomous: false — human checkpoint on prose + CloudWatch)
 
 ### Phase 7: API Pass-Through + Pre-Warm Route
 **Goal**: Narrative fields traverse API Gateway → Lambda → client without transformation, and a dedicated warm-up route exercises the full hot path behind an always-aliased Lambda.
@@ -98,7 +101,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 3. Backend API | v1.0 | 3/3 | ✓ Complete | 2026-04-24 |
 | 4. Agent-Assist UI | v1.0 | 5/5 | ✓ Complete | 2026-04-24 |
 | 5. Demo Hardening | v1.0 | 7/7 | ✓ Complete | 2026-04-25 |
-| 6. Agent Narrative + Guardrail | v2.0 | 0/0 | Not started | — |
+| 6. Agent Narrative + Guardrail | v2.0 | 0/3 | Not started | — |
 | 7. API Pass-Through + Pre-Warm Route | v2.0 | 0/0 | Not started | — |
 | 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 0/0 | Not started | — |
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 0/0 | Not started | — |
