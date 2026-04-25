@@ -4,7 +4,7 @@
 
 An AI-powered call centre agent-assist tool for an Energy & Utilities provider. It analyses a customer's 12-month billing history, recommends the two most optimal tariff plans (Green and Cheapest), and surfaces projected monthly and annual savings — giving call centre agents an instant, personalised savings plan to present while the customer is on the line.
 
-**Current State:** v1.0 MVP shipped 2026-04-25 as `demo-v1.0`. Live AWS stack deployed in `us-east-1` (Bedrock AgentCore Runtime + Lambda + API Gateway HTTP v2 + React/Vite UI) running on engineered dummy data for 3 customer personas. Call centre agent-assist UI renders both recommendation cards above the fold at 1280px with skeleton-first loading.
+**Current State:** v1.0 MVP shipped 2026-04-25 as `demo-v1.0`. v2.0 Phase 6 (Agent Narrative + Guardrail) shipped 2026-04-25 after Phase 06.1 resolved the Sonnet 4.6 tool-use regression — `simulate_savings` now drives byte-exact $ preservation on the deployed runtime for all 3 personas (Sarah $30/$55, Marcus $16.90/$30.98, Elena $14.00/$25.67). Live AWS stack deployed in `us-east-1` (Bedrock AgentCore Runtime `tariff_agent-O2Hai86N8V` + Lambda + API Gateway HTTP v2 + React/Vite UI).
 
 ## Core Value
 
@@ -149,4 +149,4 @@ See [`.planning/MILESTONES.md`](MILESTONES.md#v10-mvp--shipped-2026-04-25) for f
 </details>
 
 ---
-*Last updated: 2026-04-25 — v2.0 Demo Polish & LLM Narrative milestone started (UI-03, UI-04, DEMO-03, DEMO-04; PROD-01/PROD-02 deferred to v3.0)*
+*Last updated: 2026-04-25 — Phase 6 + Phase 06.1 complete (backend halves of UI-03, UI-04, UI-05 shipped to us-east-1; Sonnet 4.6 tool-use regression resolved via Strands 1.37.0 migration). Next: Phase 7 API Pass-Through + Pre-Warm Route.*
