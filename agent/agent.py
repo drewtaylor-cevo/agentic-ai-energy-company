@@ -15,6 +15,7 @@ import boto3
 from pydantic import BaseModel, Field, ValidationError
 from strands import Agent, tool
 from strands.models import BedrockModel
+from strands.types.exceptions import StructuredOutputException
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
 # Bi-mode imports: in the AgentCore container, /app/agent.py is a script and
@@ -210,6 +211,31 @@ def _narrative_fallback_salvage(
     return response, narrative_source
 
 
+def _extract_lenient_from_agent_result(
+    agent_result: "AgentResult | None",
+) -> "_RecommendationResponseLenient | None":
+    """Pull the model's last attempt at RecommendationResponse input from message history.
+
+    Zero-network alternative to issuing a third structured_output() call for
+    per-field salvage. Reads the last assistant message's toolUse block whose
+    name is "RecommendationResponse" and parses its `input` via the lenient
+    schema. Returns None on any failure (caller falls back to FALLBACKS bank).
+    """
+    if agent_result is None or agent_result.message is None:
+        return None
+    content_blocks = agent_result.message.get("content", []) or []
+    for block in reversed(content_blocks):
+        if not isinstance(block, dict):
+            continue
+        tool_use = block.get("toolUse") or block.get("tool_use")
+        if tool_use and tool_use.get("name") == "RecommendationResponse":
+            try:
+                return _RecommendationResponseLenient(**tool_use.get("input", {}))
+            except Exception:  # noqa: BLE001 — best-effort salvage
+                return None
+    return None
+
+
 # --- Tool definition ---
 
 @tool
@@ -319,48 +345,50 @@ def invoke(payload: dict) -> dict:
     }
 
     # D-01: retry-once-then-per-field-fallback owned HERE (not Strands).
+    # Under Strands 1.37.0+ the retry is INLINE within one _agent() call
+    # (StructuredOutputTool.stream() catches ValidationError + yields tool-error
+    # back to LLM for self-correction; force-tool-use round is Strands' second
+    # attempt). Terminal failure surfaces as StructuredOutputException OR
+    # agent_result.structured_output is None — we catch both. (RESEARCH §D-06 (c))
+    agent_result = None
     try:
-        result = _agent.structured_output(
-            RecommendationResponse,
+        agent_result = _agent(
             _build_narrative_prompt(customer_id),
+            structured_output_model=RecommendationResponse,
         )
-    except ValidationError:
+        result = agent_result.structured_output
+        if result is None:
+            # End-of-turn without structured output — force round must have failed.
+            # Pitfall 4: treat identically to StructuredOutputException.
+            raise StructuredOutputException(
+                "structured_output is None after successful stop_reason"
+            )
+    except StructuredOutputException as terminal_err:
         logger.warning(
-            "narrative validator failed on first call — retrying once",
-            exc_info=False,
+            "structured output exhausted — applying per-field fallback",
+            extra={"customer_id": customer_id, "reason": str(terminal_err)},
         )
-        try:
-            result = _agent.structured_output(
-                RecommendationResponse,
-                _build_narrative_prompt(customer_id),
+        # D-02: per-field fallback. Under the new API, salvage reads the LAST
+        # assistant message's toolUse block (zero network cost) rather than
+        # issuing a third _agent(..., structured_output_model=_RecommendationResponseLenient) call.
+        lenient_response = _extract_lenient_from_agent_result(agent_result)
+        if lenient_response is None:
+            logger.warning(
+                "lenient salvage parse failed — using full fallback bank",
+                exc_info=False,
             )
-        except ValidationError as second_err:
-            # D-02: per-field fallback. Try lenient parse so we can keep
-            # whichever field DID pass; swap only the offender(s).
-            lenient_response = None
-            try:
-                lenient_response = _agent.structured_output(
-                    _RecommendationResponseLenient,
-                    _build_narrative_prompt(customer_id),
-                )
-            except Exception:  # noqa: BLE001 — best-effort; fallback bank guarantees completeness
-                logger.warning(
-                    "lenient salvage parse failed — using full fallback bank",
-                    exc_info=False,
-                )
-            result, narrative_source = _narrative_fallback_salvage(
-                customer_id, lenient_response, second_err,
-            )
+        result, narrative_source = _narrative_fallback_salvage(
+            customer_id, lenient_response, terminal_err,
+        )
         body = result.model_dump()
         body["_narrative_source"] = narrative_source
         return body
     except Exception:
         # v1.0 tool-failure fallback: direct Lambda call. Narrative fields are
-        # absent in this path — it exists for a catastrophic structured_output
-        # failure (network, schema conversion, etc.) and should be exceptionally
-        # rare. The response shape is the raw tool output (v1.0 contract).
+        # attached from FALLBACKS so the extended-schema contract holds.
+        # D-04 never-500 guarantee — UNCHANGED from pre-migration shape.
         logger.warning(
-            "structured_output failed — falling back to direct Lambda call",
+            "agent invocation failed — falling back to direct Lambda call",
             exc_info=True,
         )
         resp = _lambda_client.invoke(
@@ -369,7 +397,6 @@ def invoke(payload: dict) -> dict:
             Payload=json.dumps({"customer_id": customer_id}).encode(),
         )
         raw = json.loads(resp["Payload"].read())
-        # Attach fallback narrative + marker so the extended-schema contract holds.
         fb = FALLBACKS.get(customer_id, {})
         for track in ("green", "cheapest"):
             track_fb = fb.get(track, {})
@@ -390,7 +417,7 @@ def invoke(payload: dict) -> dict:
         raw["_narrative_source"] = narrative_source
         return raw
 
-    # Happy path — validator passed on first call.
+    # Happy path — validator passed (possibly after Strands' inline self-correction).
     body = result.model_dump()
     body["_narrative_source"] = narrative_source
     return body
