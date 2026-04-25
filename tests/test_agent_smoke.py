@@ -107,6 +107,46 @@ def test_sarah_flagship_values(agentcore_client):
         f"Sarah cheapest saving expected ~$55, got {body['cheapest']['saving_monthly']}"
 
 
+def test_marcus_flagship_values(agentcore_client):
+    """DEMO-02: Marcus Webb (CUST-002) Green=$16.90, Cheapest=$30.98.
+
+    Cross-persona defence: if this AND test_sarah_flagship_values return
+    identical pairs (e.g. both show $18.50/$30.00 as in Deviation 4 of
+    06-03-SUMMARY.md), that's the fabrication signature of the pre-migration
+    Strands+Claude-4.6 tool-use regression. Three-persona coverage means two
+    of three MUST mismatch under that failure mode.
+
+    Pinned values: monthly from CONTEXT.md D-03; annual = monthly * 12 per
+    lambda/handler.py::simulate_savings_pure L110,116.
+    """
+    body = _invoke_agent(agentcore_client, "CUST-002")
+    assert abs(body["green"]["saving_monthly"] - 16.90) < 0.05, \
+        f"Marcus green saving_monthly expected $16.90, got {body['green']['saving_monthly']}"
+    assert abs(body["cheapest"]["saving_monthly"] - 30.98) < 0.05, \
+        f"Marcus cheapest saving_monthly expected $30.98, got {body['cheapest']['saving_monthly']}"
+    assert abs(body["green"]["saving_annual"] - 202.80) < 0.10, \
+        f"Marcus green saving_annual expected $202.80, got {body['green']['saving_annual']}"
+    assert abs(body["cheapest"]["saving_annual"] - 371.76) < 0.10, \
+        f"Marcus cheapest saving_annual expected $371.76, got {body['cheapest']['saving_annual']}"
+
+
+def test_elena_flagship_values(agentcore_client):
+    """DEMO-02: Elena Vasquez (CUST-003) Green=$14.00, Cheapest=$25.67.
+
+    Pinned values: monthly from CONTEXT.md D-03; annual = monthly * 12 per
+    lambda/handler.py::simulate_savings_pure L110,116.
+    """
+    body = _invoke_agent(agentcore_client, "CUST-003")
+    assert abs(body["green"]["saving_monthly"] - 14.00) < 0.05, \
+        f"Elena green saving_monthly expected $14.00, got {body['green']['saving_monthly']}"
+    assert abs(body["cheapest"]["saving_monthly"] - 25.67) < 0.05, \
+        f"Elena cheapest saving_monthly expected $25.67, got {body['cheapest']['saving_monthly']}"
+    assert abs(body["green"]["saving_annual"] - 168.00) < 0.10, \
+        f"Elena green saving_annual expected $168.00, got {body['green']['saving_annual']}"
+    assert abs(body["cheapest"]["saving_annual"] - 308.04) < 0.10, \
+        f"Elena cheapest saving_annual expected $308.04, got {body['cheapest']['saving_annual']}"
+
+
 # --- Phase 6: narrative fields present + validator-passing on live runtime ---
 
 
