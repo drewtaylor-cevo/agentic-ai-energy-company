@@ -242,9 +242,10 @@ UI rendering of those responses: **NOT VISUALLY VERIFIED** — vitest mocked cov
 
 **Lock date:** 2026-04-25 (Plan 07 Task 2)
 **Lock boundary:** git tag `demo-v1.0`
-**Tagged commit SHA:** _recorded after user cuts the tag — see footer of this section_
-**Tag type:** annotated (via `git tag -a`, not lightweight)
-**Pushed to origin:** _recorded after user cuts the tag_
+**Tagged commit SHA:** `aba3a99c67994f39d9d496ddfd29c9116b756928` (commit `docs(05-07): summarize phase close + tag handoff`)
+**Annotated tag object SHA:** `3bb0f51380176deedd1712d5dee17a70ccd94887` (separate annotated-tag object)
+**Tag type:** annotated (`git cat-file -t demo-v1.0` returned `tag`)
+**Pushed to origin:** no (user skipped push; tag is local-only on the presenter laptop; no `origin` remote configured). To share: configure remote and `git push <remote> demo-v1.0`.
 
 **What the tag contains (and does NOT contain):**
 - ✓ CONTAINS: `ui/package.json` (with `build:mock` + `preview:mock` scripts), `ui/package-lock.json`, `requirements.txt`, `requirements-dev.txt`, all CDK source under `infrastructure/`, all `agent/`/`api_lambda/`/`lambda/` source, all Phase 5 SUMMARYs (01–07), `05-DEPLOY-OUTPUTS.md` (captured `ApiEndpoint` + `AgentRuntimeArn`), `05-VERIFICATION.md` (this file), `DEMO-RUNBOOK.md`.
@@ -297,7 +298,12 @@ None of these affect the v1.0 demo pass criteria. Phase 5 closes with no new blo
 
 ### Tagged SHA (appended after `git tag -a demo-v1.0`)
 
-_This footer line will be updated with the literal tagged SHA after the user cuts the tag and approves Task 2._
+- **Tagged commit:** `aba3a99c67994f39d9d496ddfd29c9116b756928`
+- **Annotated tag object:** `3bb0f51380176deedd1712d5dee17a70ccd94887`
+- **Tag name:** `demo-v1.0`
+- **Tagger:** Drew Taylor
+- **Message:** `Demo-ready snapshot — 2026-04-25`
+- **Remote push:** skipped — tag is local-only on the presenter laptop
 
 ---
 

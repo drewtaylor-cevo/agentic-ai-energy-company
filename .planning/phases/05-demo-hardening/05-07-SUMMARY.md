@@ -42,8 +42,10 @@ git tag -a demo-v1.0 -m "Demo-ready snapshot — 2026-04-25"
 git rev-parse demo-v1.0 > /tmp/phase5-tagged-sha.txt
 ```
 
-Tagged SHA: _updated inline in this file after user approval_
-Pushed to origin: _updated inline in this file after user approval_
+- Tagged commit SHA: `aba3a99c67994f39d9d496ddfd29c9116b756928`
+- Annotated tag object SHA: `3bb0f51380176deedd1712d5dee17a70ccd94887`
+- `git cat-file -t demo-v1.0` returned `tag` (confirms annotated, not lightweight)
+- Pushed to origin: no (tag is local-only; no `origin` remote configured in this clone)
 
 ### Task 3 — 05-VERIFICATION.md finalized
 
