@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Demo Polish & LLM Narrative
-status: blocked
-stopped_at: Phase 6 Plan 03 — DEMO-02 regression on Claude Sonnet 4.6 (tool-use binding broken)
-last_updated: "2026-04-25T08:35:00.000Z"
-last_activity: 2026-04-25 -- Phase 06 execution paused; decimal 6.1 planned
+status: Phase 6 partially shipped — extended schema serves live in us-east-1, but DEMO-02 $30/$55 preservation fails on Sonnet 4.6
+stopped_at: Phase 06.1 context gathered
+last_updated: "2026-04-25T09:04:53.443Z"
+last_activity: 2026-04-25 -- Phase 06 Plan 03 executed with 5 deploy cycles; DEMO-02 regression surfaced; 06-SAMPLES.md intentionally withheld
 progress:
-  total_phases: 5
-  completed_phases: 0
+  total_phases: 6
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 67
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -44,6 +44,10 @@ Progress: [          ] 0% (0/5 phases complete)
 | 10 | Freeze + Rollback Drill | DEMO-04, DEMO-06 | Phases 6–9 |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 06.1 inserted after Phase 6: Resolve Sonnet 4.6 tool-use regression (DEMO-02) (URGENT)
 
 ### Decisions
 
@@ -100,7 +104,7 @@ Non-blocking carry-forwards from v1.0 phase VERIFICATIONs (see `milestones/v1.0-
 ## Session Continuity
 
 Last session: --stopped-at
-Stopped at: Phase 6 context gathered
+Stopped at: Phase 06.1 context gathered
 Resume file: --resume-file
 
 **Environment lock (v1.0 carry-forward):** `demo-v1.0` annotated git tag on main
