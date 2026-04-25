@@ -146,3 +146,93 @@ def test_agentcore_stack_has_ssm_parameter():
             "Type": "String",
         },
     )
+
+
+# --- Phase 7: alias + Provisioned Concurrency synth assertions (D-14) ---
+
+
+def _synth_with_context(demo_pc: int | None = None) -> Template:
+    """Synth BackendApiStack with an optional -c demo_pc=N context override.
+
+    Plain helper, not a fixture — per-test context variance can't be
+    expressed with module-scoped `synth_template` (lines 25-33).
+    """
+    ctx = {"demo_pc": demo_pc} if demo_pc is not None else {}
+    app = cdk.App(context=ctx)
+    stack = BackendApiStack(
+        app,
+        "TestBackendApiStack",
+        env=cdk.Environment(region="us-east-1", account="123456789012"),
+    )
+    return Template.from_stack(stack)
+
+
+def test_alias_live_exists():
+    """D-09/D-10 + D-14: named Lambda alias 'live' ALWAYS present in template."""
+    template = _synth_with_context(demo_pc=0)
+    template.has_resource_properties(
+        "AWS::Lambda::Alias",
+        {"Name": "live"},
+    )
+
+
+def test_integration_targets_alias():
+    """D-09 + D-14: HttpLambdaIntegration IntegrationUri references the alias, not $LATEST / raw fn."""
+    template = _synth_with_context(demo_pc=0)
+    template_json = template.to_json()
+
+    integrations = [
+        r for r in template_json["Resources"].values()
+        if r.get("Type") == "AWS::ApiGatewayV2::Integration"
+    ]
+    assert len(integrations) == 1, (
+        f"Expected exactly one ApiGatewayV2::Integration, got {len(integrations)}"
+    )
+    integ_uri = integrations[0]["Properties"].get("IntegrationUri")
+    assert integ_uri is not None, "Integration missing IntegrationUri"
+
+    alias_logical_ids = [
+        logical_id
+        for logical_id, r in template_json["Resources"].items()
+        if r.get("Type") == "AWS::Lambda::Alias"
+    ]
+    assert alias_logical_ids, "No AWS::Lambda::Alias in template"
+
+    # Serialise IntegrationUri (could be str or Fn::Join/Ref/Fn::GetAtt dict)
+    # and confirm at least one alias logical ID appears somewhere in it.
+    import json as _json
+    integ_uri_str = _json.dumps(integ_uri)
+    assert any(alias_id in integ_uri_str for alias_id in alias_logical_ids), (
+        f"IntegrationUri does not reference alias: {integ_uri}"
+    )
+
+
+def test_pc_present_when_demo_pc_set():
+    """D-11 + D-14: -c demo_pc=1 attaches ProvisionedConcurrencyConfig(1) to alias."""
+    template = _synth_with_context(demo_pc=1)
+    template.has_resource_properties(
+        "AWS::Lambda::Alias",
+        {
+            "Name": "live",
+            "ProvisionedConcurrencyConfig": {
+                "ProvisionedConcurrentExecutions": 1,
+            },
+        },
+    )
+
+
+def test_pc_absent_when_demo_pc_zero():
+    """D-11 + D-14: -c demo_pc=0 (default) leaves alias without ProvisionedConcurrencyConfig."""
+    template = _synth_with_context(demo_pc=0)
+    template_json = template.to_json()
+    aliases = [
+        r for r in template_json["Resources"].values()
+        if r.get("Type") == "AWS::Lambda::Alias"
+    ]
+    assert len(aliases) == 1, f"Expected exactly one alias, got {len(aliases)}"
+    # has_resource_properties can only assert presence. Absence must be
+    # verified via raw traversal (matching the Phase 3 pattern at line 117).
+    assert "ProvisionedConcurrencyConfig" not in aliases[0]["Properties"], (
+        f"Expected no PC config when demo_pc=0, found: "
+        f"{aliases[0]['Properties'].get('ProvisionedConcurrencyConfig')}"
+    )
