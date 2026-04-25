@@ -101,7 +101,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 3. Backend API | v1.0 | 3/3 | ✓ Complete | 2026-04-24 |
 | 4. Agent-Assist UI | v1.0 | 5/5 | ✓ Complete | 2026-04-24 |
 | 5. Demo Hardening | v1.0 | 7/7 | ✓ Complete | 2026-04-25 |
-| 6. Agent Narrative + Guardrail | v2.0 | 0/3 | Not started | — |
+| 6. Agent Narrative + Guardrail | v2.0 | 2.5/3 | ⚠ Partial — Plan 06-03 DEMO-02 regression | — |
 | 7. API Pass-Through + Pre-Warm Route | v2.0 | 0/0 | Not started | — |
 | 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 0/0 | Not started | — |
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 0/0 | Not started | — |

@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Demo Polish & LLM Narrative
-status: executing
-stopped_at: Phase 6 context gathered
-last_updated: "2026-04-25T06:08:28.894Z"
-last_activity: 2026-04-25 -- Phase 06 execution started
+status: blocked
+stopped_at: Phase 6 Plan 03 — DEMO-02 regression on Claude Sonnet 4.6 (tool-use binding broken)
+last_updated: "2026-04-25T08:35:00.000Z"
+last_activity: 2026-04-25 -- Phase 06 execution paused; decimal 6.1 planned
 progress:
   total_phases: 5
   completed_phases: 0
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-04-25 at v2.0 milestone start)
 
 ## Current Position
 
-Phase: 06 (agent-narrative-guardrail) — EXECUTING
-Plan: 1 of 3
-Next: `/gsd-plan-phase 6`
-Status: Executing Phase 06
-Last activity: 2026-04-25 -- Phase 06 execution started
+Phase: 06 (agent-narrative-guardrail) — BLOCKED (Plan 03 partial)
+Plan: 3 of 3 (shipped partially — see 06-03-SUMMARY.md Deviations 2-4)
+Next: Create decimal phase 6.1 to (a) resolve Strands/Claude-4.6 tool-use regression OR (b) restore Claude 3.7 Sonnet access and revert model swap
+Status: Phase 6 partially shipped — extended schema serves live in us-east-1, but DEMO-02 $30/$55 preservation fails on Sonnet 4.6
+Last activity: 2026-04-25 -- Phase 06 Plan 03 executed with 5 deploy cycles; DEMO-02 regression surfaced; 06-SAMPLES.md intentionally withheld
 
 Progress: [          ] 0% (0/5 phases complete)
 
