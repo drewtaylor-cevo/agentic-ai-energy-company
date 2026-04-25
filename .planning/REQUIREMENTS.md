@@ -78,25 +78,35 @@ Carried forward into the production-path milestone (v3.0). Covered in `STATE.md`
 
 ## Traceability
 
-Phases will be assigned by `gsd-roadmapper`. Format:
+Phases assigned by `gsd-roadmapper` on 2026-04-25.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UI-03 | — | Not started |
-| UI-04 | — | Not started |
-| UI-05 | — | Not started |
-| UI-06 | — | Not started |
-| UI-07 | — | Not started |
-| UI-08 | — | Not started |
-| DEMO-03 | — | Not started |
-| DEMO-04 | — | Not started |
-| DEMO-05 | — | Not started |
-| DEMO-06 | — | Not started |
+| UI-03 | Phase 6 (backend) + Phase 8 (UI render) | Not started |
+| UI-04 | Phase 6 (backend) + Phase 8 (UI render) | Not started |
+| UI-05 | Phase 6 | Not started |
+| UI-06 | Phase 8 | Not started |
+| UI-07 | Phase 8 | Not started |
+| UI-08 | Phase 8 | Not started |
+| DEMO-03 | Phase 7 (plumbing) + Phase 9 (tooling) | Not started |
+| DEMO-04 | Phase 10 | Not started |
+| DEMO-05 | Phase 9 | Not started |
+| DEMO-06 | Phase 10 | Not started |
 
 **Coverage:**
 - v2.0 requirements: 10 total
-- Mapped to phases: 0 (awaiting roadmap)
-- Unmapped: 10
+- Mapped to phases: 10 ✓
+- Unmapped: 0
+
+**Phase distribution:**
+- Phase 6 (Agent Narrative + Guardrail): UI-03 (backend half), UI-04 (backend half), UI-05
+- Phase 7 (API Pass-Through + Pre-Warm Route): DEMO-03 (plumbing half)
+- Phase 8 (UI Integration + Feature Flag + Version Indicator): UI-03 (UI half), UI-04 (UI half), UI-06, UI-07, UI-08
+- Phase 9 (Pre-Warm Tooling + Eval Harness + Keep-Alive): DEMO-03 (complete), DEMO-05
+- Phase 10 (Freeze + Rollback Drill): DEMO-04, DEMO-06
+
+Note: UI-03, UI-04, and DEMO-03 span two phases by design — the backend/transport half lands first (Phase 6 / Phase 7) and the operator- or user-visible half lands later (Phase 8 / Phase 9). Each requirement closes only when both halves ship.
 
 ---
 *Requirements defined: 2026-04-25 (v2.0 start)*
+*Traceability mapped: 2026-04-25 (v2.0 roadmap)*

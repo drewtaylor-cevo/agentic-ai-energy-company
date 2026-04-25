@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Demo Polish & LLM Narrative
-status: defining_requirements
-stopped_at: v2.0 started on 2026-04-25 — defining requirements for UI-03, UI-04, DEMO-03, DEMO-04
-last_updated: "2026-04-25T03:00:00.000Z"
-last_activity: 2026-04-25 — v2.0 milestone started
+status: ready_to_plan
+stopped_at: v2.0 roadmap committed on 2026-04-25 — Phases 6–10 mapped, next phase = 6
+last_updated: "2026-04-25T13:45:00.000Z"
+last_activity: 2026-04-25 — v2.0 ROADMAP.md created (Phases 6–10)
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,23 +21,39 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-25 at v2.0 milestone start)
 
 **Core value:** A call centre agent can open any customer account and immediately see exactly how much that customer could save and on which plan — making every retention conversation data-driven.
-**Current focus:** v2.0 — LLM narrative on recommendation cards (UI-03, UI-04) plus demo hardening (DEMO-03 pre-warm, DEMO-04 environment lock). PROD-01 / PROD-02 deferred to v3.0.
+**Current focus:** v2.0 — LLM narrative on recommendation cards (UI-03, UI-04, UI-05, UI-06, UI-07, UI-08) plus demo hardening (DEMO-03 pre-warm, DEMO-04 environment lock, DEMO-05 keep-alive, DEMO-06 rollback drill). PROD-01 / PROD-02 deferred to v3.0.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Not started — next is Phase 6 (Agent Narrative + Guardrail)
 Plan: —
-Next: define REQUIREMENTS.md → roadmap → `/gsd-plan-phase [N]`
-Status: Defining requirements
-Last activity: 2026-04-25 — v2.0 milestone started
+Next: `/gsd-plan-phase 6`
+Status: Roadmap committed; ready to plan Phase 6
+Last activity: 2026-04-25 — v2.0 roadmap committed (Phases 6–10)
 
-Progress: [          ] 0%
+Progress: [          ] 0% (0/5 phases complete)
+
+## v2.0 Phase Structure
+
+| Phase | Name | Requirements | Depends on |
+|-------|------|--------------|------------|
+| 6 | Agent Narrative + Guardrail | UI-03 (backend), UI-04 (backend), UI-05 | v1.0 shipped stack |
+| 7 | API Pass-Through + Pre-Warm Route | DEMO-03 (plumbing) | Phase 6 |
+| 8 | UI Integration + Feature Flag + Version Indicator | UI-03 (UI), UI-04 (UI), UI-06, UI-07, UI-08 | Phase 7 |
+| 9 | Pre-Warm Tooling + Eval Harness + Keep-Alive | DEMO-03 (complete), DEMO-05 | Phase 7 |
+| 10 | Freeze + Rollback Drill | DEMO-04, DEMO-06 | Phases 6–9 |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. v1.0-era decisions preserved there with ✓ Good / ⚠️ Revisit markers. Full v1.0 decision log: see `.planning/milestones/v1.0-ROADMAP.md` Key Decisions section.
+
+v2.0-specific decisions locked at requirements stage (see REQUIREMENTS.md):
+- Narrative generation strategy: same-turn Claude 3.7 Sonnet (Option A) — single Bedrock call, smallest freeze surface
+- Keep-alive: ship `scripts/demo-keepalive.sh`; honest-framing recovery is the secondary net
+- Rollback mechanism: `?narrative=off` flag + `demo-v1.0` tag + `build:mock` dist (drilled at T-48h)
+- No interim `demo-v1.1` tag — feature flag covers the common failure mode
 
 ### Pending Todos
 
@@ -47,18 +63,29 @@ None.
 
 **Pre-demo (carry-forward from v1.0, required before any live presentation):**
 - **T-24h visual rehearsal:** Chrome DevTools-measured 2-pass rehearsal per DEMO-RUNBOOK §2 T-24h. Every persona warm median must stay <3000ms; if not, treat as a gap against UI-02.
-- **Discipline commitment (D-13):** AWS resources are "don't touch" between the `demo-v1.0` tag and the demo.
+- **Discipline commitment (D-13):** AWS resources are "don't touch" between the `demo-v2.0` tag and the demo.
+
+**v2.0-specific (must remain true through the milestone):**
+- UI-01 (both cards above fold at 1280px) must stay satisfied with narratives at max generated length.
+- UI-02 (<3s lookup-to-rendered) must stay satisfied — primary risk is latency stacking from the extra ~80 output tokens per card.
+- Narrative outputs must never contain digits or currency symbols — enforced by the Pydantic `field_validator` delivered in Phase 6.
 
 ## Deferred Items
 
-v1.0-close carry-forwards, now resolved at v2.0 start:
+v1.0-close carry-forwards, resolved at v2.0 start:
 
 | Category | Item | Status | Resolved At |
 |----------|------|--------|-------------|
-| v2.0 | UI-03: LLM-generated call script snippet | In scope (v2.0) | 2026-04-25 (v2.0 start) |
-| v2.0 | UI-04: LLM-generated usage narrative | In scope (v2.0) | 2026-04-25 (v2.0 start) |
-| v2.0 | DEMO-03: Pre-warm script | In scope (v2.0) | 2026-04-25 (v2.0 start) |
-| v2.0 | DEMO-04: Frozen environment lock (48hr pre-presentation) | In scope (v2.0) | 2026-04-25 (v2.0 start) |
+| v2.0 | UI-03: LLM-generated call script snippet | In scope (Phase 6/8) | 2026-04-25 (v2.0 roadmap) |
+| v2.0 | UI-04: LLM-generated usage narrative | In scope (Phase 6/8) | 2026-04-25 (v2.0 roadmap) |
+| v2.0 | UI-05: Narrative-output validator | In scope (Phase 6) | 2026-04-25 (v2.0 roadmap) |
+| v2.0 | UI-06: `?narrative=off` feature flag | In scope (Phase 8) | 2026-04-25 (v2.0 roadmap) |
+| v2.0 | UI-07: Version indicator | In scope (Phase 8) | 2026-04-25 (v2.0 roadmap) |
+| v2.0 | UI-08: Skeleton-first narrative render | In scope (Phase 8) | 2026-04-25 (v2.0 roadmap) |
+| v2.0 | DEMO-03: Pre-warm script | In scope (Phase 7/9) | 2026-04-25 (v2.0 roadmap) |
+| v2.0 | DEMO-04: Frozen environment lock (48hr pre-presentation) | In scope (Phase 10) | 2026-04-25 (v2.0 roadmap) |
+| v2.0 | DEMO-05: Keep-alive script | In scope (Phase 9) | 2026-04-25 (v2.0 roadmap) |
+| v2.0 | DEMO-06: Rollback drill | In scope (Phase 10) | 2026-04-25 (v2.0 roadmap) |
 | v3.0 | PROD-01: Live CRM integration | Deferred to v3.0 | 2026-04-25 (v2.0 start) |
 | v3.0 | PROD-02: Customer-facing self-service portal | Deferred to v3.0 | 2026-04-25 (v2.0 start) |
 
@@ -68,9 +95,9 @@ Non-blocking carry-forwards from v1.0 phase VERIFICATIONs (see `milestones/v1.0-
 
 ## Session Continuity
 
-Last session: 2026-04-25 v2.0 milestone start
-Stopped at: v2.0 defining requirements for UI-03, UI-04, DEMO-03, DEMO-04
-Resume file: n/a
+Last session: 2026-04-25 v2.0 roadmap committed
+Stopped at: v2.0 roadmap committed — Phases 6–10 mapped; next phase = 6
+Resume file: .planning/ROADMAP.md
 
 **Environment lock (v1.0 carry-forward):** `demo-v1.0` annotated git tag on main
 - Tagged commit: `aba3a99c67994f39d9d496ddfd29c9116b756928`
@@ -78,5 +105,5 @@ Resume file: n/a
 - Push to origin: skipped (local-only, no origin configured)
 
 **Suggested next commands:**
-- Continue `/gsd-new-milestone` — research decision → REQUIREMENTS.md → ROADMAP.md
-- `/gsd-plan-phase [N]` once the roadmap is approved
+- `/gsd-plan-phase 6` — decompose Phase 6 (Agent Narrative + Guardrail) into executable plans
+- `/gsd-research-phase 6` — optional deeper research flagged by SUMMARY.md (Strands `structured_output` retry-on-`ValidationError` behaviour, Pydantic v2 confirmation)
