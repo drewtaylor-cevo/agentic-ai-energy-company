@@ -1,34 +1,16 @@
 """Narrative validator tests — UI-05 proof.
 
-Wave 0 scaffolding: validator rules tested against a shared helper
-`_reject_forbidden`. Plan 02 moves the helper into
-`agent/narrative/validators.py` and wires it onto TrackInfo via
-`@field_validator`; this test file updates its import path at that point.
+Plan 02 (this state): `_reject_forbidden` + word-cap constants live in
+`agent/narrative/validators.py`; TrackInfo integration tests below exercise
+the classmethod validators wired via `@field_validator`.
 """
 import pytest
 
-from agent.narrative.banned_terms import BANNED_REGEX, NUMERIC_REGEX
-
-
-# --- Shared helper (Wave 0 — Plan 02 relocates to agent/narrative/validators.py) ---
-
-
-def _reject_forbidden(value: str, max_words: int, field_label: str) -> str:
-    """Raise ValueError when value breaks any rule; otherwise return stripped value."""
-    if NUMERIC_REGEX.search(value):
-        raise ValueError(f"{field_label}: contains forbidden digit or currency symbol")
-    m = BANNED_REGEX.search(value)
-    if m:
-        raise ValueError(f"{field_label}: contains banned term {m.group()!r}")
-    words = value.split()
-    if len(words) > max_words:
-        raise ValueError(f"{field_label}: {len(words)} words exceeds cap {max_words}")
-    return value.strip()
-
-
-# Sentinel caps — match TrackInfo wiring in Plan 02.
-_USAGE_NARRATIVE_MAX_WORDS = 20
-_CALL_SCRIPT_MAX_WORDS = 22
+from agent.narrative.validators import (
+    _reject_forbidden,
+    USAGE_NARRATIVE_MAX_WORDS as _USAGE_NARRATIVE_MAX_WORDS,
+    CALL_SCRIPT_MAX_WORDS as _CALL_SCRIPT_MAX_WORDS,
+)
 
 
 # --- UI-05 : digits + currency rejected ---
@@ -145,8 +127,8 @@ def test_call_script_word_cap_at_boundary_passes():
 
 
 def test_char_cap_sentinel_values():
-    # Plan 02 must wire Field(max_length=140) on usage_narrative and max_length=180 on call_script.
-    # This sentinel test exists so a drift on those caps is caught in Wave 0.
+    # Plan 02 wires Field(max_length=140) on usage_narrative and max_length=180 on call_script.
+    # This sentinel test exists so a drift on those caps is caught.
     assert _USAGE_NARRATIVE_MAX_WORDS == 20
     assert _CALL_SCRIPT_MAX_WORDS == 22
 
@@ -165,3 +147,42 @@ def test_positive_cases_accepted(clean):
     out = _reject_forbidden(clean, max_words=_CALL_SCRIPT_MAX_WORDS, field_label="any")
     assert isinstance(out, str)
     assert out  # non-empty
+
+
+# --- TrackInfo integration (Plan 02 wiring) ---
+
+
+def test_trackinfo_accepts_clean_narrative(mock_trackinfo):
+    from agent.agent import TrackInfo
+    TrackInfo(**mock_trackinfo)   # must not raise
+
+
+def test_trackinfo_rejects_poisoned_usage_narrative(mock_trackinfo):
+    from pydantic import ValidationError as _VE
+    from agent.agent import TrackInfo
+    bad = {**mock_trackinfo, "usage_narrative": "Saves about 30 dollars a month"}
+    with pytest.raises(_VE, match="forbidden digit"):
+        TrackInfo(**bad)
+
+
+def test_trackinfo_rejects_poisoned_call_script(mock_trackinfo):
+    from pydantic import ValidationError as _VE
+    from agent.agent import TrackInfo
+    bad = {**mock_trackinfo, "call_script": "Switch to EcoFlex now"}
+    with pytest.raises(_VE, match="banned term"):
+        TrackInfo(**bad)
+
+
+def test_trackinfo_rejects_over_char_cap(mock_trackinfo):
+    from pydantic import ValidationError as _VE
+    from agent.agent import TrackInfo
+    bad = {**mock_trackinfo, "usage_narrative": "a b " * 80}  # well over 140 chars
+    with pytest.raises(_VE):
+        TrackInfo(**bad)
+
+
+def test_system_prompt_includes_negative_constraint():
+    """D-15 dual-gate: banned-terms appear in the SYSTEM_PROMPT."""
+    from agent.agent import SYSTEM_PROMPT
+    assert "NEVER use:" in SYSTEM_PROMPT
+    assert "Origin" in SYSTEM_PROMPT   # competitor list injected
