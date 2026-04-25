@@ -6,6 +6,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY agent.py .
+COPY narrative/ ./narrative/
 
 EXPOSE 8080
 
