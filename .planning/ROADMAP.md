@@ -54,7 +54,9 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   2. `GET /?prewarm=1` returns HTTP 204 within the handler budget after exercising one minimal agent turn, and never returns 5xx even when the downstream warm-up fails.
   3. API Gateway is wired to a named Lambda alias (not `$LATEST`) with Provisioned Concurrency configurable via `cdk deploy -c demo_pc=1`.
   4. UI-01 (both cards above the fold at 1280px) and UI-02 (<3s lookup-to-rendered) still hold on live smoke with narratives included.
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 07-01-PLAN.md — Handler marker-strip + narrative_source log + ?prewarm=1 branch (D-01/D-02/D-04/D-05/D-06/D-07/D-08) + 6 pytest additions (D-13)
+- [ ] 07-02-PLAN.md — CDK alias `live` + conditional Provisioned Concurrency + integration swap + demo_pc context read (D-09/D-10/D-11) + 4 synth assertions (D-14); D-15 live-smoke runbook captured in 07-01 SUMMARY
 
 ### Phase 8: UI Integration + Feature Flag + Version Indicator
 **Goal**: Call centre agents see the narrative rows on each card with stable layout, and operators have a URL-level kill switch plus a visible build marker to defend against stale-bundle risk at demo time.
@@ -83,7 +85,6 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 ### Phase 10: Freeze + Rollback Drill
 **Goal**: The production stack is locked at T-48h against drift, and the rollback mechanism is proven before it is depended on at presentation time.
 **Depends on**: Phase 6, Phase 7, Phase 8, Phase 9 (all upstream phases green)
-**Requirements**: DEMO-04, DEMO-06
 **Success Criteria** (what must be TRUE):
   1. `pip-compile --generate-hashes` produces pinned `requirements.txt` and `requirements-dev.txt` that rebuild byte-identical Lambda bundles from a clean venv; `npm ci` reproduces the UI build against the committed `package-lock.json`.
   2. CloudFormation stack policies deny `Update:*` on FoundationStack, AgentCoreStack, and BackendApiStack; FoundationStack is termination-protected; `cdk diff` is empty against the deployed stack at freeze time.
@@ -102,11 +103,11 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 4. Agent-Assist UI | v1.0 | 5/5 | ✓ Complete | 2026-04-24 |
 | 5. Demo Hardening | v1.0 | 7/7 | ✓ Complete | 2026-04-25 |
 | 6. Agent Narrative + Guardrail | v2.0 | 3/3 | ✓ Complete | 2026-04-25 |
-| 7. API Pass-Through + Pre-Warm Route | v2.0 | 0/0 | Not started | — |
+| 7. API Pass-Through + Pre-Warm Route | v2.0 | 0/2 | Ready to execute | — |
 | 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 0/0 | Not started | — |
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 0/0 | Not started | — |
 | 10. Freeze + Rollback Drill | v2.0 | 0/0 | Not started | — |
 
 ---
 *Roadmap created: 2026-04-23*
-*Last updated: 2026-04-25 — v2.0 roadmap committed (Phases 6–10)*
+*Last updated: 2026-04-25 — Phase 7 plans committed (2 plans, Wave 1 parallel)*
