@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Demo Polish & LLM Narrative
-status: ready_to_plan
-stopped_at: v2.0 roadmap committed on 2026-04-25 — Phases 6–10 mapped, next phase = 6
-last_updated: "2026-04-25T13:45:00.000Z"
-last_activity: 2026-04-25 — v2.0 ROADMAP.md created (Phases 6–10)
+status: planning
+stopped_at: Phase 6 context gathered
+last_updated: "2026-04-25T03:57:47.542Z"
+last_activity: 2026-04-25 — v2.0 roadmap committed (Phases 6–10)
 progress:
   total_phases: 5
   completed_phases: 0
@@ -50,6 +50,7 @@ Progress: [          ] 0% (0/5 phases complete)
 Decisions are logged in PROJECT.md Key Decisions table. v1.0-era decisions preserved there with ✓ Good / ⚠️ Revisit markers. Full v1.0 decision log: see `.planning/milestones/v1.0-ROADMAP.md` Key Decisions section.
 
 v2.0-specific decisions locked at requirements stage (see REQUIREMENTS.md):
+
 - Narrative generation strategy: same-turn Claude 3.7 Sonnet (Option A) — single Bedrock call, smallest freeze surface
 - Keep-alive: ship `scripts/demo-keepalive.sh`; honest-framing recovery is the secondary net
 - Rollback mechanism: `?narrative=off` flag + `demo-v1.0` tag + `build:mock` dist (drilled at T-48h)
@@ -62,10 +63,12 @@ None.
 ### Blockers/Concerns
 
 **Pre-demo (carry-forward from v1.0, required before any live presentation):**
+
 - **T-24h visual rehearsal:** Chrome DevTools-measured 2-pass rehearsal per DEMO-RUNBOOK §2 T-24h. Every persona warm median must stay <3000ms; if not, treat as a gap against UI-02.
 - **Discipline commitment (D-13):** AWS resources are "don't touch" between the `demo-v2.0` tag and the demo.
 
 **v2.0-specific (must remain true through the milestone):**
+
 - UI-01 (both cards above fold at 1280px) must stay satisfied with narratives at max generated length.
 - UI-02 (<3s lookup-to-rendered) must stay satisfied — primary risk is latency stacking from the extra ~80 output tokens per card.
 - Narrative outputs must never contain digits or currency symbols — enforced by the Pydantic `field_validator` delivered in Phase 6.
@@ -90,20 +93,23 @@ v1.0-close carry-forwards, resolved at v2.0 start:
 | v3.0 | PROD-02: Customer-facing self-service portal | Deferred to v3.0 | 2026-04-25 (v2.0 start) |
 
 Non-blocking carry-forwards from v1.0 phase VERIFICATIONs (see `milestones/v1.0-phases/05-demo-hardening/05-VERIFICATION.md` Gaps Summary):
+
 - Phase 4 WR-01 / IN-01 / IN-02 — orchestrator-accepted non-blockers
 - Phase 5 visual rehearsal — scheduled at T-24h per DEMO-RUNBOOK
 
 ## Session Continuity
 
-Last session: 2026-04-25 v2.0 roadmap committed
-Stopped at: v2.0 roadmap committed — Phases 6–10 mapped; next phase = 6
-Resume file: .planning/ROADMAP.md
+Last session: --stopped-at
+Stopped at: Phase 6 context gathered
+Resume file: --resume-file
 
 **Environment lock (v1.0 carry-forward):** `demo-v1.0` annotated git tag on main
+
 - Tagged commit: `aba3a99c67994f39d9d496ddfd29c9116b756928`
 - Tag object: `3bb0f51380176deedd1712d5dee17a70ccd94887`
 - Push to origin: skipped (local-only, no origin configured)
 
 **Suggested next commands:**
+
 - `/gsd-plan-phase 6` — decompose Phase 6 (Agent Narrative + Guardrail) into executable plans
 - `/gsd-research-phase 6` — optional deeper research flagged by SUMMARY.md (Strands `structured_output` retry-on-`ValidationError` behaviour, Pydantic v2 confirmation)
