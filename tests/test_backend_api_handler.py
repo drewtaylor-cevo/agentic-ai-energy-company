@@ -6,6 +6,7 @@ and fresh session ID per invocation (D-11).
 """
 import io
 import json
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -175,3 +176,201 @@ def test_fresh_session_id_per_call(mock_client, mock_savings_response):
         "runtimeSessionId"
     )
     assert session_1 != session_2, "Session IDs must differ between invocations"
+
+
+# --- Phase 7: Narrative pass-through + marker strip (D-06, D-07, D-08) ---
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_narrative_pass_through(mock_client, caplog):
+    """D-06/D-07/D-08: narrative fields byte-identical, marker stripped, log fires."""
+    agent_body = {
+        "green": {
+            "plan_id": "ECO",
+            "plan_name": "EcoFlex 100",
+            "saving_monthly": 30.00,
+            "saving_annual": 360.00,
+            "usage_narrative": "Winter-heavy household with consistent usage.",
+            "call_script": "Ask about EcoFlex — it suits your winter profile.",
+        },
+        "cheapest": {
+            "plan_id": "VAL",
+            "plan_name": "Value 12",
+            "saving_monthly": 55.00,
+            "saving_annual": 660.00,
+            "usage_narrative": "Heavy evening usage peaking in December.",
+            "call_script": "Consider Value 12 for simpler flat-rate billing.",
+        },
+        "_narrative_source": {
+            "usage_narrative": "model",
+            "call_script": "model",
+        },
+    }
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(agent_body)
+
+    with caplog.at_level(logging.INFO, logger="api_lambda.handler"):
+        result = handler(_make_event("CUST-001"), None)
+
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+
+    # D-06: marker stripped from response body.
+    assert "_narrative_source" not in body
+
+    # D-08: narrative fields flow byte-identically.
+    assert body["green"]["usage_narrative"] == agent_body["green"]["usage_narrative"]
+    assert body["green"]["call_script"] == agent_body["green"]["call_script"]
+    assert body["cheapest"]["usage_narrative"] == agent_body["cheapest"]["usage_narrative"]
+    assert body["cheapest"]["call_script"] == agent_body["cheapest"]["call_script"]
+
+    # D-02 invariant: existing fields unchanged.
+    assert body["green"]["saving_monthly"] == 30.00
+    assert body["cheapest"]["saving_monthly"] == 55.00
+
+    # D-07: structured narrative_source log fires exactly once with correct shape.
+    narrative_source_logs = [
+        json.loads(r.message) for r in caplog.records
+        if r.message.startswith("{") and "narrative_source" in r.message
+    ]
+    assert len(narrative_source_logs) == 1
+    assert narrative_source_logs[0] == {
+        "event": "narrative_source",
+        "customer_id": "CUST-001",
+        "narrative_source": {"usage_narrative": "model", "call_script": "model"},
+    }
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_narrative_pass_through_marker_absent(mock_client, caplog, mock_savings_response):
+    """D-06/D-07: pop(..., None) is silent when marker absent; log fires with null."""
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(
+        mock_savings_response
+    )
+
+    with caplog.at_level(logging.INFO, logger="api_lambda.handler"):
+        result = handler(_make_event("CUST-001"), None)
+
+    assert result["statusCode"] == 200
+    # Pass-through unchanged when marker absent.
+    assert json.loads(result["body"]) == mock_savings_response
+
+    # D-07: log fires on every successful invoke; narrative_source is null here.
+    narrative_source_logs = [
+        json.loads(r.message) for r in caplog.records
+        if r.message.startswith("{") and "narrative_source" in r.message
+    ]
+    assert len(narrative_source_logs) == 1
+    assert narrative_source_logs[0]["event"] == "narrative_source"
+    assert narrative_source_logs[0]["customer_id"] == "CUST-001"
+    assert narrative_source_logs[0]["narrative_source"] is None
+
+
+# --- Phase 7: Prewarm branch (D-01, D-02, D-04, D-05) ---
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_prewarm_returns_204_happy_path(mock_client, caplog, mock_savings_response):
+    """D-02: ?prewarm=1 runs full invoke + returns 204 + NO narrative_source log."""
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(
+        mock_savings_response
+    )
+
+    event = _make_event("CUST-001")
+    event["queryStringParameters"] = {"prewarm": "1"}
+
+    with caplog.at_level(logging.INFO, logger="api_lambda.handler"):
+        result = handler(event, None)
+
+    assert result["statusCode"] == 204
+    assert result.get("body", "") == ""
+    assert result.get("headers", {}) == {}
+
+    # D-02: full real invoke fired exactly once.
+    assert mock_client.invoke_agent_runtime.call_count == 1
+    call = mock_client.invoke_agent_runtime.call_args
+    assert "runtimeSessionId" in call.kwargs
+    # D-11 / AP-3: fresh uuid4, 36-char.
+    assert len(call.kwargs["runtimeSessionId"]) == 36
+    payload = json.loads(call.kwargs["payload"].decode())
+    assert payload == {"customer_id": "CUST-001"}
+
+    # Prewarm path does NOT emit narrative_source (body discarded).
+    narrative_source_logs = [
+        r for r in caplog.records
+        if r.message.startswith("{") and "narrative_source" in r.message
+    ]
+    assert len(narrative_source_logs) == 0
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_prewarm_returns_204_on_client_error(mock_client, caplog):
+    """D-04: ClientError in prewarm → 204 + prewarm_failed log with error_code."""
+    from botocore.exceptions import ClientError
+
+    mock_client.invoke_agent_runtime.side_effect = ClientError(
+        {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}},
+        "InvokeAgentRuntime",
+    )
+
+    event = _make_event("CUST-001")
+    event["queryStringParameters"] = {"prewarm": "1"}
+
+    with caplog.at_level(logging.WARNING, logger="api_lambda.handler"):
+        result = handler(event, None)
+
+    # SC-2: NEVER 5xx on prewarm.
+    assert result["statusCode"] == 204
+
+    prewarm_logs = [
+        json.loads(r.message) for r in caplog.records
+        if r.message.startswith("{") and "prewarm_failed" in r.message
+    ]
+    assert len(prewarm_logs) == 1
+    assert prewarm_logs[0]["event"] == "prewarm_failed"
+    assert prewarm_logs[0]["customer_id"] == "CUST-001"
+    assert prewarm_logs[0]["error_code"] == "ThrottlingException"
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_prewarm_returns_204_on_read_timeout(mock_client, caplog):
+    """D-04: ReadTimeoutError in prewarm → 204 + prewarm_failed log.
+
+    Transport-level error (not a ClientError subclass) — error_code falls
+    through to type(exc).__name__ per Pattern 2 swallow-all logic.
+    """
+    from botocore.exceptions import ReadTimeoutError
+
+    mock_client.invoke_agent_runtime.side_effect = ReadTimeoutError(
+        endpoint_url="https://example.com"
+    )
+
+    event = _make_event("CUST-001")
+    event["queryStringParameters"] = {"prewarm": "1"}
+
+    with caplog.at_level(logging.WARNING, logger="api_lambda.handler"):
+        result = handler(event, None)
+
+    assert result["statusCode"] == 204
+    prewarm_logs = [
+        json.loads(r.message) for r in caplog.records
+        if r.message.startswith("{") and "prewarm_failed" in r.message
+    ]
+    assert len(prewarm_logs) == 1
+    assert prewarm_logs[0]["error_code"] == "ReadTimeoutError"
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_prewarm_invalid_customer_id_returns_400(mock_client):
+    """D-01/D-13: ?prewarm=1 + bad customer_id still returns 400 (regex runs first)."""
+    event = _make_event("NOTVALID")
+    event["queryStringParameters"] = {"prewarm": "1"}
+
+    result = handler(event, None)
+
+    # D-13 regex runs BEFORE prewarm dispatch — fast-fail on format.
+    assert result["statusCode"] == 400
+    body = json.loads(result["body"])
+    assert "Invalid customer ID format" in body["error"]
+
+    # Invoke was NEVER called — 400 returned before dispatch.
+    assert mock_client.invoke_agent_runtime.call_count == 0
