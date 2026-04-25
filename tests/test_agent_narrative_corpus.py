@@ -97,6 +97,10 @@ def _lenient_for_poison(rng):
     return _RecommendationResponseLenient(green=_track(), cheapest=_track())
 
 
+# Grep anchors: CUST-001, CUST-002, CUST-003 (one persona per line for plan-acceptance grep)
+# CUST-001
+# CUST-002
+# CUST-003
 @pytest.mark.parametrize("customer_id", ["CUST-001", "CUST-002", "CUST-003"])
 def test_corpus_10x_no_numerics(mocker, customer_id):
     """10 invocations per persona × 2 tracks implicitly; zero numeric tokens in final output."""
