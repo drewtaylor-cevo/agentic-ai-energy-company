@@ -16,6 +16,7 @@ Covers Phase 2 success criteria:
 """
 import json
 import os
+import re
 import uuid
 
 import pytest
@@ -104,3 +105,55 @@ def test_sarah_flagship_values(agentcore_client):
         f"Sarah green saving expected ~$30, got {body['green']['saving_monthly']}"
     assert abs(body["cheapest"]["saving_monthly"] - 55.00) < 0.50, \
         f"Sarah cheapest saving expected ~$55, got {body['cheapest']['saving_monthly']}"
+
+
+# --- Phase 6: narrative fields present + validator-passing on live runtime ---
+
+
+_NUMERIC_RE = re.compile(r"[\d$£€%]")
+
+
+@pytest.mark.parametrize("customer_id", ["CUST-001", "CUST-002", "CUST-003"])
+def test_narrative_fields_present_and_valid(agentcore_client, customer_id):
+    """Phase 6 success criterion 5 proof — live deployment serves the extended schema.
+
+    Per persona, each recommendation track carries non-empty `usage_narrative`
+    and `call_script` strings free of digits and currency symbols. Fallback
+    path ALSO produces compliant strings (D-04), so a fallback fire during
+    smoke does not cause this assertion to fail.
+    """
+    body = _invoke_agent(agentcore_client, customer_id)
+    for track in ("green", "cheapest"):
+        assert track in body, f"{customer_id}: missing track {track!r}"
+        for field_name in ("usage_narrative", "call_script"):
+            assert field_name in body[track], (
+                f"{customer_id}/{track}: missing narrative field {field_name!r}"
+            )
+            value = body[track][field_name]
+            assert isinstance(value, str) and value.strip(), (
+                f"{customer_id}/{track}/{field_name}: empty or non-string value {value!r}"
+            )
+            assert not _NUMERIC_RE.search(value), (
+                f"{customer_id}/{track}/{field_name}: forbidden numeric/currency char in {value!r}"
+            )
+
+
+@pytest.mark.parametrize("customer_id", ["CUST-001", "CUST-002", "CUST-003"])
+def test_narrative_source_marker_present(agentcore_client, customer_id):
+    """D-03 proof: _narrative_source marker emitted by agent (stripped by Phase 7 API Lambda).
+
+    Reading directly via invoke_agent_runtime (not via the API Gateway path),
+    so the marker must be present with shape {track: {field: "model"|"fallback"}}.
+    """
+    body = _invoke_agent(agentcore_client, customer_id)
+    assert "_narrative_source" in body, f"{customer_id}: _narrative_source marker missing"
+    marker = body["_narrative_source"]
+    for track in ("green", "cheapest"):
+        assert track in marker, f"{customer_id}: marker missing track {track!r}"
+        for field_name in ("usage_narrative", "call_script"):
+            assert field_name in marker[track], (
+                f"{customer_id}: marker {track!r} missing field {field_name!r}"
+            )
+            assert marker[track][field_name] in ("model", "fallback"), (
+                f"{customer_id}/{track}/{field_name}: unexpected source {marker[track][field_name]!r}"
+            )
