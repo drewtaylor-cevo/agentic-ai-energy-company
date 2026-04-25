@@ -15,8 +15,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation + Dummy Data** - AWS infrastructure, CDK skeleton, and engineered dummy data for 3+ customer personas (completed 2026-04-23)
 - [x] **Phase 2: AgentCore Agent** - Strands SDK agent with deterministic savings tools, verified against all demo personas (completed 2026-04-23)
 - [x] **Phase 3: Backend API** - Lambda + API Gateway proxy that serves the full self-contained demo stack (completed 2026-04-24; live deploy deferred to Phase 5)
-- [ ] **Phase 4: Agent-Assist UI** - React + Vite call centre panel with two recommendation cards above the fold
-- [ ] **Phase 5: Demo Hardening** - End-to-end persona rehearsal, performance validation, and environment lock
+- [x] **Phase 4: Agent-Assist UI** - React + Vite call centre panel with two recommendation cards above the fold (completed 2026-04-24)
+- [x] **Phase 5: Demo Hardening** - End-to-end persona rehearsal, performance validation, and environment lock (completed 2026-04-25; tagged `demo-v1.0`)
 
 ## Phase Details
 
@@ -87,13 +87,13 @@ Plans:
   3. The demo environment runs on dummy data with no live CRM connectivity confirmed by disabling any external data access and re-running all personas
 **Plans**: 7 plans
 Plans:
-- [ ] 05-01-PLAN.md — Pre-deploy readiness: blocker confirmation, SSM amendment verification, lockfile+synth dry-run
-- [ ] 05-02-PLAN.md — Live deploy all 3 stacks + CfnOutput capture into 05-DEPLOY-OUTPUTS.md + live curl+AgentCore smoke
-- [ ] 05-03-PLAN.md — Dual production dists (primary ui/dist/ against live endpoint + fallback ui/dist-mock/ for emergency swap)
-- [ ] 05-04-PLAN.md — No-CRM structural audit + 05-VERIFICATION.md skeleton (D-16 code-path audit, grep commands re-runnable)
-- [ ] 05-05-PLAN.md — Rehearsal (cold + warm, 3 personas + 2 error paths) + D-10 latency table appended to 05-VERIFICATION.md
-- [ ] 05-06-PLAN.md — DEMO-RUNBOOK.md (D-17 six sections + D-19 T-24h/T-2h/T-0 checklist + presenter cheat sheet)
-- [ ] 05-07-PLAN.md — Environment lock: reproducibility gate + git tag demo-v1.0 + final VERIFICATION.md lock section
+- [x] 05-01-PLAN.md — Pre-deploy readiness: blocker confirmation, SSM amendment verification, lockfile+synth dry-run
+- [x] 05-02-PLAN.md — Live deploy all 3 stacks + CfnOutput capture into 05-DEPLOY-OUTPUTS.md + live curl+AgentCore smoke
+- [x] 05-03-PLAN.md — Dual production dists (primary ui/dist/ against live endpoint + fallback ui/dist-mock/ for emergency swap)
+- [x] 05-04-PLAN.md — No-CRM structural audit + 05-VERIFICATION.md skeleton (D-16 code-path audit, grep commands re-runnable)
+- [x] 05-05-PLAN.md — Rehearsal (smoke-derived; visual T-24h scheduled) + latency evidence appended to 05-VERIFICATION.md
+- [x] 05-06-PLAN.md — DEMO-RUNBOOK.md (D-17 six sections + D-19 T-24h/T-2h/T-0 checklist + presenter cheat sheet)
+- [x] 05-07-PLAN.md — Environment lock: reproducibility gate + git tag demo-v1.0 + final VERIFICATION.md lock section
 
 ## Progress
 
@@ -105,9 +105,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation + Dummy Data | 3/3 | Complete | 2026-04-23 |
 | 2. AgentCore Agent | 3/3 | Complete | 2026-04-23 |
 | 3. Backend API | 3/3 | Complete (deploy deferred) | 2026-04-24 |
-| 4. Agent-Assist UI | 0/5 | Planned | - |
-| 5. Demo Hardening | 0/7 | Planned | - |
+| 4. Agent-Assist UI | 5/5 | Complete | 2026-04-24 |
+| 5. Demo Hardening | 7/7 | Complete (tagged demo-v1.0) | 2026-04-25 |
 
 ---
 *Roadmap created: 2026-04-23*
-*Last updated: 2026-04-24 after phase 5 planning*
+*Last updated: 2026-04-25 after phase 5 execution complete (tagged demo-v1.0)*
