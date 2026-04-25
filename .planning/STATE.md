@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: null
-milestone_name: null
-status: milestone_archived
-stopped_at: v1.0 MVP archived on 2026-04-25 — awaiting /gsd-new-milestone for v2.0
-last_updated: "2026-04-25T02:10:00.000Z"
-last_activity: 2026-04-25 — v1.0 milestone archived (demo-v1.0 tag cut)
+milestone: v2.0
+milestone_name: Demo Polish & LLM Narrative
+status: defining_requirements
+stopped_at: v2.0 started on 2026-04-25 — defining requirements for UI-03, UI-04, DEMO-03, DEMO-04
+last_updated: "2026-04-25T03:00:00.000Z"
+last_activity: 2026-04-25 — v2.0 milestone started
 progress:
   total_phases: 0
   completed_phases: 0
@@ -18,18 +18,18 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-25 after v1.0 milestone close)
+See: .planning/PROJECT.md (updated 2026-04-25 at v2.0 milestone start)
 
 **Core value:** A call centre agent can open any customer account and immediately see exactly how much that customer could save and on which plan — making every retention conversation data-driven.
-**Current focus:** Planning next milestone (v2.0) — v1.0 MVP shipped and archived.
+**Current focus:** v2.0 — LLM narrative on recommendation cards (UI-03, UI-04) plus demo hardening (DEMO-03 pre-warm, DEMO-04 environment lock). PROD-01 / PROD-02 deferred to v3.0.
 
 ## Current Position
 
-Phase: none (between milestones)
-Plan: n/a
-Next: `/gsd-new-milestone` to scope v2.0
-Status: v1.0 archived — see `.planning/MILESTONES.md`
-Last activity: 2026-04-25 — v1.0 archived, `demo-v1.0` tag on main
+Phase: Not started (defining requirements)
+Plan: —
+Next: define REQUIREMENTS.md → roadmap → `/gsd-plan-phase [N]`
+Status: Defining requirements
+Last activity: 2026-04-25 — v2.0 milestone started
 
 Progress: [          ] 0%
 
@@ -51,16 +51,16 @@ None.
 
 ## Deferred Items
 
-Items carried forward from v1.0 milestone close into v2.0 scoping:
+v1.0-close carry-forwards, now resolved at v2.0 start:
 
-| Category | Item | Status | Deferred At |
+| Category | Item | Status | Resolved At |
 |----------|------|--------|-------------|
-| v2 | UI-03: LLM-generated call script snippet | Deferred | v1.0 init (confirmed at v1.0 close) |
-| v2 | UI-04: LLM-generated usage narrative | Deferred | v1.0 init (confirmed at v1.0 close) |
-| v2 | DEMO-03: Pre-warm script | Deferred | v1.0 init (confirmed at v1.0 close) |
-| v2 | DEMO-04: Frozen environment lock (48hr pre-presentation) | Deferred | v1.0 init (confirmed at v1.0 close) |
-| v2 | PROD-01: Live CRM integration | Deferred | v1.0 init (confirmed at v1.0 close) |
-| v2 | PROD-02: Customer-facing self-service portal | Deferred | v1.0 init (confirmed at v1.0 close) |
+| v2.0 | UI-03: LLM-generated call script snippet | In scope (v2.0) | 2026-04-25 (v2.0 start) |
+| v2.0 | UI-04: LLM-generated usage narrative | In scope (v2.0) | 2026-04-25 (v2.0 start) |
+| v2.0 | DEMO-03: Pre-warm script | In scope (v2.0) | 2026-04-25 (v2.0 start) |
+| v2.0 | DEMO-04: Frozen environment lock (48hr pre-presentation) | In scope (v2.0) | 2026-04-25 (v2.0 start) |
+| v3.0 | PROD-01: Live CRM integration | Deferred to v3.0 | 2026-04-25 (v2.0 start) |
+| v3.0 | PROD-02: Customer-facing self-service portal | Deferred to v3.0 | 2026-04-25 (v2.0 start) |
 
 Non-blocking carry-forwards from v1.0 phase VERIFICATIONs (see `milestones/v1.0-phases/05-demo-hardening/05-VERIFICATION.md` Gaps Summary):
 - Phase 4 WR-01 / IN-01 / IN-02 — orchestrator-accepted non-blockers
@@ -68,14 +68,15 @@ Non-blocking carry-forwards from v1.0 phase VERIFICATIONs (see `milestones/v1.0-
 
 ## Session Continuity
 
-Last session: 2026-04-25 v1.0 milestone close
-Stopped at: v1.0 archived; ready for `/gsd-new-milestone`
+Last session: 2026-04-25 v2.0 milestone start
+Stopped at: v2.0 defining requirements for UI-03, UI-04, DEMO-03, DEMO-04
 Resume file: n/a
 
-**Environment lock (v1.0):** `demo-v1.0` annotated git tag on main
+**Environment lock (v1.0 carry-forward):** `demo-v1.0` annotated git tag on main
 - Tagged commit: `aba3a99c67994f39d9d496ddfd29c9116b756928`
 - Tag object: `3bb0f51380176deedd1712d5dee17a70ccd94887`
 - Push to origin: skipped (local-only, no origin configured)
 
 **Suggested next commands:**
-- `/gsd-new-milestone` — scope v2.0 (likely pulling from the Deferred Items table above)
+- Continue `/gsd-new-milestone` — research decision → REQUIREMENTS.md → ROADMAP.md
+- `/gsd-plan-phase [N]` once the roadmap is approved

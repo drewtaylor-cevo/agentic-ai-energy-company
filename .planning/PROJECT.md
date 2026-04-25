@@ -12,6 +12,18 @@ A call centre agent can open any customer account and immediately see exactly ho
 
 **v1.0 review:** Still the right priority. Shipping validated the core value end-to-end — every persona lookup returns two differentiated savings recommendations grounded in the customer's own 12-month usage profile.
 
+## Current Milestone: v2.0 Demo Polish & LLM Narrative
+
+**Goal:** Upgrade the v1.0 agent-assist demo with LLM-generated narrative touches and harden the demo environment so the live presentation runs cold-start-free and locked-down.
+
+**Target features:**
+- LLM-generated call script snippet on each recommendation card (UI-03)
+- LLM-generated one-sentence usage narrative per card (UI-04)
+- Pre-warm script to eliminate Bedrock/Lambda cold starts pre-demo (DEMO-03)
+- Frozen demo environment — pinned deps + locked AWS state T-48h pre-presentation (DEMO-04)
+
+**Deferred to v3.0:** PROD-01 (live CRM integration), PROD-02 (customer-facing self-service portal).
+
 ## Requirements
 
 ### Validated (v1.0)
@@ -30,14 +42,19 @@ A call centre agent can open any customer account and immediately see exactly ho
 - ✓ End-to-end demo runs on dummy data with no live CRM — v1.0 (DEMO-01)
 - ✓ Engineered savings delta: Green ~$30/mo, Cheapest ~$55/mo — v1.0 (DEMO-02)
 
-### Active (v2.0 candidates)
+### Active (v2.0)
 
-Carried forward from v1 Out-of-Scope / v2 requirements in archived REQUIREMENTS.md. Scope to be confirmed at `/gsd-new-milestone`.
+In scope this milestone — full REQ-IDs in `.planning/REQUIREMENTS.md`.
 
 - [ ] LLM-generated call script snippet — a one-liner the agent can use verbatim (UI-03)
 - [ ] LLM-generated usage narrative — one-sentence customer profile on each card (UI-04)
 - [ ] Pre-warm script to avoid cold-start latency on the live demo (DEMO-03)
 - [ ] Frozen demo environment with pinned deps + locked AWS state 48h pre-presentation (DEMO-04)
+
+### Deferred to v3.0
+
+Production readiness — scoped when this engagement moves past the demo.
+
 - [ ] Live CRM integration replacing the dummy data source (PROD-01)
 - [ ] Customer-facing self-service portal (v2 of the agent-assist tool) (PROD-02)
 
@@ -132,4 +149,4 @@ See [`.planning/MILESTONES.md`](MILESTONES.md#v10-mvp--shipped-2026-04-25) for f
 </details>
 
 ---
-*Last updated: 2026-04-25 after v1.0 MVP milestone close (tagged `demo-v1.0`)*
+*Last updated: 2026-04-25 — v2.0 Demo Polish & LLM Narrative milestone started (UI-03, UI-04, DEMO-03, DEMO-04; PROD-01/PROD-02 deferred to v3.0)*
