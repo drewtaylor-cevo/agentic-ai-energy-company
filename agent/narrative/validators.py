@@ -10,7 +10,12 @@ non-negotiable backstop per REQUIREMENTS.md UI-05.
 """
 from pydantic import ValidationInfo, field_validator
 
-from agent.narrative.banned_terms import BANNED_REGEX, NUMERIC_REGEX
+# Bi-mode import: container layout is `/app/narrative/`, repo layout is
+# `agent/narrative/`. See agent/agent.py for the parent rationale.
+try:
+    from narrative.banned_terms import BANNED_REGEX, NUMERIC_REGEX
+except ImportError:  # pragma: no cover - hit only in offline test repo layout
+    from agent.narrative.banned_terms import BANNED_REGEX, NUMERIC_REGEX
 
 # --- Cap constants (stricter-of-word-or-char wins automatically via Pydantic order) ---
 

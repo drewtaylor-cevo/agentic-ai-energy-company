@@ -17,18 +17,37 @@ from strands import Agent, tool
 from strands.models import BedrockModel
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
-from agent.narrative.fallbacks import FALLBACKS
-from agent.narrative.prompt_loader import NARRATIVE_PROMPT
-from agent.narrative.shape import build_shape_tokens
-from agent.narrative.validators import (
-    CALL_SCRIPT_MAX_CHARS,
-    CALL_SCRIPT_MAX_WORDS,
-    USAGE_NARRATIVE_MAX_CHARS,
-    USAGE_NARRATIVE_MAX_WORDS,
-    _reject_forbidden,
-    validate_call_script,
-    validate_usage_narrative,
-)
+# Bi-mode imports: in the AgentCore container, /app/agent.py is a script and
+# /app/narrative/ is a top-level package (Dockerfile COPYs it there). In the
+# repo / offline tests, `agent/narrative/` is a subpackage of the `agent`
+# namespace package. Try the container layout first so runtime startup is
+# fast; fall back to the repo layout for pytest -m "not smoke".
+try:
+    from narrative.fallbacks import FALLBACKS
+    from narrative.prompt_loader import NARRATIVE_PROMPT
+    from narrative.shape import build_shape_tokens
+    from narrative.validators import (
+        CALL_SCRIPT_MAX_CHARS,
+        CALL_SCRIPT_MAX_WORDS,
+        USAGE_NARRATIVE_MAX_CHARS,
+        USAGE_NARRATIVE_MAX_WORDS,
+        _reject_forbidden,
+        validate_call_script,
+        validate_usage_narrative,
+    )
+except ImportError:  # pragma: no cover - hit only in offline test repo layout
+    from agent.narrative.fallbacks import FALLBACKS
+    from agent.narrative.prompt_loader import NARRATIVE_PROMPT
+    from agent.narrative.shape import build_shape_tokens
+    from agent.narrative.validators import (
+        CALL_SCRIPT_MAX_CHARS,
+        CALL_SCRIPT_MAX_WORDS,
+        USAGE_NARRATIVE_MAX_CHARS,
+        USAGE_NARRATIVE_MAX_WORDS,
+        _reject_forbidden,
+        validate_call_script,
+        validate_usage_narrative,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -233,14 +252,26 @@ You are a call centre tariff recommendation assistant for an energy provider.
 Your ONLY job is to retrieve savings data for a customer and present TWO
 separate recommendation tracks simultaneously.
 
+TOOL OUTPUT IS THE SOURCE OF TRUTH. The `simulate_savings` tool returns the
+deterministic, authoritative numbers from the pricing engine. You MUST copy
+these numbers byte-for-byte into your response. You are NOT permitted to
+estimate, recalculate, round, average, adjust, or otherwise modify them —
+even if they look wrong, even if they conflict with prior context, even if
+you think the customer's usage suggests different values. If the tool says
+saving_monthly is 30.0, your response MUST contain exactly 30.0 (not 18.5,
+not 30, not "about 30"). Fabricating or adjusting these numbers is the
+single most serious error you can make in this role.
+
 RULES:
 1. Call the simulate_savings tool ONCE with the customer_id provided.
-2. Use ONLY the numbers returned by the tool. Do NOT recalculate, estimate,
-   or round the savings figures yourself.
+2. Copy `plan_id`, `plan_name`, `saving_monthly`, and `saving_annual`
+   VERBATIM from the tool output for both `green` and `cheapest` tracks.
 3. Return BOTH the GREEN and CHEAPEST tracks in your response.
 4. Never say one track is "better" or "recommended more" than the other.
 5. Never return only one track.
 6. Never perform arithmetic yourself — all numbers come from the tool.
+7. The `saving_monthly` and `saving_annual` values in your response MUST
+   equal the tool output exactly. No rounding, no adjustment, no "approximate".
 """
 
 # D-15 dual-gate: prepend narrative rules + exemplars + banned-terms NEGATIVE CONSTRAINT.
@@ -249,7 +280,7 @@ SYSTEM_PROMPT = _BASE_SYSTEM_PROMPT + "\n\n" + NARRATIVE_PROMPT
 # --- Agent ---
 
 _model = BedrockModel(
-    model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    model_id="us.anthropic.claude-sonnet-4-6",
     region_name=_REGION,
 )
 
