@@ -85,6 +85,38 @@ class BackendApiConstruct(Construct):
             )
         )
 
+        # D-11 (Phase 7): read the `-c demo_pc=N` CDK context flag.
+        # Absent → 0 (PC off, zero billing). Present → cast to int, validate.
+        # Invalid values (non-numeric, negative) fail at synth time — cheap
+        # to catch, never reaches CloudFormation (Pitfall 2).
+        raw_pc = self.node.try_get_context("demo_pc")
+        if raw_pc is None:
+            demo_pc = 0
+        else:
+            try:
+                demo_pc = int(raw_pc)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"Invalid -c demo_pc value: {raw_pc!r}. "
+                    "Must be a non-negative integer."
+                ) from exc
+            if demo_pc < 0:
+                raise ValueError(
+                    f"Invalid -c demo_pc value: {demo_pc}. Must be >= 0."
+                )
+
+        # D-09/D-10 (Phase 7): alias ALWAYS created (whether PC is on or off).
+        # Tracks fn.current_version by default — CDK auto-publishes a new
+        # immutable Lambda version on each code change; the alias rolls
+        # forward automatically on each `cdk deploy`.
+        # D-11: provisioned_concurrent_executions kwarg attached ONLY when
+        # demo_pc > 0. Default deploys remain zero-cost. Alias ARN is stable
+        # across PC-on/PC-off deploys — Phase 10 freeze-surface critical.
+        if demo_pc > 0:
+            live_alias = fn.add_alias("live", provisioned_concurrent_executions=demo_pc)
+        else:
+            live_alias = fn.add_alias("live")
+
         # HTTP API v2 with allow-all CORS (D-09).
         api = apigwv2.HttpApi(
             self,
@@ -104,7 +136,7 @@ class BackendApiConstruct(Construct):
         api.add_routes(
             path="/recommendations/{customer_id}",
             methods=[apigwv2.HttpMethod.GET],
-            integration=integ.HttpLambdaIntegration("RecoIntegration", fn),
+            integration=integ.HttpLambdaIntegration("RecoIntegration", live_alias),
         )
 
         self._api_endpoint = api.url
