@@ -12,10 +12,23 @@ import os
 import logging
 
 import boto3
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from strands import Agent, tool
 from strands.models import BedrockModel
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
+
+from agent.narrative.fallbacks import FALLBACKS
+from agent.narrative.prompt_loader import NARRATIVE_PROMPT
+from agent.narrative.shape import build_shape_tokens
+from agent.narrative.validators import (
+    CALL_SCRIPT_MAX_CHARS,
+    CALL_SCRIPT_MAX_WORDS,
+    USAGE_NARRATIVE_MAX_CHARS,
+    USAGE_NARRATIVE_MAX_WORDS,
+    _reject_forbidden,
+    validate_call_script,
+    validate_usage_narrative,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +48,49 @@ class TrackInfo(BaseModel):
     plan_name: str = Field(description="Human-readable plan name")
     saving_monthly: float = Field(description="Projected monthly saving in dollars")
     saving_annual: float = Field(description="Projected annual saving in dollars")
+    usage_narrative: str = Field(
+        max_length=USAGE_NARRATIVE_MAX_CHARS,
+        description=(
+            "Third-person description of the customer's usage profile. "
+            "Maximum 20 words. NEVER contains digits, $/£/€/%, competitor names, "
+            "switch verbs, or environmental superlatives."
+        ),
+    )
+    call_script: str = Field(
+        max_length=CALL_SCRIPT_MAX_CHARS,
+        description=(
+            "Second-person one-liner the call-centre agent reads verbatim. "
+            "Maximum 22 words. Same forbidden-content rules as usage_narrative."
+        ),
+    )
+
+    # D-15 dual-gate: these run after Pydantic's max_length + type checks.
+    _validate_usage_narrative = validate_usage_narrative
+    _validate_call_script = validate_call_script
 
 
 class RecommendationResponse(BaseModel):
     """Dual-track tariff recommendation — both tracks always present."""
     green: TrackInfo = Field(description="Most energy-efficient (green) plan recommendation")
     cheapest: TrackInfo = Field(description="Lowest projected cost plan recommendation")
+
+
+# --- Lenient salvage schema (retry path only — per-field fallback per D-02) ---
+
+
+class _TrackInfoLenient(BaseModel):
+    """TrackInfo without narrative validators — used on retry to reach per-field salvage."""
+    plan_id: str
+    plan_name: str
+    saving_monthly: float
+    saving_annual: float
+    usage_narrative: str
+    call_script: str
+
+
+class _RecommendationResponseLenient(BaseModel):
+    green: _TrackInfoLenient
+    cheapest: _TrackInfoLenient
 
 
 # --- Tool definition ---
@@ -79,7 +129,7 @@ def simulate_savings(customer_id: str) -> dict:
 
 # --- System prompt (REC-03: both tracks, never ranked) ---
 
-SYSTEM_PROMPT = """\
+_BASE_SYSTEM_PROMPT = """\
 You are a call centre tariff recommendation assistant for an energy provider.
 
 Your ONLY job is to retrieve savings data for a customer and present TWO
@@ -94,6 +144,9 @@ RULES:
 5. Never return only one track.
 6. Never perform arithmetic yourself — all numbers come from the tool.
 """
+
+# D-15 dual-gate: prepend narrative rules + exemplars + banned-terms NEGATIVE CONSTRAINT.
+SYSTEM_PROMPT = _BASE_SYSTEM_PROMPT + "\n\n" + NARRATIVE_PROMPT
 
 # --- Agent ---
 
