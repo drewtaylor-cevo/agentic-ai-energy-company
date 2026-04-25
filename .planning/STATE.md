@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Demo Polish & LLM Narrative
-status: planning
+status: executing
 stopped_at: Phase 6 context gathered
-last_updated: "2026-04-25T05:12:35.331Z"
-last_activity: 2026-04-25 — v2.0 roadmap committed (Phases 6–10)
+last_updated: "2026-04-25T05:14:02.776Z"
+last_activity: 2026-04-25 -- Phase 06 execution started
 progress:
   total_phases: 5
   completed_phases: 0
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-25 at v2.0 milestone start)
 
 **Core value:** A call centre agent can open any customer account and immediately see exactly how much that customer could save and on which plan — making every retention conversation data-driven.
-**Current focus:** v2.0 — LLM narrative on recommendation cards (UI-03, UI-04, UI-05, UI-06, UI-07, UI-08) plus demo hardening (DEMO-03 pre-warm, DEMO-04 environment lock, DEMO-05 keep-alive, DEMO-06 rollback drill). PROD-01 / PROD-02 deferred to v3.0.
+**Current focus:** Phase 06 — agent-narrative-guardrail
 
 ## Current Position
 
-Phase: Not started — next is Phase 6 (Agent Narrative + Guardrail)
-Plan: —
+Phase: 06 (agent-narrative-guardrail) — EXECUTING
+Plan: 1 of 3
 Next: `/gsd-plan-phase 6`
-Status: Roadmap committed; ready to plan Phase 6
-Last activity: 2026-04-25 — v2.0 roadmap committed (Phases 6–10)
+Status: Executing Phase 06
+Last activity: 2026-04-25 -- Phase 06 execution started
 
 Progress: [          ] 0% (0/5 phases complete)
 

@@ -1,0 +1,52 @@
+NARRATIVE OUTPUT RULES:
+
+You must also produce TWO short narrative fields for EACH track (green and cheapest):
+  - usage_narrative: third-person descriptive, maximum 20 words, describes the
+    customer's usage profile. Do NOT use second-person pronouns ("you", "your").
+  - call_script: second-person, maximum 22 words, one line the agent can read
+    verbatim to the customer. Frame it as an invitation to discuss the plan.
+
+ABSOLUTE CONSTRAINTS (hard-enforced by Pydantic validator — violations cause retry):
+  1. NEVER include any digit 0 through 9 in either field.
+  2. NEVER include the characters $ £ € or %.
+  3. NEVER use: switch, switches, switching, switched, move, moves, moving, moved,
+     change, changes, changing, changed, transfer, transfers, transferring,
+     transferred, swap, swaps, swapping, swapped, shift, shifts, shifting,
+     shifted, convert, converts, converting, converted.
+  4. NEVER name competitors: Origin, AGL, EnergyAustralia, Red Energy, Alinta,
+     Momentum.
+  5. NEVER use superlative environmental claims: greenest, cleanest, most
+     sustainable, carbon-neutral, carbon neutral, zero-emission, zero emission,
+     net-zero, net zero, best for the planet, planet-friendly, eco-friendliest.
+  6. Refer to the plan by name only. Do NOT quote figures. The deterministic
+     tool output already carries the numbers.
+
+Plan name normalisation (REQUIRED — the tool returns digit-bearing plan names;
+you MUST rewrite them before emitting narrative):
+  - If the tool returns "EcoFlex 100", refer to it as "EcoFlex" in narrative fields.
+  - If the tool returns "Value 12", refer to it as "Value Twelve" in narrative fields.
+  - NEVER include digits in usage_narrative or call_script — not even when quoting a plan name.
+
+SHAPE TOKENS: the request will include a shape-tokens section describing the
+customer profile in qualitative terms (e.g. usage_tier=mid, seasonality=winter_heavy,
+renewable_profile=eco_aligned). Use these to inform the narrative voice. The
+tokens are the ONLY information you have about the customer — do not infer
+numeric values from them.
+
+EXAMPLE 1 — Sarah Chen (CUST-001), green track:
+  shape_tokens: usage_tier=high, seasonality=winter_heavy, plan_category=green_premium,
+                renewable_profile=eco_aligned, tenure_band=established
+  usage_narrative: "Heavy cool-season household with consistent year-round load across the family."
+  call_script: "Ask about EcoFlex — an eco-aligned pick for a winter-heavy family home."
+
+EXAMPLE 2 — Marcus Webb (CUST-002), cheapest track:
+  shape_tokens: usage_tier=mid, seasonality=flat, plan_category=value,
+                renewable_profile=cost_aligned, tenure_band=established
+  usage_narrative: "Mid-range apartment consumption with even usage across warm and cool months."
+  call_script: "Bring up Value Twelve — a cost-led fit for a steady mid-range apartment."
+
+EXAMPLE 3 — Elena Vasquez (CUST-003), green track:
+  shape_tokens: usage_tier=mid, seasonality=summer_peak, plan_category=green_premium,
+                renewable_profile=eco_aligned, tenure_band=established
+  usage_narrative: "Summer-peak household profile driven by warm-month cooling demand."
+  call_script: "Ask about EcoFlex — an eco-aligned pick for a warm-season cooling pattern."
