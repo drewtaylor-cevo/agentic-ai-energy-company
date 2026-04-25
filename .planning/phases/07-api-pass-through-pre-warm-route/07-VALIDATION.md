@@ -1,9 +1,9 @@
 ---
 phase: 7
 slug: api-pass-through-pre-warm-route
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: approved
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-25
 ---
 
@@ -38,7 +38,10 @@ created: 2026-04-25
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| {to be filled by planner} | | | DEMO-03 | | | | | | ⬜ pending |
+| 07-01-T1 | 01 | 1 | DEMO-03 | — | Marker-strip before response dump + prewarm branch never returns 5xx | tdd (unit) | `pytest tests/test_backend_api_handler.py -q` | ✅ | ⬜ pending |
+| 07-01-T2 | 01 | 1 | DEMO-03 | — | 6 D-13 pytest functions exercise pass-through + prewarm branches | tdd (unit) | `pytest tests/test_backend_api_handler.py -q` | ✅ | ⬜ pending |
+| 07-02-T1 | 02 | 1 | DEMO-03 | — | Alias `live` always created; PC attached only when `demo_pc>0`; integration targets alias | tdd (unit + synth) | `python3 -c "from infrastructure.backend_api_stack import BackendApiStack" && pytest tests/test_backend_api_synth.py -q` | ✅ | ⬜ pending |
+| 07-02-T2 | 02 | 1 | DEMO-03 | — | 4 D-14 synth assertions verify alias + PC + integration wiring under both `demo_pc=0` and `demo_pc=1` contexts | tdd (unit) | `pytest tests/test_backend_api_synth.py -q` | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -62,11 +65,11 @@ created: 2026-04-25
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references (none required)
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 45s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (none required)
+- [x] No watch-mode flags
+- [x] Feedback latency < 45s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-04-25
