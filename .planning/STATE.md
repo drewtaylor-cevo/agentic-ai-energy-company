@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Demo Polish & LLM Narrative
 status: executing
-stopped_at: Completed 06.1-03-PLAN.md — three-persona canary suite green + CloudWatch observability confirmed; DEMO-02 resolved
-last_updated: "2026-04-25T11:24:11.609Z"
+stopped_at: Completed 06.1-04-PLAN.md — Phase 6 + Phase 06.1 CLOSED; 06-SAMPLES.md captured; ROADMAP Phase 6 flipped to ✓ Complete atomically (D-09)
+last_updated: "2026-04-25T11:46:59Z"
 last_activity: 2026-04-25
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
   percent: 100
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-25 at v2.0 milestone start)
 
 **Core value:** A call centre agent can open any customer account and immediately see exactly how much that customer could save and on which plan — making every retention conversation data-driven.
-**Current focus:** Phase 06.1 — resolve Sonnet 4.6 tool-use regression (DEMO-02)
+**Current focus:** Phase 7 — API Pass-Through + Pre-Warm Route (Phase 6 + Phase 06.1 both closed 2026-04-25)
 
 ## Current Position
 
-Phase: 06.1 (resolve-sonnet-4-6-tool-use-regression-demo-02) — Plan 03 complete
-Plan: 3 of 4 complete (01 ✓ Strands 1.37.0 migration; 02 ✓ D-10 gates + cdk deploy; 03 ✓ three-persona live canaries green + CloudWatch observability confirmed; 04 pending closeout)
-Next: Plan 06.1-04 — Phase 6 closeout: run scripts/capture_samples.py against fixed runtime, commit 06-SAMPLES.md, resolve Plan 06-03 Task 2 human-verify checkpoint
-Status: Plan 03 complete — DEMO-02 regression DEFINITIVELY RESOLVED on deployed runtime; Sarah/Marcus/Elena canaries all byte-exact; CloudWatch shows 0 deprecation warnings + 3 tariff-tools Lambda invocations in the canary window
-Last activity: 2026-04-25 -- Plan 06.1-03 executed; test_marcus_flagship_values + test_elena_flagship_values added to tests/test_agent_smoke.py; live canary run passed (22.97s wall-clock); observability evidence captured at /tmp/phase06.1-observability.txt
+Phase: 06.1 (resolve-sonnet-4-6-tool-use-regression-demo-02) — COMPLETE; Phase 6 also ✓ Complete (D-09 atomic close)
+Plan: 4 of 4 complete (01 ✓ Strands 1.37.0 migration; 02 ✓ D-10 gates + cdk deploy; 03 ✓ three-persona live canaries green; 04 ✓ Phase 6 closeout — 06-SAMPLES.md captured + human-verify resolved `approved` + ROADMAP flipped atomically)
+Next: Phase 7 (API Pass-Through + Pre-Warm Route) — deployed runtime ready with stable ARN and extended TrackInfo schema serving byte-exact DEMO-02 values
+Status: Phase 06.1 CLOSED; Phase 6 CLOSED; v2.0 roadmap now reads Phase 6 ✓ Complete 2026-04-25; backend-half UI-03/UI-04/UI-05 requirements fully shipped
+Last activity: 2026-04-25 -- Plan 06.1-04 executed; 06-SAMPLES.md captured from live runtime (3 personas × 2 tracks, all 12 narrative fields `_narrative_source: model`); Plan 06-03 Task 2 human-verify resolved with `approved`; atomic commit db8b796 landed 06-SAMPLES.md + ROADMAP Phase 6 row flip per D-09
 
 **AgentRuntime (for Plan 04 closeout):**
 
@@ -78,6 +78,14 @@ Phase 06.1 Plan 02 execution decisions (2026-04-25):
 - Plan 06.1-03 offline suite interpreter = /opt/homebrew/bin/python3.13 (has strands-agents 1.37.0); system /usr/bin/python3 is 3.9 and lacks strands — documented for future executors.
 - DEMO-02 regression DEFINITIVELY RESOLVED on deployed runtime: three-persona canaries (Sarah 30/55, Marcus 16.90/30.98, Elena 14/25.67) all PASSED byte-for-byte; CloudWatch confirms zero deprecation warnings + 3 tariff-tools Lambda invocations matching 3 agent invocations in canary window.
 
+Phase 06.1 Plan 04 execution decisions (2026-04-25):
+
+- `scripts/capture_samples.py` ran first-try against deployed runtime; all 3 personas captured byte-exact; all 12 narrative fields marked `_narrative_source: model` (zero fallbacks fired — LLM produced demo-ready copy on first attempt for every slot).
+- Plan 06-03 Task 2 human-verify checkpoint RESOLVED with resume signal `approved` — prose quality + log visibility + byte-exact values all hold; `approved with log format v3` variant rejected because no fallback event fired to observe log format on, and the CloudWatch-formatter concern is already scoped to v3.0 hardening per CONTEXT.md Deferred.
+- D-09 atomic phase-close commit `db8b796` landed exactly 2 files: `.planning/phases/06-agent-narrative-guardrail/06-SAMPLES.md` (new) AND `.planning/ROADMAP.md` (Phase 6 row `2.5/3 ⚠ Partial → 3/3 ✓ Complete 2026-04-25` + line-25 checkbox `[ ]`→`[x]`). No interim state where 06.1 shipped but Phase 6 remained Partial.
+- Phase 6 Success Criteria 1-5 all now satisfied (per-persona narrative+script, Pydantic validator, banned-terms rejection, eval-coverage split between offline+smoke, deployed image + DEMO-02 preservation). Phase 6 backend-half UI-03/UI-04/UI-05 requirements fully landed.
+- Phase 7 precondition met: deployed runtime ARN stable (`tariff_agent-O2Hai86N8V`), extended TrackInfo schema serving byte-exact values, `_narrative_source` marker expected to be stripped by Phase 7 API Lambda per pass-through contract.
+
 ### Pending Todos
 
 None.
@@ -121,9 +129,9 @@ Non-blocking carry-forwards from v1.0 phase VERIFICATIONs (see `milestones/v1.0-
 
 ## Session Continuity
 
-Last session: 2026-04-25T11:24:11.604Z
-Stopped at: Completed 06.1-03-PLAN.md — three-persona canary suite green + CloudWatch observability confirmed; DEMO-02 resolved
-Resume file: .planning/phases/06.1-resolve-sonnet-4-6-tool-use-regression-demo-02/06.1-04-PLAN.md
+Last session: 2026-04-25T11:46:59Z
+Stopped at: Completed 06.1-04-PLAN.md — Phase 6 + Phase 06.1 CLOSED; 06-SAMPLES.md captured; ROADMAP Phase 6 flipped to ✓ Complete atomically (D-09)
+Resume file: (none — Phase 06.1 is closed; next action is Phase 7 context-gather)
 
 **Environment lock (v1.0 carry-forward):** `demo-v1.0` annotated git tag on main
 
@@ -133,7 +141,7 @@ Resume file: .planning/phases/06.1-resolve-sonnet-4-6-tool-use-regression-demo-0
 
 **Suggested next commands:**
 
-- `/gsd-execute-plan 06.1-04` — Phase 6 closeout: run scripts/capture_samples.py against fixed runtime; commit 06-SAMPLES.md in phase 6 dir; resolve Plan 06-03 Task 2 human-verify checkpoint; flip Phase 6 ROADMAP row to ✓ Complete and Phase 06.1 row to ✓ Complete in the same commit (D-09)
-- Before Plan 04: export env for any live invocations: `export AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:us-east-1:588738606436:runtime/tariff_agent-O2Hai86N8V AWS_DEFAULT_REGION=us-east-1 AWS_PROFILE=cevo-dev25`
+- `/gsd-context-phase 07` — Gather context for Phase 7 (API Pass-Through + Pre-Warm Route)
+- Before Phase 7 live work, export env: `export AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:us-east-1:588738606436:runtime/tariff_agent-O2Hai86N8V AWS_DEFAULT_REGION=us-east-1 AWS_PROFILE=cevo-dev25`
 
-**Planned Phase:** 06.1 (Resolve Sonnet 4.6 Tool-Use Regression — DEMO-02) — 4 plans (01 ✓, 02 ✓, 03 ✓, 04 pending) — 2026-04-25T11:24:11Z
+**Planned Phase:** 06.1 (Resolve Sonnet 4.6 Tool-Use Regression — DEMO-02) — 4 plans (01 ✓, 02 ✓, 03 ✓, 04 ✓) — CLOSED 2026-04-25T11:46:59Z
