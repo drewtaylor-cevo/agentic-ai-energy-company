@@ -62,6 +62,47 @@ def handler(event: dict, context) -> dict:
     if not _CUSTOMER_ID_PATTERN.match(customer_id):
         return _error(400, "Invalid customer ID format. Use CUST-NNN (3-6 digits).")
 
+    # D-01/D-02: Prewarm branch — warm the full hot path and return 204
+    # without touching the normal-path response taxonomy. D-04: NEVER 5xx.
+    # Runs AFTER the D-13 regex check so stray ?prewarm=1 + bad customer_id
+    # still returns 400 (Pitfall 4 locks the literal string "1" compare).
+    query_params = event.get("queryStringParameters") or {}
+    if query_params.get("prewarm") == "1":
+        # D-11 (Phase 3) / AP-3: fresh uuid4 per invocation — never cache.
+        prewarm_session_id = str(uuid.uuid4())
+        logger.info(
+            "Prewarm invoke customer_id=%s session_id=%s",
+            customer_id, prewarm_session_id,
+        )
+        try:
+            # D-02: full real agent turn; D-05: shared _agentcore_client.
+            prewarm_response = _agentcore_client.invoke_agent_runtime(
+                agentRuntimeArn=_AGENT_RUNTIME_ARN,
+                runtimeSessionId=prewarm_session_id,
+                payload=json.dumps({"customer_id": customer_id}).encode(),
+            )
+            # Drain StreamingBody to release the connection; body discarded.
+            prewarm_response["response"].read()
+        except Exception as exc:  # pylint: disable=broad-except
+            # D-04: swallow EVERYTHING. ClientError + ReadTimeoutError +
+            # transport-level (EndpointConnectionError, SSLError) all land here.
+            error_code = type(exc).__name__
+            if isinstance(exc, ClientError):
+                error_code = exc.response.get("Error", {}).get(
+                    "Code", "Unknown"
+                )
+            logger.warning(
+                json.dumps({
+                    "event": "prewarm_failed",
+                    "customer_id": customer_id,
+                    "error_code": error_code,
+                    "error": str(exc),
+                })
+            )
+        # D-04: 204 on success AND failure. Empty body + empty headers
+        # matches API Gateway HTTP API v2 proxy contract.
+        return {"statusCode": 204, "headers": {}, "body": ""}
+
     # D-11: fresh uuid4 per invocation, generated INSIDE handler() — never at
     # module scope. Module-level cache would cause session bleed between
     # consecutive persona lookups, violating SC-3 (Pitfall 2).
@@ -75,6 +116,21 @@ def handler(event: dict, context) -> dict:
             payload=json.dumps({"customer_id": customer_id}).encode(),
         )
         body = json.loads(response["response"].read())
+        # D-06: strip internal marker (idempotent; None default means
+        # pre-6.1 agent deployments do not break the handler).
+        narrative_source = body.pop("_narrative_source", None)
+        # D-07: structured CloudWatch INFO log (zero-PII by construction —
+        # narrative_source is {"usage_narrative": "model"|"fallback",
+        # "call_script": "model"|"fallback"} OR None). Logged on every
+        # successful invoke, BEFORE the 404 check (Open Question 2 in
+        # RESEARCH.md resolves to log-before-404: invoke succeeded, the
+        # marker is observable, 404 is a handler-side decision not an
+        # invocation failure).
+        logger.info(json.dumps({
+            "event": "narrative_source",
+            "customer_id": customer_id,
+            "narrative_source": narrative_source,
+        }))
     except ReadTimeoutError:
         logger.warning("Agent timeout customer_id=%s", customer_id)
         return _error(504, "Recommendation service timed out. Please try again.")
