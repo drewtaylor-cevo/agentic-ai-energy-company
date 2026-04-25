@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Demo Polish & LLM Narrative
-status: executing
+status: ready_to_plan
 stopped_at: Completed 06.1-04-PLAN.md — Phase 6 + Phase 06.1 CLOSED; 06-SAMPLES.md captured; ROADMAP Phase 6 flipped to ✓ Complete atomically (D-09)
 last_updated: "2026-04-25T11:46:59Z"
 last_activity: 2026-04-25
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 4
   completed_plans: 4
-  percent: 100
+  percent: 60
 ---
 
 # Project State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-04-25 at v2.0 milestone start)
 
 ## Current Position
 
-Phase: 06.1 (resolve-sonnet-4-6-tool-use-regression-demo-02) — COMPLETE; Phase 6 also ✓ Complete (D-09 atomic close)
-Plan: 4 of 4 complete (01 ✓ Strands 1.37.0 migration; 02 ✓ D-10 gates + cdk deploy; 03 ✓ three-persona live canaries green; 04 ✓ Phase 6 closeout — 06-SAMPLES.md captured + human-verify resolved `approved` + ROADMAP flipped atomically)
+Phase: 7
+Plan: Not started
 Next: Phase 7 (API Pass-Through + Pre-Warm Route) — deployed runtime ready with stable ARN and extended TrackInfo schema serving byte-exact DEMO-02 values
-Status: Phase 06.1 CLOSED; Phase 6 CLOSED; v2.0 roadmap now reads Phase 6 ✓ Complete 2026-04-25; backend-half UI-03/UI-04/UI-05 requirements fully shipped
-Last activity: 2026-04-25 -- Plan 06.1-04 executed; 06-SAMPLES.md captured from live runtime (3 personas × 2 tracks, all 12 narrative fields `_narrative_source: model`); Plan 06-03 Task 2 human-verify resolved with `approved`; atomic commit db8b796 landed 06-SAMPLES.md + ROADMAP Phase 6 row flip per D-09
+Status: Ready to plan
+Last activity: 2026-04-25
 
 **AgentRuntime (for Plan 04 closeout):**
 
