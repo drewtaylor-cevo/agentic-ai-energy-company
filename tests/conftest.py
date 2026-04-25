@@ -123,3 +123,59 @@ def mock_agent_invoke_not_found():
         "contentType": "application/json",
         "statusCode": 200,
     }
+
+
+# --- Phase 6 narrative fixtures ---
+
+
+@pytest.fixture
+def mock_trackinfo():
+    """Baseline valid-narrative TrackInfo dict — tests override specific fields.
+
+    Narrative strings chosen to pass the validator (no digits, no banned terms,
+    within word + char caps).
+    """
+    return {
+        "plan_id": "ECO",
+        "plan_name": "EcoFlex",
+        "saving_monthly": 30.00,
+        "saving_annual": 360.00,
+        "usage_narrative": "Winter-heavy household with consistent mid-range usage across the year.",
+        "call_script": "Ask about EcoFlex — it suits a strong winter-heating profile like yours.",
+    }
+
+
+@pytest.fixture
+def clean_narrative_sample():
+    """A known-clean narrative string that passes every validator rule."""
+    return "Winter-heavy household with consistent mid-range usage across the year"
+
+
+@pytest.fixture
+def poisoned_narrative_samples():
+    """List of (sample, reason) tuples covering each banned category."""
+    return [
+        ("Saves about 30 dollars a month",        "digit"),
+        ("Saves $30 monthly",                       "currency"),
+        ("Saves about 15% extra",                  "percent"),
+        ("Origin customers often enquire",         "competitor-origin"),
+        ("Compared with AGL plans",                "competitor-agl"),
+        ("Better than EnergyAustralia",            "competitor-ea"),
+        ("Prefer Red Energy? Reconsider",          "competitor-red"),
+        ("Households moving to Alinta",            "competitor-alinta-and-move"),
+        ("Momentum customers often ask",           "competitor-momentum"),
+        ("Switch to EcoFlex to save",              "switch-verb"),
+        ("Moving the household to EcoFlex",        "move-verb"),
+        ("Changing plans helps in winter",         "change-verb"),
+        ("Transferring to a cheaper plan",         "transfer-verb"),
+        ("Swapping plans reduces cost",            "swap-verb"),
+        ("Shifting from the standard plan",        "shift-verb"),
+        ("Converting over to EcoFlex",             "convert-verb"),
+        ("The greenest option available",          "env-superlative-greenest"),
+        ("The cleanest option on the market",      "env-superlative-cleanest"),
+        ("A most sustainable household choice",    "env-superlative-sustainable"),
+        ("A carbon-neutral recommendation",        "env-superlative-carbon-neutral"),
+        ("A zero-emission tariff",                 "env-superlative-zero-emission"),
+        ("A net-zero plan for the future",         "env-superlative-net-zero"),
+        ("Best for the planet of the lot",         "env-superlative-planet"),
+    ]
