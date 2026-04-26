@@ -98,7 +98,11 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   3. A DynamoDB on-demand backup is taken and the `FREEZE-MANIFEST.md` captures SHA-256 hashes of lockfiles + dist bundles + CloudFormation stack IDs + pinned Bedrock model ID as YAML inside a Markdown code fence.
   4. An annotated `demo-v2.0` tag is cut on `main` and the reproducibility gate (`pytest -m "not smoke"` green from a clean tree) holds.
   5. The rollback drill — executed against a scratch DynamoDB restore at T-48h — proves that reverting to `demo-v1.0` works from a clean tree, `?narrative=off` toggles narrative off without redeploy, and `build:mock` regenerates the <10s emergency UI swap dist.
-**Plans**: TBD
+**Requirements**: DEMO-04, DEMO-06
+**Plans**: 3 plans
+- [ ] 10-01-PLAN.md — Stack-policy JSON bodies + content-manifest hashers + cross-rebuild determinism gate (Wave 1, autonomous)
+- [ ] 10-02-PLAN.md — Hash-pinned requirements via pip-compile + FREEZE-MANIFEST.md scaffold + 10-DRILL-LOG.md skeleton + DEMO-RUNBOOK.md §7-§10 (Wave 2, autonomous, depends on 10-01)
+- [ ] 10-03-PLAN.md — T-48h ceremony execution: reproducibility gate + cdk diff + rollback drill + stack lock + DynamoDB backup + manifest population + demo-v2.0 tag + origin push (Wave 3, autonomous: false, depends on 10-02)
 
 ## Progress
 
@@ -113,8 +117,8 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 7. API Pass-Through + Pre-Warm Route | v2.0 | 0/2 | Ready to execute | — |
 | 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 0/4 | Ready to execute | — |
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 0/4 | Ready to execute | — |
-| 10. Freeze + Rollback Drill | v2.0 | 0/0 | Not started | — |
+| 10. Freeze + Rollback Drill | v2.0 | 0/3 | Ready to execute | — |
 
 ---
 *Roadmap created: 2026-04-23*
-*Last updated: 2026-04-26 — Phase 9 plans committed (4 plans, 2 waves: 01+03+04 parallel → 02 offline tests for prewarm.py)*
+*Last updated: 2026-04-26 — Phase 10 plans committed (3 plans, 3 waves: 01 stack-policy JSONs + hashers → 02 pip-compile + manifest scaffold + DEMO-RUNBOOK §7-§10 → 03 T-48h ceremony execution, autonomous: false)*
