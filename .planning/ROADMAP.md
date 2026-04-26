@@ -84,10 +84,10 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   3. `scripts/demo-keepalive.sh` pings the hot path every 10 minutes and continues through termination, beating AgentCore's 15-minute microVM idle timeout.
   4. The end-to-end eval harness asserts every persona × card narrative passes the Phase 6 validator when driven through the live endpoint — run green before the phase closes.
 **Plans**: 4 plans
-- [ ] 09-01-PLAN.md — scripts/prewarm.py (stdlib-only two-pass warm + measurement CLI with 0/1/2 exit taxonomy) + ui/package.json prewarm script (wave 1)
-- [ ] 09-02-PLAN.md — tests/test_prewarm_script.py (7 offline pytest cases mocking urllib.urlopen; runs under pytest -m "not smoke") (wave 2, depends on 09-01)
-- [ ] 09-03-PLAN.md — scripts/demo-keepalive.sh (bash 10-min rotating-persona ping loop with trap on INT/TERM/HUP; shellcheck-clean) (wave 1)
-- [ ] 09-04-PLAN.md — tests/test_narrative_eval_live.py (smoke-gated live eval harness; 3 HTTP calls asserting Phase 6 validator rules + Phase 7 _narrative_source marker-absence invariant) (wave 1)
+- [x] 09-01-PLAN.md — scripts/prewarm.py (stdlib-only two-pass warm + measurement CLI with 0/1/2 exit taxonomy) + ui/package.json prewarm script (wave 1)
+- [x] 09-02-PLAN.md — tests/test_prewarm_script.py (7 offline pytest cases mocking urllib.urlopen; runs under pytest -m "not smoke") (wave 2, depends on 09-01)
+- [x] 09-03-PLAN.md — scripts/demo-keepalive.sh (bash 10-min rotating-persona ping loop with trap on INT/TERM/HUP; shellcheck-clean) (wave 1)
+- [x] 09-04-PLAN.md — tests/test_narrative_eval_live.py (smoke-gated live eval harness; 3 HTTP calls asserting Phase 6 validator rules + Phase 7 _narrative_source marker-absence invariant) (wave 1)
 
 ### Phase 10: Freeze + Rollback Drill
 **Goal**: The production stack is locked at T-48h against drift, and the rollback mechanism is proven before it is depended on at presentation time.
