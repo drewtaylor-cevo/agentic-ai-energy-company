@@ -6,6 +6,7 @@
 // layout used by App.tsx's success state so skeleton → cards is zero-reflow.
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { NARRATIVE_ENABLED } from '@/lib/flags';
 
 export function RecommendationSkeletons() {
   return (
@@ -34,7 +35,20 @@ export function RecommendationSkeletons() {
                 <Skeleton className="h-8 w-24 mt-1" />
               </div>
             </div>
+            {NARRATIVE_ENABLED && (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
+            )}
             <Skeleton className="h-4 w-full" />
+            {NARRATIVE_ENABLED && (
+              <div className="border-l-4 border-l-muted pl-4 py-2 space-y-2">
+                <Skeleton className="h-5 w-full" />
+                <Skeleton className="h-5 w-5/6" />
+                <Skeleton className="h-5 w-3/5" />
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}
