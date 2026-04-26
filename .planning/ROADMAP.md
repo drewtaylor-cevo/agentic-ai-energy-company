@@ -68,8 +68,11 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   3. Appending `?narrative=off` to the URL hides both narrative rows without any redeploy and without collapsing the card layout.
   4. A `v2.0 · <git-sha>` indicator is visible in a corner of the UI and matches the SHA of the deployed build.
   5. `build:mock` regenerates a dist that still renders correctly with the extended `TrackInfo` shape, preserving the <10s emergency swap path.
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 4 plans
+- [ ] 08-01-PLAN.md — TrackInfo + mock fixture (verbatim fallbacks) + flags.ts + vite-env.d.ts + vite.config __GIT_SHA__ define (Wave 1 foundation)
+- [ ] 08-02-PLAN.md — RecommendationCard narrative row + call_script blockquote + RecommendationSkeletons matching placeholders, all flag-gated (Wave 2, depends on 01)
+- [ ] 08-03-PLAN.md — VersionIndicator component + App.tsx render-as-sibling-of-main (Wave 2, depends on 01)
+- [ ] 08-04-PLAN.md — D-23 closeout gate: npm test + build + build:mock + 9-screenshot UAT at 1280×800 → 08-SAMPLES.md (Wave 3, autonomous: false, depends on 02+03)
 
 ### Phase 9: Pre-Warm Tooling + Eval Harness + Keep-Alive
 **Goal**: Operator tooling makes the demo cold-start-free from T-30m through end of Q&A, and narrative correctness is assertable end-to-end from a single command.
@@ -104,10 +107,10 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 5. Demo Hardening | v1.0 | 7/7 | ✓ Complete | 2026-04-25 |
 | 6. Agent Narrative + Guardrail | v2.0 | 3/3 | ✓ Complete | 2026-04-25 |
 | 7. API Pass-Through + Pre-Warm Route | v2.0 | 0/2 | Ready to execute | — |
-| 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 0/0 | Not started | — |
+| 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 0/4 | Ready to execute | — |
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 0/0 | Not started | — |
 | 10. Freeze + Rollback Drill | v2.0 | 0/0 | Not started | — |
 
 ---
 *Roadmap created: 2026-04-23*
-*Last updated: 2026-04-25 — Phase 7 plans committed (2 plans, Wave 1 parallel)*
+*Last updated: 2026-04-26 — Phase 8 plans committed (4 plans, 3 waves: 01 foundation → 02+03 parallel render/indicator → 04 closeout UAT)*
