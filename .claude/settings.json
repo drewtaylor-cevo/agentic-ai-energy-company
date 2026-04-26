@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pytest --version)",
+      "Bash(curl -s -o /dev/null *)",
+      "Bash(curl -sS -o /dev/null *)",
+      "Bash(cdk diff *)",
+      "Bash(cdk list *)",
+      "Bash(cdk synth *)",
+      "Bash(cdk doctor *)",
+      "Bash(cdk context *)",
+      "Bash(AWS_PROFILE=cevo-dev25 AWS_DEFAULT_REGION=us-east-1 cdk diff *)",
+      "Bash(AWS_PROFILE=cevo-dev25 AWS_DEFAULT_REGION=us-east-1 cdk list *)",
+      "Bash(AWS_PROFILE=cevo-dev25 AWS_DEFAULT_REGION=us-east-1 cdk synth *)",
+      "Bash(aws bedrock-agentcore-control list-* *)",
+      "Bash(aws bedrock-agentcore-control get-* *)",
+      "Bash(aws bedrock-agentcore-control describe-* *)",
+      "Bash(AWS_PROFILE=cevo-dev25 aws bedrock-agentcore-control list-* *)",
+      "Bash(AWS_PROFILE=cevo-dev25 aws bedrock-agentcore-control get-* *)",
+      "Bash(AWS_PROFILE=cevo-dev25 aws bedrock-agentcore-control describe-* *)",
+      "Bash(AWS_PROFILE=cevo-dev25 AWS_DEFAULT_REGION=us-east-1 aws bedrock-agentcore-control list-* *)",
+      "Bash(AWS_PROFILE=cevo-dev25 AWS_DEFAULT_REGION=us-east-1 aws bedrock-agentcore-control get-* *)",
+      "Bash(AWS_PROFILE=cevo-dev25 AWS_DEFAULT_REGION=us-east-1 aws bedrock-agentcore-control describe-* *)",
+      "Bash(AWS_PROFILE=cevo-dev25 aws sts *)",
+      "Bash(AWS_PROFILE=cevo-dev25 aws logs *)",
+      "Bash(AWS_PROFILE=cevo-dev25 aws cloudformation *)",
+      "Bash(AWS_PROFILE=cevo-dev25 aws ssm *)",
+      "Bash(AWS_PROFILE=cevo-dev25 aws lambda *)",
+      "Bash(AWS_PROFILE=cevo-dev25 AWS_DEFAULT_REGION=us-east-1 aws logs *)",
+      "Bash(AWS_PROFILE=cevo-dev25 AWS_DEFAULT_REGION=us-east-1 aws sts *)",
+      "Bash(AWS_PROFILE=cevo-dev25 AWS_DEFAULT_REGION=us-east-1 aws cloudformation *)",
+      "Bash(AWS_PROFILE=cevo-dev25 AWS_DEFAULT_REGION=us-east-1 aws ssm *)",
+      "Bash(AWS_PROFILE=cevo-dev25 AWS_DEFAULT_REGION=us-east-1 aws lambda *)"
+    ]
+  }
+}
