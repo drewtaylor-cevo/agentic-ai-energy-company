@@ -4,7 +4,7 @@
 
 An AI-powered call centre agent-assist tool for an Energy & Utilities provider. It analyses a customer's 12-month billing history, recommends the two most optimal tariff plans (Green and Cheapest), and surfaces projected monthly and annual savings — giving call centre agents an instant, personalised savings plan to present while the customer is on the line.
 
-**Current State:** v1.0 MVP shipped 2026-04-25 as `demo-v1.0`. v2.0 Phase 6 (Agent Narrative + Guardrail) shipped 2026-04-25 after Phase 06.1 resolved the Sonnet 4.6 tool-use regression — `simulate_savings` now drives byte-exact $ preservation on the deployed runtime for all 3 personas (Sarah $30/$55, Marcus $16.90/$30.98, Elena $14.00/$25.67). Phase 7 (API Pass-Through + Pre-Warm Route) shipped 2026-04-26 — API Lambda strips `_narrative_source`, emits CloudWatch structured logs, and serves `?prewarm=1` returning HTTP 204 on every failure mode; CDK now wires API Gateway to a named `live` alias with context-gated Provisioned Concurrency (`-c demo_pc=N`). Live AWS stack deployed in `us-east-1` (Bedrock AgentCore Runtime `tariff_agent-O2Hai86N8V` + Lambda + API Gateway HTTP v2 + React/Vite UI).
+**Current State:** v1.0 MVP shipped 2026-04-25 as `demo-v1.0`. v2.0 Phase 6 (Agent Narrative + Guardrail) shipped 2026-04-25 after Phase 06.1 resolved the Sonnet 4.6 tool-use regression — `simulate_savings` now drives byte-exact $ preservation on the deployed runtime for all 3 personas (Sarah $30/$55, Marcus $16.90/$30.98, Elena $14.00/$25.67). Phase 7 (API Pass-Through + Pre-Warm Route) shipped 2026-04-26 — API Lambda strips `_narrative_source`, emits CloudWatch structured logs, and serves `?prewarm=1` returning HTTP 204 on every failure mode; CDK now wires API Gateway to a named `live` alias with context-gated Provisioned Concurrency (`-c demo_pc=N`). Phase 8 (UI Integration + Feature Flag + Version Indicator) shipped 2026-04-26 — RecommendationCard renders flag-gated italic-muted narrative + bordered call-script quote block with track-accent left border, matching skeleton placeholders, `?narrative=off` URL-level kill switch (D-10 byte-equivalence contract: UI collapses to v1.0 shape in both loading AND success states), `v2.0 · <git-sha>` corner marker via build-time `__GIT_SHA__` Vite define, all 6 Phase 6 fallback strings mirrored byte-exact into the mock fixture. Live AWS stack deployed in `us-east-1` (Bedrock AgentCore Runtime `tariff_agent-O2Hai86N8V` + Lambda + API Gateway HTTP v2 + React/Vite UI).
 
 ## Core Value
 
@@ -41,13 +41,16 @@ A call centre agent can open any customer account and immediately see exactly ho
 - ✓ Lookup-to-rendered under 3 seconds — v1.0 smoke-derived (UI-02); visual T-24h rehearsal confirms at presentation time
 - ✓ End-to-end demo runs on dummy data with no live CRM — v1.0 (DEMO-01)
 - ✓ Engineered savings delta: Green ~$30/mo, Cheapest ~$55/mo — v1.0 (DEMO-02)
+- ✓ LLM-generated call script snippet — a one-liner the agent can use verbatim; validated in Phase 6 (backend) + Phase 8 (UI render, flag-gated) (UI-03)
+- ✓ LLM-generated usage narrative — one-sentence customer profile on each card; validated in Phase 6 (backend) + Phase 8 (UI render, flag-gated) (UI-04)
+- ✓ `?narrative=off` URL-level kill switch collapsing UI to v1.0 shape in loading AND success states — v2.0 Phase 8 (UI-06)
+- ✓ `v2.0 · <git-sha>` build marker rendered in a corner of the UI — v2.0 Phase 8 (UI-07)
+- ✓ Skeleton-first narrative render with matching placeholder heights — v2.0 Phase 8 (UI-08)
 
 ### Active (v2.0)
 
 In scope this milestone — full REQ-IDs in `.planning/REQUIREMENTS.md`.
 
-- [ ] LLM-generated call script snippet — a one-liner the agent can use verbatim (UI-03)
-- [ ] LLM-generated usage narrative — one-sentence customer profile on each card (UI-04)
 - [ ] Pre-warm script to avoid cold-start latency on the live demo (DEMO-03)
 - [ ] Frozen demo environment with pinned deps + locked AWS state 48h pre-presentation (DEMO-04)
 
@@ -149,4 +152,4 @@ See [`.planning/MILESTONES.md`](MILESTONES.md#v10-mvp--shipped-2026-04-25) for f
 </details>
 
 ---
-*Last updated: 2026-04-26 — Phase 7 complete (DEMO-03 plumbing half: handler pass-through + `?prewarm=1` 204-always contract + `live` alias + context-gated Provisioned Concurrency). Live-smoke of SC-1/SC-2/SC-4 pending post-`cdk deploy -c demo_pc=1` (see `07-HUMAN-UAT.md`). Next: Phase 8 UI Integration + Feature Flag + Version Indicator.*
+*Last updated: 2026-04-26 — Phase 8 complete (UI-03 UI half, UI-04 UI half, UI-06, UI-07, UI-08). RecommendationCard and RecommendationSkeletons carry flag-gated narrative + call-script rendering; `?narrative=off` + `v2.0 · <git-sha>` build marker wired via build-time `__GIT_SHA__` Vite define. D-23 automated gates all green (tsc, vitest 90/90, build + build:mock <10s with SHA embedded). Authoritative PNG capture deferred to Phase 10 DEMO-06 rollback drill per operator decision. Next: Phase 9 Pre-Warm Tooling + Eval Harness + Keep-Alive.*
