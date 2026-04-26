@@ -166,17 +166,50 @@ per STATE.md environment-lock section.
 
 **Command(s):**
 ```bash
-<pending — paste from ## Commands appendix section "### Step 3 commands">
+rm -rf /tmp/freeze-repro
+git clone . /tmp/freeze-repro
+cd /tmp/freeze-repro
+git checkout demo-v1.0
+git rev-parse HEAD
+# Expect: aba3a99c67994f39d9d496ddfd29c9116b756928
+
+/opt/homebrew/bin/python3.13 -m venv .venv
+.venv/bin/pip install --upgrade pip
+.venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+export AWS_PROFILE=cevo-dev25
+.venv/bin/pytest -m "not smoke"
 ```
 
 **Stdout:**
 ```
-<pending — operator pastes git rev-parse + pytest tail>
+(git rev-parse HEAD)
+aba3a99c67994f39d9d496ddfd29c9116b756928
+
+(pytest tail)
+============================= test session starts ==============================
+platform darwin -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0
+rootdir: /private/tmp/freeze-repro
+configfile: pytest.ini
+testpaths: tests
+plugins: mock-3.15.1, typeguard-2.13.3
+collected 110 items / 23 deselected / 87 selected
+
+tests/test_agent_tools.py .............                                  [ 14%]
+tests/test_agentcore_synth.py .......                                    [ 22%]
+tests/test_backend_api_handler.py .............                          [ 37%]
+tests/test_backend_api_synth.py ...........                              [ 50%]
+tests/test_cdk_synth.py ........                                         [ 59%]
+tests/test_get_billing_history.py .........                              [ 70%]
+tests/test_schema.py .........                                           [ 80%]
+tests/test_seeder_smoke.py ......                                        [ 87%]
+tests/test_simulate_savings.py ...........                               [100%]
+
+====================== 87 passed, 23 deselected in 22.63s ======================
 ```
 
-**Started:** `<pending-UTC>`
-**Verdict:** pending
-**Deviations:** (none expected)
+**Started:** `2026-04-26T13:27:45Z`
+**Verdict:** PASS
+**Deviations:** v1.0 baseline with AWS_PROFILE=cevo-dev25 exported is `87 passed, 23 deselected` (all tests green; no skips). 10-VALIDATION.md row 10-03-10 literal text says `81 passed, 6 skipped` — that was the pre-R2 expectation without AWS creds. With AWS creds present (ceremony precondition per R2 remediation), the 6 previously-skipped AWS-dependent tests now pass, giving 87/23. Green-exit criterion met; exact counts are an environmental artifact of the credential profile, not a drill failure.
 
 ---
 
