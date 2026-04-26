@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "preview:mock": "vite preview --outDir dist-mock",
+    "prewarm": "cd .. && python3 scripts/prewarm.py",
     "test": "vitest run",
     "test:watch": "vitest"
   },
