@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Energy — Potential Savings (Email Preview)</title>
+<style>
+  :root {
+    --bg:            #f5f6f8;
+    --surface:       #ffffff;
+    --border:        #e5e7eb;
+    --border-strong: #d1d5db;
+    --text:          #111827;
+    --text-muted:    #6b7280;
+    --text-faint:    #9ca3af;
+    --accent-green:  #059669;
+    --accent-green-bg: #ecfdf5;
+    --accent-value:  #2563eb;
+    --accent-value-bg: #eff6ff;
+    --savings:       #047857;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  .page-head {
+    max-width: 600px;
+    margin: 2rem auto 1rem;
+    padding: 0 1rem;
+    text-align: center;
+  }
+  .page-head h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .page-head p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .mail-client {
+    max-width: 600px;
+    margin: 0 auto 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  }
+  .mail-header {
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 1.25rem;
+    background: #fafbfc;
+  }
+  .mail-subject {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+  .mail-meta {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+  .sender-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #0ea5e9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 0.8rem;
+  }
+  .sender-name {
+    font-weight: 600;
+    color: var(--text);
+  }
+  .sender-email {
+    color: var(--text-muted);
+  }
+  .mail-date {
+    margin-left: auto;
+    font-size: 0.78rem;
+    color: var(--text-faint);
+  }
+  .mail-body {
+    padding: 2rem 2rem 2.5rem;
+  }
+  .mail-body p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0 0 1rem;
+    color: var(--text);
+  }
+  .mail-body p.lead {
+    font-size: 1.05rem;
+    color: var(--text);
+  }
+  .savings-callout {
+    margin: 1.5rem 0;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #ecfdf5 0%, #eff6ff 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    text-align: center;
+  }
+  .savings-callout-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--savings);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+  .savings-callout-value {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--savings);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .savings-callout-sub {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    margin-top: 0.4rem;
+  }
+  .options-intro {
+    margin: 1.5rem 0 1rem;
+    font-size: 0.92rem;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .plan-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .plan-card {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .plan-head {
+    padding: 0.75rem 0.9rem 0.55rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .plan-badge {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.22rem 0.5rem;
+    border-radius: 5px;
+  }
+  .plan-badge.green {
+    background: var(--accent-green-bg);
+    color: var(--accent-green);
+  }
+  .plan-badge.value {
+    background: var(--accent-value-bg);
+    color: var(--accent-value);
+  }
+  .plan-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .plan-body {
+    padding: 0.85rem 0.9rem 0.95rem;
+  }
+  .plan-saving {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--savings);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .plan-period {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.1rem;
+    margin-bottom: 0.6rem;
+  }
+  .plan-narrative {
+    font-size: 0.8rem;
+    color: var(--text);
+    font-style: italic;
+    line-height: 1.45;
+    margin-bottom: 0.5rem;
+  }
+  .plan-why {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+  .plan-why-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+  .cta-row {
+    text-align: center;
+    margin: 2rem 0 1rem;
+  }
+  .cta-button {
+    display: inline-block;
+    padding: 0.85rem 1.75rem;
+    background: var(--text);
+    color: white;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .cta-sub {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.75rem;
+  }
+  .mail-footer {
+    padding: 1.25rem 2rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-faint);
+    background: #fafbfc;
+    line-height: 1.5;
+  }
+  .mail-footer a {
+    color: var(--text-muted);
+    text-decoration: underline;
+  }
+  .annotation-layer {
+    max-width: 600px;
+    margin: 0 auto 3rem;
+    padding: 0 1rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+  }
+  .annotation-layer h2 {
+    font-size: 0.95rem;
+    color: var(--text);
+    margin: 2rem 0 0.5rem;
+    font-weight: 600;
+  }
+  .annotation-layer ul {
+    margin: 0.25rem 0 0.75rem;
+    padding-left: 1.1rem;
+  }
+  .annotation-layer li {
+    margin-bottom: 0.35rem;
+  }
+  .annotation-layer code {
+    background: #f1f2f4;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-family: "SF Mono", ui-monospace, monospace;
+  }
+  .pill {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    margin-right: 0.3rem;
+    font-weight: 600;
+  }
+  .pill.api { background: #ecfdf5; color: #047857; }
+  .pill.risk { background: #fef2f2; color: #991b1b; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Proactive Email Nudge Mockup</h1>
+  <p>Batch monthly send · same <code>GET /recommendations/{id}</code> as the agent-assist build · no UI session required</p>
+</div>
+
+<div class="mail-client">
+  <header class="mail-header">
+    <div class="mail-subject">Your potential savings this month, Sarah</div>
+    <div class="mail-meta">
+      <div class="sender-avatar">MY</div>
+      <div>
+        <div class="sender-name">My Energy</div>
+        <div class="sender-email">no-reply@myenergy.example.com</div>
+      </div>
+      <span class="mail-date">Today · 9:12 AM</span>
+    </div>
+  </header>
+
+  <section class="mail-body">
+    <p class="lead">Hi Sarah,</p>
+
+    <p>
+      We took a fresh look at your last twelve months of usage. Based on your current pattern,
+      you could be on a plan that works out cheaper, greener, or both — without changing how
+      you actually use energy at home.
+    </p>
+
+    <div class="savings-callout">
+      <div class="savings-callout-label">We could save you up to</div>
+      <div class="savings-callout-value">$55/mo</div>
+      <div class="savings-callout-sub">That's $660 across the next year</div>
+    </div>
+
+    <p class="options-intro">Two options, chosen for your usage shape:</p>
+
+    <div class="plan-row">
+      <div class="plan-card">
+        <div class="plan-head">
+          <span class="plan-badge green">Green</span>
+          <span class="plan-name">EcoFlex 100</span>
+        </div>
+        <div class="plan-body">
+          <div class="plan-saving">$30</div>
+          <div class="plan-period">saved per month · $360 a year</div>
+          <div class="plan-narrative">
+            Established household with a consistent high-load profile and strong eco-aligned energy values.
+          </div>
+          <div class="plan-why">
+            <div class="plan-why-label">Why this plan</div>
+            Ask about EcoFlex — an eco-aligned plan well suited to your established, high-usage home.
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-card">
+        <div class="plan-head">
+          <span class="plan-badge value">Cheapest</span>
+          <span class="plan-name">Value 12</span>
+        </div>
+        <div class="plan-body">
+          <div class="plan-saving">$55</div>
+          <div class="plan-period">saved per month · $660 a year</div>
+          <div class="plan-narrative">
+            High-consumption household seeking cost-effective coverage across the full year.
+          </div>
+          <div class="plan-why">
+            <div class="plan-why-label">Why this plan</div>
+            Bring up Value Twelve — a cost-led plan designed to suit a high-usage household like yours.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      Both options are available in your portal — side by side, no ranking. You decide what
+      matters more: the environmental fit or the bigger annual saving.
+    </p>
+
+    <div class="cta-row">
+      <a href="#" class="cta-button">View both plans in my portal</a>
+      <div class="cta-sub">Takes you to a secure login · no action taken without confirmation</div>
+    </div>
+
+    <p style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">
+      Questions? Call us any weekday 8am–8pm on 13 MYEN, or reply to this email.
+    </p>
+  </section>
+
+  <footer class="mail-footer">
+    You're receiving this because you opted in to savings notifications when you signed up.
+    <a href="#">Unsubscribe</a> · <a href="#">Manage preferences</a> · <a href="#">Privacy policy</a><br>
+    My Energy Pty Ltd · PO Box 100, Sydney NSW 2000 · ABN 00 000 000 000
+  </footer>
+</div>
+
+<div class="annotation-layer">
+  <h2>What's reused from the agent-assist build</h2>
+  <ul>
+    <li><span class="pill api">same API</span><code>GET /recommendations/CUST-001</code> called once per customer in the batch job — same response shape, same byte-identical dollar values ($30, $55, $360, $660)</li>
+    <li><span class="pill api">same LLM</span>Narrative + "Why this plan" strings generated once at batch time, cached into the email body. Pydantic validator already rejected digits, currency, and banned terms before render.</li>
+    <li><span class="pill api">same freeze</span>Batch job pinned to the <code>demo-v2.0</code> API endpoint + model ID. Freezes the narrative generation alongside the rest of the stack.</li>
+  </ul>
+
+  <h2>What's new in this surface</h2>
+  <ul>
+    <li>Email-template rendering — HTML email, accessible, tested across Gmail/Outlook/Apple Mail</li>
+    <li>Batch scheduler — monthly cron, idempotent, per-customer opt-in check</li>
+    <li>Material-delta filter — only email customers where <code>saving_monthly ≥ $10</code> (or similar), to avoid noise emails for negligible savings</li>
+    <li>Deep link into the customer portal — the CTA should land on the portal tile (see <code>portal-tile.html</code>) after login</li>
+  </ul>
+
+  <h2>What makes this the highest-stakes surface</h2>
+  <ul>
+    <li><span class="pill risk">risk</span>No kill switch once sent. The <code>?narrative=off</code> URL flag can't retroactively edit an inbox.</li>
+    <li><span class="pill risk">risk</span>Narrative validation has to be airtight <em>before</em> the batch fires. One bad row in a monthly send to 100k customers is a mass-distribution incident, not a screen refresh.</li>
+    <li><span class="pill risk">risk</span>Proactive communication — regulators (AEMC, ACCC) care about how savings claims are presented in marketing material. The "Why this plan" copy passes the demo's banned-terms validator but still needs legal review for email use.</li>
+    <li><span class="pill risk">risk</span>Unsubscribe compliance + suppression lists must be honoured before the batch reads from the customer list.</li>
+  </ul>
+
+  <h2>Mitigations that already exist from the agent-assist build</h2>
+  <ul>
+    <li>Pydantic validator rejects digits, currency symbols, and banned terms — enforces "no numeric leakage" in narrative even if the LLM tries.</li>
+    <li>Per-persona × per-card committed fallback strings — if the LLM output fails validation, the email ships with hand-written copy, not a broken row.</li>
+    <li>Deterministic <code>simulate_savings</code> engine — the dollar figures in the email are the same 29-pytest-locked values used everywhere else.</li>
+  </ul>
+</div>
+
+</body>
+</html>

@@ -581,6 +581,97 @@ After teardown:
 - `scripts/prewarm.py` (via `npm run prewarm`) — §9
 - `tests/test_narrative_eval_live.py` — §10
 
+**CX surface mockups:**
+- `demo/mockups/portal-tile.html` — customer portal / mobile self-service tile (§13)
+- `demo/mockups/email-nudge.html` — proactive monthly nudge email (§13)
+
+---
+
+## 13. CX Lens — Three Surfaces from One API
+
+**Why this section exists:** The demo everyone has been watching surfaces the agent to one audience — the call-centre operator. A reasonable executive question is *"how does this reach my actual customer?"* The answer is: the same deterministic savings engine + validated LLM narrative already powers three distinct customer-experience surfaces. Only one is built for the demo; the other two are mockups that consume the exact same API.
+
+### The 30-second talking track (use this slide immediately after the softphone demo)
+
+> "The demo you just saw is one of three surfaces — the one we've built for the call centre. Same API, same byte-exact savings, same validated narrative can drive a customer portal tile in your existing mobile app [**show `portal-tile.html`**], or a proactive monthly email nudge for customers already signed up for savings alerts [**show `email-nudge.html`**]. The point is that the deterministic savings engine, the LLM narrative layer, and the guardrails we've drilled against are a platform — not a single screen. Different channels, different risk profiles, same source of truth."
+
+Budget: ~30 seconds. Goal: reframe the demo from "cool agent-assist widget" to "customer-experience platform with three distinct delivery channels, one of which is already live."
+
+### The three surfaces at a glance
+
+| Surface | Status in the demo | Audience | Authentication surface | Narrative risk profile |
+|---------|---------------------|----------|-------------------------|------------------------|
+| **Softphone / agent-assist** (this demo) | Built, frozen at `demo-v2.0`, drilled | Call-centre operator reads to customer | Operator's existing softphone session | Low — operator filters; `?narrative=off` kills it live |
+| **Customer portal tile / mobile** (`portal-tile.html`) | Mockup | End customer, self-serve | OIDC + MFA + session scoping (load-bearing new work) | Medium — narrative on-screen for the customer directly, kill switch still via URL flag |
+| **Proactive email nudge** (`email-nudge.html`) | Mockup | End customer, opt-in | None (email is the channel) | High — no kill switch once sent; validation must be airtight pre-batch |
+
+### Open the mockups in a browser
+
+```bash
+# In a second terminal (DON'T Ctrl-C the primary preview):
+open demo/mockups/portal-tile.html   # macOS — opens in default browser
+open demo/mockups/email-nudge.html
+```
+
+Or drag the files into Chrome from Finder. Both are static HTML with embedded CSS — no build step, no dependencies, work offline. Each file has an annotation layer below the fold that labels what's reused from the agent-assist build vs what's new per surface.
+
+### What each mockup uses verbatim from the live API
+
+Both mockups display **byte-exact Sarah Chen (CUST-001) data** fetched from the live `demo-v2.0` stack at build time:
+
+| Field | Source | Value in mockups |
+|-------|--------|------------------|
+| Green saving / plan | `simulate_savings` pure function | $30/mo · $360/yr · EcoFlex 100 |
+| Cheapest saving / plan | `simulate_savings` pure function | $55/mo · $660/yr · Value 12 |
+| Green narrative | LLM output, validated | "Established household with a consistent high-load profile and strong eco-aligned energy values." |
+| Green call script | LLM output, validated | "Ask about EcoFlex — an eco-aligned plan well suited to your established, high-usage home." |
+| Cheapest narrative | LLM output, validated | "High-consumption household seeking cost-effective coverage across the full year." |
+| Cheapest call script | LLM output, validated | "Bring up Value Twelve — a cost-led plan designed to suit a high-usage household like yours." |
+
+If a reviewer asks "is that the actual API output or did you make up the copy?" — paste this into any terminal:
+
+```bash
+curl -s "$BACKEND_API_URL/recommendations/CUST-001" | jq
+```
+
+The response will match the text in both mockups byte-for-byte.
+
+### What's genuinely new per surface (not built; roadmap signal)
+
+**Portal tile / mobile (Option 1 — recommended next build):**
+- Customer authentication — OIDC (likely Auth0 / Cognito / existing IdP), MFA, session scoping by customer-ID claim
+- Rate limiting — a human can't spam the API manually; an authenticated mobile app can
+- Self-serve action — "Switch to EcoFlex" CTA replaces the agent reading the script aloud; needs a plan-change workflow, confirmation modal, and email receipt
+- Mobile-first responsive layout (375–428px) — today's UI is fixed at 1280×800
+
+**Email nudge (Option 2 — supporting surface):**
+- HTML email rendering tested across Gmail / Outlook / Apple Mail
+- Monthly batch scheduler — cron + idempotent per-customer send + opt-in check + unsubscribe suppression list
+- Material-delta filter — skip customers where `saving_monthly < $10` to avoid noise
+- Deep link into the portal — CTA lands on the portal tile after login
+
+### Risk framing (answers to the hard questions)
+
+**"Why isn't the portal built yet?"** Authentication is the load-bearing addition. The agent-assist demo has zero auth surface; the operator's session handles identity. Building the portal means adding OIDC / MFA / PII handling / session scoping before any customer sees a dollar figure. That's a phase, not a week, and it belongs in front of legal and security review.
+
+**"How do you stop a bad narrative going out in an email to 100k customers?"** Three layers, all already live from the agent-assist build:
+1. Pydantic validator rejects any narrative containing digits, currency symbols, or banned terms (competitor names, switch verbs, environmental superlatives) *before* the string leaves the LLM layer
+2. Per-persona × per-card committed fallback strings ship if validation fails — the email goes out with hand-written copy, not a broken row
+3. Smoke-gated `tests/test_narrative_eval_live.py` asserts all 12 fields (3 personas × 2 tracks × 2 field types) pass validator rules against the live stack — runs at T-eval before demo day, would run before each batch send
+
+**"What stays the same across all three surfaces?"** The savings arithmetic. `simulate_savings` is a pure Python function with 29 pytest cases locked since v1.0. LLM never sees the numbers. So the $30/mo figure Sarah sees in her portal is the same figure the call-centre agent sees on the softphone, is the same figure in her monthly email. Byte-exact. That property is the platform claim.
+
+### Post-demo followups this section unlocks
+
+If the CX framing lands and there's appetite for building the portal surface:
+1. `/gsd-new-milestone` for v3.0 with a proposed scope: OIDC login + portal tile + mobile responsive breakpoints + plan-change workflow
+2. Add a Phase 0 for authentication + PII handling review (legal + security) — load-bearing, not optional
+3. Reuse the `demo-v2.0` API contract as the portal's backend; no backend changes needed for read-side
+
+If the email channel is more urgent (e.g., retention campaign pressure):
+1. Dedicated batch-send milestone — infrastructure is simpler but regulatory surface (AEMC / ACCC on savings claims in marketing) is heavier
+2. Legal review of `call_script` copy for email use — the current validator passes but email copy has different standards than an operator reading live
+
 ---
 
 *Last updated: 2026-04-27 after v2.0 milestone close. Pinned to `demo-v2.0` (freeze target) + `v2.0` (milestone close). If you are reading this past demo day and see drift between what the runbook describes and what actually exists, trust `git describe --tags` and the live `aws cloudformation describe-stacks` state first, this document second.*

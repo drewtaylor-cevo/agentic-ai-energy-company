@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Energy — Potential Savings</title>
+<style>
+  :root {
+    --bg:            #f5f6f8;
+    --surface:       #ffffff;
+    --surface-alt:   #fafbfc;
+    --border:        #e5e7eb;
+    --border-strong: #d1d5db;
+    --text:          #111827;
+    --text-muted:    #6b7280;
+    --text-faint:    #9ca3af;
+    --accent-green:  #059669;
+    --accent-green-bg: #ecfdf5;
+    --accent-value:  #2563eb;
+    --accent-value-bg: #eff6ff;
+    --savings:       #047857;
+    --radius:        16px;
+    --radius-sm:     10px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  .device-frame {
+    max-width: 420px;
+    margin: 2rem auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 32px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+  }
+  .status-bar {
+    background: var(--surface);
+    padding: 0.65rem 1.25rem 0.35rem;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .app-header {
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .app-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #2563eb, #0ea5e9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+  .app-title {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .app-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.1rem;
+  }
+  .greeting {
+    padding: 1.5rem 1.25rem 0.5rem;
+  }
+  .greeting h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.4rem;
+    font-weight: 600;
+  }
+  .greeting p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+  .section-label {
+    padding: 1rem 1.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .savings-hero {
+    margin: 0 1.25rem;
+    background: linear-gradient(135deg, #ecfdf5 0%, #eff6ff 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .savings-hero::before {
+    content: "";
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(5, 150, 105, 0.1), transparent);
+    border-radius: 50%;
+  }
+  .savings-hero-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--savings);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--savings);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.4); }
+  }
+  .savings-hero-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--savings);
+    margin: 0.35rem 0 0.1rem;
+    letter-spacing: -0.02em;
+  }
+  .savings-hero-sub {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .card-stack {
+    padding: 0.5rem 1.25rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+  .rec-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .rec-card:hover {
+    border-color: var(--border-strong);
+  }
+  .rec-header {
+    padding: 0.9rem 1rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .rec-track {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .rec-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.55rem;
+    border-radius: 6px;
+  }
+  .rec-badge.green {
+    background: var(--accent-green-bg);
+    color: var(--accent-green);
+  }
+  .rec-badge.value {
+    background: var(--accent-value-bg);
+    color: var(--accent-value);
+  }
+  .rec-plan-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .rec-body {
+    padding: 0.9rem 1rem 1rem;
+  }
+  .rec-saving-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+  }
+  .rec-saving-big {
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: var(--savings);
+    letter-spacing: -0.02em;
+  }
+  .rec-saving-period {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .rec-saving-annual {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: -0.2rem;
+    margin-bottom: 0.75rem;
+  }
+  .rec-narrative {
+    font-size: 0.85rem;
+    color: var(--text);
+    font-style: italic;
+    line-height: 1.5;
+    padding: 0.65rem 0.8rem;
+    background: var(--surface-alt);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.75rem;
+  }
+  .rec-script-container {
+    padding: 0.65rem 0.8rem;
+    background: white;
+    border-left: 3px solid var(--accent-green);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+  .rec-script-container.value {
+    border-left-color: var(--accent-value);
+  }
+  .rec-script-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+  .rec-script {
+    font-size: 0.85rem;
+    color: var(--text);
+    line-height: 1.45;
+  }
+  .rec-methodology {
+    margin-top: 0.75rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    line-height: 1.4;
+  }
+  .rec-cta {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+  }
+  .btn {
+    flex: 1;
+    padding: 0.7rem 0.75rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn:hover {
+    background: var(--surface-alt);
+  }
+  .btn-primary {
+    background: var(--text);
+    color: white;
+    border-color: var(--text);
+  }
+  .btn-primary:hover {
+    background: #1f2937;
+  }
+  .compare-banner {
+    margin: 0.5rem 1.25rem 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.5;
+  }
+  .compare-banner strong {
+    color: var(--text);
+  }
+  .nav-bar {
+    border-top: 1px solid var(--border);
+    padding: 0.75rem 0 1rem;
+    display: flex;
+    justify-content: space-around;
+    background: var(--surface);
+  }
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .nav-item.active {
+    color: var(--accent-value);
+  }
+  .nav-icon {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+  }
+  .annotation-layer {
+    max-width: 420px;
+    margin: 0 auto 3rem;
+    padding: 0 1rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+  }
+  .annotation-layer h2 {
+    font-size: 0.95rem;
+    color: var(--text);
+    margin: 2rem 0 0.5rem;
+    font-weight: 600;
+  }
+  .annotation-layer ul {
+    margin: 0.25rem 0 0.75rem;
+    padding-left: 1.1rem;
+  }
+  .annotation-layer li {
+    margin-bottom: 0.35rem;
+  }
+  .annotation-layer code {
+    background: #f1f2f4;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-family: "SF Mono", ui-monospace, monospace;
+  }
+  .pill {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    margin-right: 0.3rem;
+    font-weight: 600;
+  }
+  .pill.api {
+    background: #ecfdf5;
+    color: #047857;
+  }
+  .pill.auth {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  .page-head {
+    max-width: 420px;
+    margin: 2rem auto 1rem;
+    padding: 0 1rem;
+    text-align: center;
+  }
+  .page-head h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .page-head p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Customer Portal Mockup — Potential Savings tile</h1>
+  <p>Self-service surface · same <code>GET /recommendations/{id}</code> as the agent-assist build</p>
+</div>
+
+<div class="device-frame">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span>●●●●● 100%</span>
+  </div>
+
+  <header class="app-header">
+    <div class="app-logo">MY</div>
+    <div>
+      <div class="app-title">My Energy Account</div>
+      <div class="app-subtitle">Sarah Chen · Account 8204-331</div>
+    </div>
+  </header>
+
+  <section class="greeting">
+    <h1>Good morning, Sarah</h1>
+    <p>Your account is up to date. Next bill arrives in 12 days.</p>
+  </section>
+
+  <div class="section-label">Potential savings</div>
+
+  <section class="savings-hero">
+    <div class="savings-hero-label">
+      <span class="pulse-dot"></span>
+      You could save up to
+    </div>
+    <div class="savings-hero-value">$55/mo</div>
+    <div class="savings-hero-sub">That's $660 a year · based on your last 12 months of usage</div>
+  </section>
+
+  <div class="compare-banner">
+    Two plans that could suit you — <strong>you choose</strong> based on what matters most.
+  </div>
+
+  <div class="card-stack">
+
+    <article class="rec-card">
+      <header class="rec-header">
+        <div class="rec-track">
+          <span class="rec-badge green">Green</span>
+          <span class="rec-plan-name">EcoFlex 100</span>
+        </div>
+      </header>
+      <div class="rec-body">
+        <div class="rec-saving-row">
+          <span class="rec-saving-big">$30</span>
+          <span class="rec-saving-period">per month</span>
+        </div>
+        <div class="rec-saving-annual">$360 a year</div>
+        <div class="rec-narrative">
+          Established household with a consistent high-load profile and strong eco-aligned energy values.
+        </div>
+        <div class="rec-script-container">
+          <div class="rec-script-label">Why this plan</div>
+          <div class="rec-script">
+            Ask about EcoFlex — an eco-aligned plan well suited to your established, high-usage home.
+          </div>
+        </div>
+        <div class="rec-methodology">
+          Based on your 12-month usage pattern compared against EcoFlex 100's current published rate.
+        </div>
+        <div class="rec-cta">
+          <button class="btn">Compare to current</button>
+          <button class="btn btn-primary">Switch to EcoFlex</button>
+        </div>
+      </div>
+    </article>
+
+    <article class="rec-card">
+      <header class="rec-header">
+        <div class="rec-track">
+          <span class="rec-badge value">Cheapest</span>
+          <span class="rec-plan-name">Value 12</span>
+        </div>
+      </header>
+      <div class="rec-body">
+        <div class="rec-saving-row">
+          <span class="rec-saving-big">$55</span>
+          <span class="rec-saving-period">per month</span>
+        </div>
+        <div class="rec-saving-annual">$660 a year</div>
+        <div class="rec-narrative">
+          High-consumption household seeking cost-effective coverage across the full year.
+        </div>
+        <div class="rec-script-container value">
+          <div class="rec-script-label">Why this plan</div>
+          <div class="rec-script">
+            Bring up Value Twelve — a cost-led plan designed to suit a high-usage household like yours.
+          </div>
+        </div>
+        <div class="rec-methodology">
+          Based on your 12-month usage pattern compared against Value 12's current published rate.
+        </div>
+        <div class="rec-cta">
+          <button class="btn">Compare to current</button>
+          <button class="btn btn-primary">Switch to Value 12</button>
+        </div>
+      </div>
+    </article>
+
+  </div>
+
+  <nav class="nav-bar">
+    <div class="nav-item"><div class="nav-icon">⌂</div>Home</div>
+    <div class="nav-item"><div class="nav-icon">⚡</div>Usage</div>
+    <div class="nav-item active"><div class="nav-icon">●</div>Savings</div>
+    <div class="nav-item"><div class="nav-icon">☎</div>Support</div>
+    <div class="nav-item"><div class="nav-icon">⚙</div>Account</div>
+  </nav>
+</div>
+
+<div class="annotation-layer">
+  <h2>What's reused from the agent-assist build</h2>
+  <ul>
+    <li><span class="pill api">same API</span><code>GET /recommendations/CUST-001</code> — identical response shape, byte-identical dollar values ($30/mo, $55/mo, $360/yr, $660/yr)</li>
+    <li><span class="pill api">same LLM</span>Narrative + "Why this plan" strings returned by Claude Sonnet 4.6 through Bedrock AgentCore — same Pydantic validator rejecting digits, currency, banned terms</li>
+    <li><span class="pill api">same kill switch</span><code>?narrative=off</code> URL flag collapses narrative + "Why this plan" to a digits-only card if the LLM layer misbehaves — no redeploy needed</li>
+    <li><span class="pill api">same freeze</span>Behind the <code>demo-v2.0</code> tag: deny-Update:* CFN stack policies, DynamoDB backup, 5-step rollback drill passed</li>
+  </ul>
+
+  <h2>What's new in this surface</h2>
+  <ul>
+    <li><span class="pill auth">new</span>Customer authentication — OIDC/MFA, session scoping, PII handling. The current agent-assist build has zero auth; this is the load-bearing addition.</li>
+    <li><span class="pill auth">new</span>Mobile-first responsive layout (375–428px). Agent-assist is fixed at 1280×800.</li>
+    <li><span class="pill auth">new</span>Self-serve action — "Switch to EcoFlex" CTA replaces the call-centre agent reading the script aloud. Requires plan-change workflow, confirmation, and email receipt.</li>
+    <li><span class="pill auth">new</span>Rate limiting — a human reading this can't spam the API; an authenticated mobile app can.</li>
+  </ul>
+
+  <h2>What stayed deliberately off the screen</h2>
+  <ul>
+    <li>No ranking between Green and Cheapest — the customer chooses, same as the call-centre framing (REC-03).</li>
+    <li>No "you should switch" language — the <em>Why this plan</em> copy stays descriptive, not prescriptive. The Pydantic validator's banned-terms list (competitor names, switch verbs, environmental superlatives) still applies.</li>
+    <li>No digits or currency symbols in the narrative or "Why this plan" fields — the validator rejects these end-to-end regardless of which surface is consuming the API.</li>
+  </ul>
+</div>
+
+</body>
+</html>
