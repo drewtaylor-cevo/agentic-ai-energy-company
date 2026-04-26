@@ -1,7 +1,7 @@
 ---
 phase: 10-freeze-rollback-drill
 artifact: freeze-manifest
-status: populated-tbd-sha
+status: populated
 created: 2026-04-26
 ---
 
@@ -26,7 +26,7 @@ relocking, re-run DEMO-RUNBOOK.md section 7 steps 2-7 and cut `demo-v2.0.1`.
 
 ```yaml
 git:
-  freeze_commit_sha: "TBD"  # Replaced in Task 13 two-commit pattern (per WN-2)
+  freeze_commit_sha: "1a83a87c2e134bb264f38f809e33611486821be0"  # Task-13 two-commit pattern per WN-2: this commit is tag^ (one parent of demo-v2.0)
   freeze_timestamp_utc: "2026-04-26T13:45:31Z"
   tag: demo-v2.0
 
