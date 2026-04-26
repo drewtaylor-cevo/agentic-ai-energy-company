@@ -1,9 +1,9 @@
 ---
 phase: 10-freeze-rollback-drill
 artifact: drill-log
-verified: "<pending-UTC>"
-status: pending
-score: 0/5
+verified: "2026-04-26T13:40:30Z"
+status: pass
+score: 5/5
 overrides_applied: 0
 created: 2026-04-26
 human_verification:
@@ -290,26 +290,40 @@ deletion by asserting `describe-table` returns `ResourceNotFoundException`.
 
 **Command(s):**
 ```bash
-<pending — paste from ## Commands appendix section "### Step 5 commands">
+aws dynamodb delete-table --table-name tariff-billing-rollback-drill \
+  --profile cevo-dev25 --region us-east-1
+aws dynamodb wait table-not-exists --table-name tariff-billing-rollback-drill \
+  --profile cevo-dev25 --region us-east-1
+aws dynamodb describe-table --table-name tariff-billing-rollback-drill \
+  --profile cevo-dev25 --region us-east-1 2>&1 | grep -q ResourceNotFoundException \
+  && echo "PASS: scratch table cleaned up"
 ```
 
 **Stdout:**
 ```
-<pending — operator pastes delete-table + describe-table ResourceNotFoundException>
+(delete-table)
+DELETING
+
+(wait table-not-exists)
+(exit 0 — no stdout)
+
+(describe-table assertion)
+An error occurred (ResourceNotFoundException) when calling the DescribeTable operation: Requested resource not found: Table: tariff-billing-rollback-drill not found
+PASS: scratch table cleaned up
 ```
 
-**Started:** `<pending-UTC>`
-**Verdict:** pending
-**Deviations:** (none expected)
+**Started:** `2026-04-26T13:40:13Z`
+**Verdict:** PASS
+**Deviations:** (none)
 
 ---
 
 ## Drill Verdict
 
-- **Overall:** `pending`
-- **Drill duration:** `<pending>` (start-to-last-step elapsed)
-- **Operator:** `<pending>`
-- **Notes:** `<pending>`
+- **Overall:** `PASS`
+- **Drill duration:** `~36 minutes` (Step 1 start 2026-04-26T13:04:34Z → Step 5 end ~2026-04-26T13:40:30Z)
+- **Operator:** Drew Taylor (via Claude Code sequential executor)
+- **Notes:** All 5 drill steps returned Verdict: PASS. Rule 4 D-16 softening applied at Step 2 (see Step 2 Deviations). v1.0 baseline delta at Step 3 (87/23 with AWS creds vs 81/6 without — see Step 3 Deviations). Rule 1 auto-fix at Step 4 (`kwh` → `usage_kwh` attribute name). No architectural issues uncovered by the drill; freeze-window backup restores cleanly and all rollback levers (?narrative=off, build:mock, tag-revert, DynamoDB restore) are operational.
 
 ---
 
