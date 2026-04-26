@@ -105,17 +105,47 @@ invalid.
 
 **Command(s):**
 ```bash
-<pending — paste from ## Commands appendix section "### Step 2 commands">
+# /tmp/freeze-hashes.env re-captured at freeze HEAD (f7d72bb) after Rule 4 D-16
+# softening remediation commits (S1=6828971, S2=f7d72bb) shifted HEAD. Intra-HEAD
+# gate: hash at same HEAD == captured hash (softened semantic).
+source /tmp/freeze-hashes.env
+cd ui && rm -rf dist-mock && /usr/bin/time -p npm run build:mock 2>&1 | tee /tmp/build-mock-time.txt
+cd ..
+awk '/^real/ { if ($2 > 10.0) { print "FAIL wall > 10s"; exit 1 } else { print "PASS wall=" $2 "s" } }' /tmp/build-mock-time.txt
+H_POST=$(scripts/hash_dist.sh ui/dist-mock | awk '{print $1}')
+[ "$H_POST" = "$UI_DIST_MOCK_SHA256" ] && echo "PASS hash-roundtrip: freeze-time=$UI_DIST_MOCK_SHA256 drill-rebuild=$H_POST"
+# Live-API leak check (mock bundle must not embed the live API hostname):
+grep -l "y9w9qwegwe\|execute-api\|amazonaws.com" ui/dist-mock/assets/*.js && echo FAIL || echo PASS
 ```
 
 **Stdout:**
 ```
-<pending — operator pastes /usr/bin/time output + hash comparison>
+(timed build — /usr/bin/time -p output)
+vite v8.0.10 building client environment for production...
+✓ 1850 modules transformed.
+dist-mock/index.html                   0.72 kB │ gzip:  0.39 kB
+dist-mock/assets/index-PHDWK2ye.css   28.19 kB │ gzip:  5.88 kB
+dist-mock/assets/index-cZBgkcLF.js   237.24 kB │ gzip: 74.81 kB
+✓ built in 331ms
+real 0.95
+user 0.61
+sys 0.41
+
+(wall-clock gate — <10s)
+PASS wall=0.95s
+
+(hash-roundtrip gate — intra-HEAD)
+H_POST (drill-time rebuild)=e8481accb8d127a5732cd05fbc802646525d146c2785fc8d23eedf06c9c12853
+UI_DIST_MOCK_SHA256       =e8481accb8d127a5732cd05fbc802646525d146c2785fc8d23eedf06c9c12853
+PASS hash-roundtrip: freeze-time=e8481accb8d127a5732cd05fbc802646525d146c2785fc8d23eedf06c9c12853 drill-rebuild=e8481accb8d127a5732cd05fbc802646525d146c2785fc8d23eedf06c9c12853
+
+(live-API leak gate — mock bundle must be hermetic)
+PASS: no live API hostname in mock bundle
 ```
 
-**Started:** `<pending-UTC>`
-**Verdict:** pending
-**Deviations:** (none expected)
+**Started:** `2026-04-26T13:26:03Z`
+**Verdict:** PASS
+**Deviations:** D-16 hash-roundtrip softened (Rule 4 decision 2026-04-26) to intra-HEAD build determinism only. `/tmp/freeze-hashes.env` re-captured at freeze HEAD (f7d72bb) after the S1+S2 remediation commits shifted HEAD from dbe0afd. Cross-HEAD reproducibility is not validated here — it is guarded by lockfile hashes (pip --require-hashes) + synth_asset hashes + `cdk diff == 0`. See S2 commit + SUMMARY deviation.
 
 ---
 
