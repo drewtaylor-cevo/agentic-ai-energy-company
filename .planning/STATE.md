@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Demo Polish & LLM Narrative
-status: ready_to_plan
+status: planning
 stopped_at: Phase 10 context gathered
-last_updated: "2026-04-26T14:17:01.716Z"
+last_updated: "2026-04-26T21:43:35.986Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 5
-  completed_phases: 9
+  completed_phases: 5
   total_plans: 16
   completed_plans: 16
-  percent: 180
+  percent: 100
 ---
 
 # Project State
@@ -129,6 +129,20 @@ Non-blocking carry-forwards from v1.0 phase VERIFICATIONs (see `milestones/v1.0-
 
 - Phase 4 WR-01 / IN-01 / IN-02 — orchestrator-accepted non-blockers
 - Phase 5 visual rehearsal — scheduled at T-24h per DEMO-RUNBOOK
+
+### v2.0 Close Deferrals (acknowledged 2026-04-26 at milestone close)
+
+User acknowledged and deferred during `/gsd-complete-milestone v2.0`:
+
+| Category | Item | Status | Rationale |
+|----------|------|--------|-----------|
+| UAT gap | 07-HUMAN-UAT.md | partial (3 pending scenarios) | Demo-day visual checks — operator will perform at T-24h rehearsal per DEMO-RUNBOOK §2 |
+| UAT gap | 09-HUMAN-UAT.md | partial (3 pending scenarios) | Live-stack D-22 gates — Phase 10 D-22 closeout PASSED 15/15 VALIDATION rows live against AWS, effectively satisfying these |
+| Verification gap | 07-VERIFICATION.md | human_needed | Demo-day UI + API observation; freeze-ceremony reconciliation deploy exercised the Phase 7-02 alias path live |
+| Verification gap | 08-VERIFICATION.md | human_needed | Demo-day visual rehearsal per DEMO-RUNBOOK §2 |
+| Verification gap | 09-VERIFICATION.md | human_needed | Live-stack gates validated by Phase 10 ceremony pytest 189/34 + `cdk diff==0` |
+
+Total: 5 items (2 UAT gaps, 3 verification gaps). Resolution path: `/gsd-verify-work 07`, `/gsd-verify-work 08`, `/gsd-verify-work 09` during T-24h rehearsal.
 
 ## Session Continuity
 
