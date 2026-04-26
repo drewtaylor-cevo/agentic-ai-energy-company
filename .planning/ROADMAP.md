@@ -26,7 +26,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [ ] **Phase 7: API Pass-Through + Pre-Warm Route** — Forward narrative fields verbatim and add the `?prewarm=1` branch on the existing Lambda behind an alias with Provisioned Concurrency
 - [ ] **Phase 8: UI Integration + Feature Flag + Version Indicator** — Render narrative rows with skeleton shimmer, wire `?narrative=off` URL flag, bake in `v2.0 · <git-sha>` corner indicator
 - [ ] **Phase 9: Pre-Warm Tooling + Eval Harness + Keep-Alive** — Ship `scripts/prewarm.py`, `scripts/demo-keepalive.sh`, and the end-to-end narrative eval harness
-- [ ] **Phase 10: Freeze + Rollback Drill** — Pin hashes, apply CFN stack policies, cut `demo-v2.0` tag, drill `demo-v1.0` rollback on a scratch DynamoDB restore
+- [x] **Phase 10: Freeze + Rollback Drill** — Pin hashes, apply CFN stack policies, cut `demo-v2.0` tag, drill `demo-v1.0` rollback on a scratch DynamoDB restore (completed 2026-04-26)
 
 ## Phase Details
 
@@ -102,7 +102,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 **Plans**: 3 plans
 - [x] 10-01-PLAN.md — Stack-policy JSON bodies + content-manifest hashers + cross-rebuild determinism gate (Wave 1, autonomous)
 - [x] 10-02-PLAN.md — Hash-pinned requirements via pip-compile + FREEZE-MANIFEST.md scaffold + 10-DRILL-LOG.md skeleton + DEMO-RUNBOOK.md §7-§10 (Wave 2, autonomous, depends on 10-01)
-- [ ] 10-03-PLAN.md — T-48h ceremony execution: reproducibility gate + cdk diff + rollback drill + stack lock + DynamoDB backup + manifest population + demo-v2.0 tag + origin push (Wave 3, autonomous: false, depends on 10-02)
+- [x] 10-03-PLAN.md — T-48h ceremony execution: reproducibility gate + cdk diff + rollback drill + stack lock + DynamoDB backup + manifest population + demo-v2.0 tag + origin push (Wave 3, autonomous: false, depends on 10-02)
 
 ## Progress
 
@@ -117,7 +117,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 7. API Pass-Through + Pre-Warm Route | v2.0 | 0/2 | Ready to execute | — |
 | 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 0/4 | Ready to execute | — |
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 0/4 | Ready to execute | — |
-| 10. Freeze + Rollback Drill | v2.0 | 2/3 | In Progress|  |
+| 10. Freeze + Rollback Drill | v2.0 | 3/3 | Complete   | 2026-04-26 |
 
 ---
 *Roadmap created: 2026-04-23*

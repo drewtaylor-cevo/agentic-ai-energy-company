@@ -23,7 +23,7 @@
 
 ### Demo Hardening — Freeze & Rollback (DEMO)
 
-- [ ] **DEMO-04**: Frozen demo environment 48h pre-presentation:
+- [x] **DEMO-04**: Frozen demo environment 48h pre-presentation:
   - `pip-compile --generate-hashes` on both `requirements.txt` and `requirements-dev.txt` → byte-identical Lambda bundles
   - `npm ci` reproducibility against existing `ui/package-lock.json`
   - CloudFormation stack policies deny `Update:*` on FoundationStack, AgentCoreStack, BackendApiStack
@@ -32,7 +32,7 @@
   - `FREEZE-MANIFEST.md` captures SHA-256 of lockfiles + dist bundles + CloudFormation stack IDs + pinned Bedrock model ID (YAML in a Markdown code fence)
   - Annotated git tag `demo-v2.0` cut on `main`
   - `cdk diff` empty against deployed stack at freeze time
-- [ ] **DEMO-06**: Rollback drill rehearsed at T-48h against a scratch DynamoDB restore. Drill covers:
+- [x] **DEMO-06**: Rollback drill rehearsed at T-48h against a scratch DynamoDB restore. Drill covers:
   - Revert to `demo-v1.0` tag works from a clean tree
   - `?narrative=off` feature flag toggles narrative rows off without redeploy
   - `build:mock` UI dist still regeneratable for <10s emergency UI swap

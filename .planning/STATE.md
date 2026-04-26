@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: Demo Polish & LLM Narrative
 status: executing
 stopped_at: Phase 10 context gathered
-last_updated: "2026-04-26T11:17:33.591Z"
-last_activity: 2026-04-26 -- Phase 10 execution started
+last_updated: "2026-04-26T14:17:01.716Z"
+last_activity: 2026-04-26
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 16
-  completed_plans: 13
-  percent: 81
+  completed_plans: 16
+  percent: 100
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-04-25 at v2.0 milestone start)
 ## Current Position
 
 Phase: 10 (freeze-rollback-drill) — EXECUTING
-Plan: 1 of 3
+Plan: 2 of 3
 Next: Phase 7 (API Pass-Through + Pre-Warm Route) — deployed runtime ready with stable ARN and extended TrackInfo schema serving byte-exact DEMO-02 values
-Status: Executing Phase 10
-Last activity: 2026-04-26 -- Phase 10 execution started
+Status: Ready to execute
+Last activity: 2026-04-26
 
 **AgentRuntime (for Plan 04 closeout):**
 
@@ -85,6 +85,9 @@ Phase 06.1 Plan 04 execution decisions (2026-04-25):
 - D-09 atomic phase-close commit `db8b796` landed exactly 2 files: `.planning/phases/06-agent-narrative-guardrail/06-SAMPLES.md` (new) AND `.planning/ROADMAP.md` (Phase 6 row `2.5/3 ⚠ Partial → 3/3 ✓ Complete 2026-04-25` + line-25 checkbox `[ ]`→`[x]`). No interim state where 06.1 shipped but Phase 6 remained Partial.
 - Phase 6 Success Criteria 1-5 all now satisfied (per-persona narrative+script, Pydantic validator, banned-terms rejection, eval-coverage split between offline+smoke, deployed image + DEMO-02 preservation). Phase 6 backend-half UI-03/UI-04/UI-05 requirements fully landed.
 - Phase 7 precondition met: deployed runtime ARN stable (`tariff_agent-O2Hai86N8V`), extended TrackInfo schema serving byte-exact values, `_narrative_source` marker expected to be stripped by Phase 7 API Lambda per pass-through contract.
+- [Phase ?]: Rule 4 D-16 softening: dist_bundles.* hashes are commit-bound snapshots due to vite __GIT_SHA__ embed; cross-HEAD reproducibility guarded by lockfile + synth_asset hashes + cdk diff == 0
+- [Phase ?]: WN-2 two-commit pattern: FREEZE_SHA=1a83a87c (tag^) + POST_AMEND_SHA=a09c086 (tag target); manifest self-consistent via git rev-list -n 1 demo-v2.0^ == freeze_commit_sha
+- [Phase ?]: Phase 10 ceremony pytest baseline = 189 passed / 34 deselected (python3.13 + AWS_PROFILE=cevo-dev25 + both prod+dev lockfiles mandatory per Rule 4 R2); strictly better than Phase 9 closeout 183/6/34
 
 ### Pending Todos
 
@@ -129,9 +132,9 @@ Non-blocking carry-forwards from v1.0 phase VERIFICATIONs (see `milestones/v1.0-
 
 ## Session Continuity
 
-Last session: --stopped-at
+Last session: 2026-04-26T14:16:33.944Z
 Stopped at: Phase 10 context gathered
-Resume file: --resume-file
+Resume file: None
 
 **Environment lock (v1.0 carry-forward):** `demo-v1.0` annotated git tag on main
 
