@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Demo Polish & LLM Narrative
-status: planning
+status: executing
 stopped_at: Phase 10 context gathered
-last_updated: "2026-04-26T11:01:23.134Z"
-last_activity: 2026-04-26
+last_updated: "2026-04-26T11:17:33.591Z"
+last_activity: 2026-04-26 -- Phase 10 execution started
 progress:
   total_phases: 5
   completed_phases: 4
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-25 at v2.0 milestone start)
 
 **Core value:** A call centre agent can open any customer account and immediately see exactly how much that customer could save and on which plan — making every retention conversation data-driven.
-**Current focus:** Phase 09 — pre-warm-tooling-eval-harness-keep-alive
+**Current focus:** Phase 10 — freeze-rollback-drill
 
 ## Current Position
 
-Phase: 10
-Plan: Not started
+Phase: 10 (freeze-rollback-drill) — EXECUTING
+Plan: 1 of 3
 Next: Phase 7 (API Pass-Through + Pre-Warm Route) — deployed runtime ready with stable ARN and extended TrackInfo schema serving byte-exact DEMO-02 values
-Status: Ready to plan
-Last activity: 2026-04-26
+Status: Executing Phase 10
+Last activity: 2026-04-26 -- Phase 10 execution started
 
 **AgentRuntime (for Plan 04 closeout):**
 
