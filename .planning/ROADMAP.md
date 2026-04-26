@@ -117,7 +117,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 7. API Pass-Through + Pre-Warm Route | v2.0 | 0/2 | Ready to execute | — |
 | 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 0/4 | Ready to execute | — |
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 0/4 | Ready to execute | — |
-| 10. Freeze + Rollback Drill | v2.0 | 3/3 | Complete   | 2026-04-26 |
+| 10. Freeze + Rollback Drill | v2.0 | 3/3 | Complete    | 2026-04-26 |
 
 ---
 *Roadmap created: 2026-04-23*
