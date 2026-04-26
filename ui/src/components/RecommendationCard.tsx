@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Leaf, PiggyBank } from 'lucide-react';
 import type { TrackInfo } from '@/lib/types';
+import { NARRATIVE_ENABLED } from '@/lib/flags';
 
 const TRACK_CONFIG = {
   green: {
@@ -19,6 +20,7 @@ const TRACK_CONFIG = {
     accentText: 'text-emerald-600',
     methodologyTemplate:
       'Based on your 12-month kWh usage at the {plan_name} rate (100% renewable).',
+    accentBorderLeft: 'border-l-emerald-600',
   },
   cheapest: {
     heading: 'Cheapest Option',
@@ -28,6 +30,7 @@ const TRACK_CONFIG = {
     accentText: 'text-blue-600',
     methodologyTemplate:
       'Based on your 12-month kWh usage at the {plan_name} rate (lowest unit price).',
+    accentBorderLeft: 'border-l-blue-600',
   },
 } as const;
 
@@ -77,7 +80,15 @@ export function RecommendationCard({ track, data }: RecommendationCardProps) {
             </p>
           </div>
         </div>
+        {NARRATIVE_ENABLED && (
+          <p className="text-sm italic text-muted-foreground">{data.usage_narrative}</p>
+        )}
         <p className="text-sm text-muted-foreground">{methodology}</p>
+        {NARRATIVE_ENABLED && (
+          <blockquote className={`border-l-4 ${config.accentBorderLeft} pl-4 py-2 text-base`}>
+            ❝ {data.call_script} ❞
+          </blockquote>
+        )}
       </CardContent>
     </Card>
   );
