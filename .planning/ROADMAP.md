@@ -100,7 +100,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   5. The rollback drill — executed against a scratch DynamoDB restore at T-48h — proves that reverting to `demo-v1.0` works from a clean tree, `?narrative=off` toggles narrative off without redeploy, and `build:mock` regenerates the <10s emergency UI swap dist.
 **Requirements**: DEMO-04, DEMO-06
 **Plans**: 3 plans
-- [ ] 10-01-PLAN.md — Stack-policy JSON bodies + content-manifest hashers + cross-rebuild determinism gate (Wave 1, autonomous)
+- [x] 10-01-PLAN.md — Stack-policy JSON bodies + content-manifest hashers + cross-rebuild determinism gate (Wave 1, autonomous)
 - [ ] 10-02-PLAN.md — Hash-pinned requirements via pip-compile + FREEZE-MANIFEST.md scaffold + 10-DRILL-LOG.md skeleton + DEMO-RUNBOOK.md §7-§10 (Wave 2, autonomous, depends on 10-01)
 - [ ] 10-03-PLAN.md — T-48h ceremony execution: reproducibility gate + cdk diff + rollback drill + stack lock + DynamoDB backup + manifest population + demo-v2.0 tag + origin push (Wave 3, autonomous: false, depends on 10-02)
 
@@ -117,7 +117,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 7. API Pass-Through + Pre-Warm Route | v2.0 | 0/2 | Ready to execute | — |
 | 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 0/4 | Ready to execute | — |
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 0/4 | Ready to execute | — |
-| 10. Freeze + Rollback Drill | v2.0 | 0/3 | Ready to execute | — |
+| 10. Freeze + Rollback Drill | v2.0 | 1/3 | In Progress|  |
 
 ---
 *Roadmap created: 2026-04-23*
