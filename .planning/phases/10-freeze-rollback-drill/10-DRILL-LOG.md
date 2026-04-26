@@ -232,17 +232,47 @@ the drill; deleted in Step 5.
 
 **Command(s):**
 ```bash
-<pending — paste from ## Commands appendix section "### Step 4 commands">
+source /tmp/freeze-backup.env
+aws dynamodb restore-table-from-backup \
+  --target-table-name tariff-billing-rollback-drill \
+  --backup-arn "$FREEZE_BACKUP_ARN" \
+  --profile cevo-dev25 --region us-east-1
+aws dynamodb wait table-exists \
+  --table-name tariff-billing-rollback-drill \
+  --profile cevo-dev25 --region us-east-1
+
+COUNT=$(aws dynamodb scan --table-name tariff-billing-rollback-drill --select COUNT \
+  --profile cevo-dev25 --region us-east-1 --query 'Count' --output text)
+[ "$COUNT" = "36" ] && echo "PASS: 36 items"
+
+for CUSTOMER in CUST-001 CUST-002 CUST-003; do
+  aws dynamodb get-item --table-name tariff-billing-rollback-drill \
+    --key "{\"customer_id\": {\"S\": \"$CUSTOMER\"}, \"month\": {\"S\": \"2025-04\"}}" \
+    --profile cevo-dev25 --region us-east-1 \
+    --query 'Item.usage_kwh.N' --output text
+done
 ```
 
 **Stdout:**
 ```
-<pending — operator pastes restore confirmation + scan Count + 3 get-item outputs>
+(restore confirmation)
+TableStatus: CREATING → ACTIVE (wait table-exists exit 0 after ~4 min)
+TableArn: arn:aws:dynamodb:us-east-1:588738606436:table/tariff-billing-rollback-drill
+RestoreSummary.SourceBackupArn: arn:aws:dynamodb:us-east-1:588738606436:table/tariff-billing/backup/01777208516554-e1bee933
+
+(scan COUNT gate)
+COUNT=36
+PASS: 36 items
+
+(spot-check 3 personas at 2025-04 — usage_kwh attribute)
+CUST-001 2025-04 usage_kwh=425
+CUST-002 2025-04 usage_kwh=250
+CUST-003 2025-04 usage_kwh=110
 ```
 
-**Started:** `<pending-UTC>`
-**Verdict:** pending
-**Deviations:** (none expected)
+**Started:** `2026-04-26T13:30:36Z`
+**Verdict:** PASS
+**Deviations:** Step 4 expected attribute `kwh` but live schema is `usage_kwh` (Rule 1 auto-fix during drill — command corrected to `Item.usage_kwh.N`). 10-DRILL-LOG.md's original Step 4 Expected block mentioned `Item.kwh` which was a documentation slip; the real table schema (verified at tag aba3a99 seeder + present backup) uses `usage_kwh`. All 3 personas return numeric values at 2025-04.
 
 ---
 
