@@ -12,14 +12,14 @@
 - [x] **UI-03**: LLM-generated call-script snippet rendered on each recommendation card (Green and Cheapest) — a one-liner the call centre agent can read verbatim. Second-person voice. ≤22 words. Contains no digits, `$`, `£`, `€`, or `%`. No switch/action verbs, no competitor references, no environmental superlatives.
 - [x] **UI-04**: LLM-generated usage-narrative sentence rendered on each recommendation card — a one-sentence customer profile (e.g. "High evening and weekend usage, peaks during winter heating months"). Third-person descriptive voice. ≤20 words. Contains no digits, `$`, `£`, `€`, or `%`. No prescription, no second-person pronouns.
 - [x] **UI-05**: Narrative-output validator enforces `max_length` caps and rejects any string containing `$`, `£`, `€`, `%`, or any digit, plus a banned-terms list (switch verbs, competitor names, environmental superlatives). Validation failure or timeout falls back to a per-persona × per-card committed fallback string. Validator is a Pydantic `field_validator` — a hard code-level gate, not a prompt-level nudge.
-- [ ] **UI-06**: `?narrative=off` URL feature flag hides both narrative rows client-side without a redeploy. Primary runtime rollback lever.
-- [ ] **UI-07**: Version indicator `v2.0 · <git-sha>` rendered in a corner of the UI — proves which build is live in the browser at demo time (defends against stale-bundle risk).
-- [ ] **UI-08**: Skeleton-first render keeps layout stable — narrative slots render a matching Skeleton during fetch with no layout shift on load. Both cards must remain above the fold at 1280×800 with narratives at maximum generated length.
+- [x] **UI-06**: `?narrative=off` URL feature flag hides both narrative rows client-side without a redeploy. Primary runtime rollback lever.
+- [x] **UI-07**: Version indicator `v2.0 · <git-sha>` rendered in a corner of the UI — proves which build is live in the browser at demo time (defends against stale-bundle risk).
+- [x] **UI-08**: Skeleton-first render keeps layout stable — narrative slots render a matching Skeleton during fetch with no layout shift on load. Both cards must remain above the fold at 1280×800 with narratives at maximum generated length.
 
 ### Demo Hardening — Pre-warm (DEMO)
 
-- [ ] **DEMO-03**: `scripts/prewarm.py` (invokable as `npm run prewarm`) warms all 3 personas × both cards through the full API Gateway → Lambda → AgentCore → Bedrock chain. `set -euo pipefail` plus `curl -f` semantics; non-zero exit if warm median ≥ 3000ms on any persona.
-- [ ] **DEMO-05**: `scripts/demo-keepalive.sh` pings the hot path every 10 minutes from T-30m through end of Q&A to beat AgentCore's 15-minute microVM idle timeout. Honest-framing recovery rehearsed as secondary net.
+- [x] **DEMO-03**: `scripts/prewarm.py` (invokable as `npm run prewarm`) warms all 3 personas × both cards through the full API Gateway → Lambda → AgentCore → Bedrock chain. `set -euo pipefail` plus `curl -f` semantics; non-zero exit if warm median ≥ 3000ms on any persona.
+- [x] **DEMO-05**: `scripts/demo-keepalive.sh` pings the hot path every 10 minutes from T-30m through end of Q&A to beat AgentCore's 15-minute microVM idle timeout. Honest-framing recovery rehearsed as secondary net.
 
 ### Demo Hardening — Freeze & Rollback (DEMO)
 

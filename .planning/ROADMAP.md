@@ -23,9 +23,9 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 ### v2.0 Demo Polish & LLM Narrative
 
 - [x] **Phase 6: Agent Narrative + Guardrail** — Extend `TrackInfo` schema with `usage_narrative` + `call_script` plus the Pydantic validator that hard-rejects digits and currency symbols
-- [ ] **Phase 7: API Pass-Through + Pre-Warm Route** — Forward narrative fields verbatim and add the `?prewarm=1` branch on the existing Lambda behind an alias with Provisioned Concurrency
-- [ ] **Phase 8: UI Integration + Feature Flag + Version Indicator** — Render narrative rows with skeleton shimmer, wire `?narrative=off` URL flag, bake in `v2.0 · <git-sha>` corner indicator
-- [ ] **Phase 9: Pre-Warm Tooling + Eval Harness + Keep-Alive** — Ship `scripts/prewarm.py`, `scripts/demo-keepalive.sh`, and the end-to-end narrative eval harness
+- [x] **Phase 7: API Pass-Through + Pre-Warm Route** — Forward narrative fields verbatim and add the `?prewarm=1` branch on the existing Lambda behind an alias with Provisioned Concurrency (completed 2026-04-26)
+- [x] **Phase 8: UI Integration + Feature Flag + Version Indicator** — Render narrative rows with skeleton shimmer, wire `?narrative=off` URL flag, bake in `v2.0 · <git-sha>` corner indicator (completed 2026-04-26)
+- [x] **Phase 9: Pre-Warm Tooling + Eval Harness + Keep-Alive** — Ship `scripts/prewarm.py`, `scripts/demo-keepalive.sh`, and the end-to-end narrative eval harness (completed 2026-04-26)
 - [x] **Phase 10: Freeze + Rollback Drill** — Pin hashes, apply CFN stack policies, cut `demo-v2.0` tag, drill `demo-v1.0` rollback on a scratch DynamoDB restore (completed 2026-04-26)
 
 ## Phase Details
@@ -114,9 +114,9 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 4. Agent-Assist UI | v1.0 | 5/5 | ✓ Complete | 2026-04-24 |
 | 5. Demo Hardening | v1.0 | 7/7 | ✓ Complete | 2026-04-25 |
 | 6. Agent Narrative + Guardrail | v2.0 | 3/3 | ✓ Complete | 2026-04-25 |
-| 7. API Pass-Through + Pre-Warm Route | v2.0 | 0/2 | Ready to execute | — |
-| 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 0/4 | Ready to execute | — |
-| 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 0/4 | Ready to execute | — |
+| 7. API Pass-Through + Pre-Warm Route | v2.0 | 2/2 | Complete    | 2026-04-26 |
+| 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 4/4 | Complete    | 2026-04-26 |
+| 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 4/4 | Complete    | 2026-04-26 |
 | 10. Freeze + Rollback Drill | v2.0 | 3/3 | Complete    | 2026-04-26 |
 
 ---
