@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Demo Polish & LLM Narrative
-status: planning
+status: executing
 stopped_at: Phase 8 context gathered
-last_updated: "2026-04-26T03:38:11.064Z"
-last_activity: 2026-04-26
+last_updated: "2026-04-26T04:12:41.296Z"
+last_activity: 2026-04-26 -- Phase 08 execution started
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 5
+  total_plans: 9
   completed_plans: 5
-  percent: 100
+  percent: 56
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-25 at v2.0 milestone start)
 
 **Core value:** A call centre agent can open any customer account and immediately see exactly how much that customer could save and on which plan — making every retention conversation data-driven.
-**Current focus:** Phase 07 — api-pass-through-pre-warm-route
+**Current focus:** Phase 08 — ui-integration-feature-flag-version-indicator
 
 ## Current Position
 
-Phase: 8
-Plan: Not started
+Phase: 08 (ui-integration-feature-flag-version-indicator) — EXECUTING
+Plan: 1 of 4
 Next: Phase 7 (API Pass-Through + Pre-Warm Route) — deployed runtime ready with stable ARN and extended TrackInfo schema serving byte-exact DEMO-02 values
-Status: Ready to plan
-Last activity: 2026-04-26
+Status: Executing Phase 08
+Last activity: 2026-04-26 -- Phase 08 execution started
 
 **AgentRuntime (for Plan 04 closeout):**
 
@@ -144,4 +144,4 @@ Resume file: --resume-file
 - `/gsd-context-phase 07` — Gather context for Phase 7 (API Pass-Through + Pre-Warm Route)
 - Before Phase 7 live work, export env: `export AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:us-east-1:588738606436:runtime/tariff_agent-O2Hai86N8V AWS_DEFAULT_REGION=us-east-1 AWS_PROFILE=cevo-dev25`
 
-**Planned Phase:** 7 (API Pass-Through + Pre-Warm Route) — 2 plans — 2026-04-25T12:51:54.422Z
+**Planned Phase:** 08 (UI Integration + Feature Flag + Version Indicator) — 4 plans — 2026-04-26T04:08:17.665Z
