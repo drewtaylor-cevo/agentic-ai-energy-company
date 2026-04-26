@@ -121,6 +121,10 @@ All three are seeded into DynamoDB with 12 months of billing history (Apr 2025 �
 │   │   │   └── mock/           # Mock data fixtures
 │   │   └── personas.ts         # Persona definitions
 │   └── vite.config.ts          # Vite + Tailwind + git SHA injection
+├── demo/
+│   └── mockups/
+│       ├── email-nudge.html    # Proactive monthly savings email mockup
+│       └── portal-tile.html    # Customer self-service portal mockup
 ├── scripts/
 │   ├── prewarm.py              # Pre-warm CLI (eliminates cold starts)
 │   ├── demo-keepalive.sh       # 10-min ping loop (beats 15-min idle timeout)
@@ -275,6 +279,31 @@ bash scripts/demo-keepalive.sh
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, shadcn/ui |
 | Testing | pytest (Python), Vitest (TypeScript) |
 | Dependencies | pip-compile with hash verification |
+
+## Demo Mockups
+
+The `demo/mockups/` directory contains two HTML mockups that show how the same `GET /recommendations/{customer_id}` API can be reused across customer-facing surfaces beyond the call centre agent-assist UI. Open them directly in a browser — they're self-contained, no build step required.
+
+### Email Nudge (`email-nudge.html`)
+
+A proactive monthly email that surfaces a customer's potential savings directly in their inbox. Renders the same Green/Cheapest recommendation pair with LLM-generated narrative and "Why this plan" copy, wrapped in a realistic email client chrome (sender, subject line, footer with unsubscribe).
+
+Key points from the mockup's annotation layer:
+- Same API response, same byte-identical dollar values, same Pydantic-validated narrative strings
+- Batch-scheduled monthly send with a material-delta filter (only email when savings ≥ $10/mo)
+- Highest-stakes surface — no kill switch once sent, narrative validation must be airtight before the batch fires, and proactive savings claims need legal review for regulatory compliance (AEMC, ACCC)
+
+### Customer Portal Tile (`portal-tile.html`)
+
+A mobile-first self-service portal view (375–428px device frame) where the customer sees their own savings recommendations after logging in. Includes a hero savings callout, the same two recommendation cards with narrative and call script, and actionable "Switch to EcoFlex" / "Switch to Value 12" CTAs.
+
+Key points from the mockup's annotation layer:
+- Same API, same kill switch (`?narrative=off`), same freeze surface as the agent-assist build
+- New requirements: customer authentication (OIDC/MFA), self-serve plan-change workflow, mobile-responsive layout, and rate limiting
+- No ranking between Green and Cheapest — the customer chooses, matching the call-centre framing (REC-03)
+- Narrative and "Why this plan" fields remain digit-free and currency-free, enforced by the same Pydantic validator regardless of surface
+
+Both mockups demonstrate that the v2.0 backend is surface-agnostic — the same API, validation, and freeze controls serve the internal agent-assist tool, a batch email pipeline, and a customer-facing portal without modification.
 
 ## API
 
