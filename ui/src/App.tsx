@@ -26,6 +26,7 @@ import { RecommendationCard } from '@/components/RecommendationCard';
 import { RecommendationSkeletons } from '@/components/RecommendationSkeletons';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { EmptyState } from '@/components/EmptyState';
+import { VersionIndicator } from '@/components/VersionIndicator';
 
 function App() {
   const { state, lookup } = useRecommendations();
@@ -68,6 +69,7 @@ function App() {
           )}
         </section>
       </main>
+      <VersionIndicator />
     </div>
   );
 }
