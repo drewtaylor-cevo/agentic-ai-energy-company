@@ -119,46 +119,47 @@ These are load-bearing decisions that ripple into multiple requirements. Changin
 
 ## Traceability
 
-Which phases cover which requirements. Filled by gsd-roadmapper during Step 10.
+Which phases cover which requirements. Filled by gsd-roadmapper on 2026-04-28.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-04 | Phase TBD | Pending |
-| DATA-05 | Phase TBD | Pending |
-| DATA-06 | Phase TBD | Pending |
-| DATA-07 | Phase TBD | Pending |
-| REC-04 | Phase TBD | Pending |
-| REC-05 | Phase TBD | Pending |
-| PROD-01 | Phase TBD | Pending |
-| PROD-01a | Phase TBD | Pending |
-| PROD-01b | Phase TBD | Pending |
-| PROD-01c | Phase TBD | Pending |
-| AGENT-01 | Phase TBD | Pending |
-| AGENT-01a | Phase TBD | Pending |
-| AGENT-01b | Phase TBD | Pending |
-| AGENT-02 | Phase TBD | Pending |
-| AGENT-02a | Phase TBD | Pending |
-| AGENT-02b | Phase TBD | Pending |
-| WF-01 | Phase TBD | Pending |
-| WF-01a | Phase TBD | Pending |
-| WF-01b | Phase TBD | Pending |
-| WF-01c | Phase TBD | Pending |
-| DOC-01 | Phase TBD | Pending |
-| DOC-02 | Phase TBD | Pending |
-| DOC-03 | Phase TBD | Pending |
-| DEMO-07 | Phase TBD | Pending |
-| DEMO-08 | Phase TBD | Pending |
-| DEMO-09 | Phase TBD | Pending |
-| DEMO-10 | Phase TBD | Pending |
+| DATA-04 | Phase 11 | Pending |
+| DATA-05 | Phase 11 | Pending |
+| DATA-06 | Phase 11 | Pending |
+| DATA-07 | Phase 11 | Pending |
+| REC-04 | Phase 11 | Pending |
+| REC-05 | Phase 11 | Pending |
+| PROD-01 | Phase 12 | Pending |
+| PROD-01a | Phase 12 | Pending |
+| PROD-01b | Phase 12 | Pending |
+| PROD-01c | Phase 12 | Pending |
+| AGENT-01 | Phase 13 | Pending |
+| AGENT-01a | Phase 13 | Pending |
+| AGENT-01b | Phase 13 | Pending |
+| AGENT-02 | Phase 14 | Pending |
+| AGENT-02a | Phase 14 | Pending |
+| AGENT-02b | Phase 14 | Pending |
+| WF-01 | Phase 15 | Pending |
+| WF-01a | Phase 15 | Pending |
+| WF-01b | Phase 15 | Pending |
+| WF-01c | Phase 15 | Pending |
+| DOC-01 | Phase 16 | Pending |
+| DOC-02 | Phase 16 | Pending |
+| DOC-03 | Phase 16 | Pending |
+| DEMO-07 | Phase 16 | Pending |
+| DEMO-08 | Phase 17 | Pending |
+| DEMO-09 | Phase 16 | Pending |
+| DEMO-10 | Phase 16 | Pending |
 
 **Coverage:**
-- v3.0 requirements (top-level IDs): 12 (DATA-04, DATA-05, DATA-06, DATA-07, REC-04, REC-05, PROD-01, AGENT-01, AGENT-02, WF-01, DOC-01, DOC-02, DOC-03, DEMO-07, DEMO-08, DEMO-09, DEMO-10 — counting grouped IDs as one)
-- Sub-requirements (letter-suffixed): 11
+- v3.0 requirements (top-level IDs): 17 parent IDs — DATA-04, DATA-05, DATA-06, DATA-07, REC-04, REC-05, PROD-01, AGENT-01, AGENT-02, WF-01, DOC-01, DOC-02, DOC-03, DEMO-07, DEMO-08, DEMO-09, DEMO-10
+- Sub-requirements (letter-suffixed): 10 — PROD-01a/b/c, AGENT-01a/b, AGENT-02a/b, WF-01a/b/c
 - Total checkboxes: 27
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 27 ⚠️ (expected — roadmap step fills these)
+- Mapped to phases: **27 ✓**
+- Unmapped: **0 ✓** (100% coverage)
 
 ---
 *Requirements defined: 2026-04-28 at v3.0 milestone start*
 *Research synthesized: `.planning/research/SUMMARY.md` (commit `3bc08ab`)*
-*Next step: `/gsd-roadmapper` produces ROADMAP.md and back-fills the traceability table.*
+*Roadmap produced 2026-04-28: 7 phases (11–17) per LD-1 build order. See `.planning/ROADMAP.md`.*
+*Next step: `/gsd-plan-phase 11` to decompose Phase 11 (New Personas + Tariff Archetypes) into executable plans.*

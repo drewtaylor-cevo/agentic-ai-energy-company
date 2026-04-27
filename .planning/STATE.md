@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Agentic Depth & Workflow Assist
 status: planning
-last_updated: "2026-04-27T13:34:25.886Z"
-last_activity: 2026-04-27
+last_updated: "2026-04-28T00:00:00.000Z"
+last_activity: 2026-04-28
 progress:
-  total_phases: 0
+  total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,29 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-25 at v2.0 milestone start)
+See: .planning/PROJECT.md (updated 2026-04-28 at v3.0 milestone start)
 
 **Core value:** A call centre agent can open any customer account and immediately see exactly how much that customer could save and on which plan — making every retention conversation data-driven.
-**Current focus:** Phase 10 — freeze-rollback-drill
+**Current focus:** Phase 11 — New Personas + Tariff Archetypes (not started)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 11 — New Personas + Tariff Archetypes
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-27 — Milestone v3.0 started
+Status: Not started (roadmap defined; awaiting `/gsd-plan-phase 11`)
+Last activity: 2026-04-28 — v3.0 roadmap written, 27 requirements mapped across 7 phases (11–17)
+
+## v3.0 Phase Structure
+
+| Phase | Name | Requirements | Depends on |
+|-------|------|--------------|------------|
+| 11 | New Personas + Tariff Archetypes | DATA-04, DATA-05, DATA-06, DATA-07, REC-04, REC-05 | v2.0 frozen stack (`demo-v2.0`) |
+| 12 | CustomerDataProvider Abstraction | PROD-01, PROD-01a, PROD-01b, PROD-01c | Phase 11 |
+| 13 | Bill-Shock Multi-Tool Flow (AGENT-01) | AGENT-01, AGENT-01a, AGENT-01b | Phase 11 + Phase 12 |
+| 14 | Hardship Short-Circuit (AGENT-02) | AGENT-02, AGENT-02a, AGENT-02b | Phase 13 (shares Tools Lambda action dispatcher + `get_hardship_flag` tool) |
+| 15 | Draft Follow-Up Email via AgentCore Memory (WF-01) | WF-01, WF-01a, WF-01b, WF-01c | Phase 13 + Phase 14 (memorable turn-1 context) |
+| 16 | Presenter Artefacts + Operational Consolidation | DOC-01, DOC-02, DOC-03, DEMO-07, DEMO-09, DEMO-10 | Phases 11–15 (docs summarise shipped architecture; ops tooling exercises real surface) |
+| 17 | v3.0 Freeze Ceremony | DEMO-08 | Phase 16 |
 
 ## v2.0 Phase Structure
 
@@ -44,79 +56,84 @@ Last activity: 2026-04-27 — Milestone v3.0 started
 ### Roadmap Evolution
 
 - Phase 06.1 inserted after Phase 6: Resolve Sonnet 4.6 tool-use regression (DEMO-02) (URGENT)
+- v3.0 roadmap added 2026-04-28: 7 phases (11–17) derived from 27 requirement checkboxes per LD-1 build order
+
+### Locked Decisions (v3.0)
+
+Load-bearing decisions from REQUIREMENTS.md §Locked Decisions + research/SUMMARY.md. Changing any forces a requirements re-scope.
+
+- **LD-1 Build order:** DATA-04 → PROD-01 → AGENT-01 → AGENT-02 → WF-01 → DOC-* → Freeze. Data-first unblocks tests; adapter-second so new tools land through the abstraction; freeze last.
+- **LD-2 Hardship shape:** Pydantic discriminated union `kind: "recommendation" | "hardship"`. Preserves D-04 (200 not 500) and REC-03 (both tracks on recommendation branch); surgical update to `api_lambda/handler.py:152` required.
+- **LD-3 Memory scope:** Short-term only, `actorId = f"customer:{id}"`, `session_id = f"{id}-{UTC-ISO-day}"`, TTL 8–12h.
+- **LD-4 Latency target:** Warm p95 < 2500ms for AGENT-01; hard 4-tool cap in code (not prompt).
+- **LD-5 PROD-01 scope:** Protocol + DynamoDB impl + InMemory impl + NotImplementedError Salesforce stub; 3 methods only (no consent/audit/circuit-breaker).
+- **LD-6 Freeze ceremony:** Dedicated phase; scripted lift → deploy → verify → re-apply; new `demo-v3.0` tag + FREEZE-MANIFEST.
+- **LD-7 `?narrative=off`:** Kill switch collapses every v3.0 UI surface to v2.0 shape — single flag, single rehearsal.
+
+### Invariants the v3.0 roadmap must preserve
+
+Every phase owns preventing specific invariant regressions (see ROADMAP.md Phase Details "Invariant ownership" lines):
+
+- **SAV-03** LLM never does arithmetic — extended in Phase 13 to cover every new arithmetic tool (`detect_bill_shock_pure`, `get_hardship_flag_pure`, TOU math). Cross-persona canary + latency-floor witness mandatory.
+- **REC-03** both tracks always returned on recommendation branch — amended in Phase 14 to condition on `kind == "recommendation"`; non-negotiable on that branch.
+- **D-04** never-500 — Phase 14 hardship branch returns HTTP 200, not 404 or 500; Phase 13 4-tool-cap fallback path returns graceful fallback, not 500.
+- **D-15** narrative dual-gate (≤20 word / ≤22 word validators + salvage + fallback bank) — extended in Phases 13/14/15 to cover reasoning-trace surface (Phase 13), hardship narrative (Phase 14), and follow-up email body (Phase 15; longer-form validator acceptable if pre-committed).
+- **`_narrative_source` marker contract** — stripped by API Lambda; extended in Phase 13 (`reasoning_trace` — public, pass-through) and Phase 15 (`_workflow_source` — internal, strip).
+- **`runtimeSessionId` generated INSIDE `handler()`** (SC-3) — Phase 15 preserves this; Memory `session_id` is a SEPARATE deterministic key, never conflated. Documented at the call site per AP-2 prevention.
+- **Bi-mode imports in `agent/agent.py`** — Phase 12 `agent/providers.py` must follow the same `try: from providers … except: from agent.providers …` pattern.
+- **`api_lambda/handler.py:152` customer-not-found detection** — Phase 14 surgical update: `if "green" not in body and body.get("kind") != "hardship": return 404`. Both branches pytest-covered mandatory.
+- **Frozen lockfile contract (`--require-hashes`)** — Phase 15 owns the single permitted dep bump (`bedrock-agentcore` 1.6.3 → 1.6.4) with lockfile regen and FREEZE-MANIFEST hash-update evidence for Phase 17.
+- **Stack-policy lift ceremony** — Phases 11, 12, 13, 14, 15 each touch at least one of the three frozen stacks (`CustomerTariff`, `CustomerTariffAgent`, `CustomerTariffApi`). Phase 17 re-executes the full v2.0 Phase 10 freeze pattern (scripted lift → verify deploy → byte-equality re-apply).
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table. v1.0-era decisions preserved there with ✓ Good / ⚠️ Revisit markers. Full v1.0 decision log: see `.planning/milestones/v1.0-ROADMAP.md` Key Decisions section.
+Decisions are logged in PROJECT.md Key Decisions table. v1.0/v2.0-era decisions preserved there with ✓ Good / ⚠️ Revisit markers. Full v2.0 decision log: see `.planning/milestones/v2.0-ROADMAP.md` Key Decisions section.
 
-v2.0-specific decisions locked at requirements stage (see REQUIREMENTS.md):
+v3.0-specific decisions locked at requirements stage (see REQUIREMENTS.md):
 
-- Narrative generation strategy: same-turn Claude 3.7 Sonnet (Option A) — single Bedrock call, smallest freeze surface (amended by Phase 06.1: strategic model pin is now Claude Sonnet 4.6 per D-01/D-02)
-- Keep-alive: ship `scripts/demo-keepalive.sh`; honest-framing recovery is the secondary net
-- Rollback mechanism: `?narrative=off` flag + `demo-v1.0` tag + `build:mock` dist (drilled at T-48h)
-- No interim `demo-v1.1` tag — feature flag covers the common failure mode
-
-Phase 06.1 Plan 02 execution decisions (2026-04-25):
-
-- Verified stable AgentRuntimeArn preserved across deploy (`tariff_agent-O2Hai86N8V`) — Phase 7 plumbing assumption holds; no stack recreation.
-- Used AWS_PROFILE=cevo-dev25 for deploy after the shell's `AWS_PROFILE=cevo-25` env var was found to reference a non-existent profile; cevo-dev25 returned account 588738606436 (Customer Tariff stack owner per Phase 06-03 Deviation 1).
-- D-10 Gate 2 (Strands 1.37.0 wiring check inside container) confirmed `_agent.tool_registry.registry.keys()` attribute path is correct in the built image (RESEARCH assumption A4, LOW risk, now verified).
-- CloudWatch log group for the runtime is `/aws/bedrock-agentcore/runtimes/tariff_agent-O2Hai86N8V-DEFAULT` (plural `runtimes`, `-DEFAULT` suffix); Plan 02 plan docs had the stale singular path. Durable signal for Plan 03/04.
-- Plan 06.1-03 used Plan 02's corrected CloudWatch log group path /aws/bedrock-agentcore/runtimes/tariff_agent-O2Hai86N8V-DEFAULT (plural runtimes, -DEFAULT suffix); plan text singular path is stale.
-- Plan 06.1-03 offline suite interpreter = /opt/homebrew/bin/python3.13 (has strands-agents 1.37.0); system /usr/bin/python3 is 3.9 and lacks strands — documented for future executors.
-- DEMO-02 regression DEFINITIVELY RESOLVED on deployed runtime: three-persona canaries (Sarah 30/55, Marcus 16.90/30.98, Elena 14/25.67) all PASSED byte-for-byte; CloudWatch confirms zero deprecation warnings + 3 tariff-tools Lambda invocations matching 3 agent invocations in canary window.
-
-Phase 06.1 Plan 04 execution decisions (2026-04-25):
-
-- `scripts/capture_samples.py` ran first-try against deployed runtime; all 3 personas captured byte-exact; all 12 narrative fields marked `_narrative_source: model` (zero fallbacks fired — LLM produced demo-ready copy on first attempt for every slot).
-- Plan 06-03 Task 2 human-verify checkpoint RESOLVED with resume signal `approved` — prose quality + log visibility + byte-exact values all hold; `approved with log format v3` variant rejected because no fallback event fired to observe log format on, and the CloudWatch-formatter concern is already scoped to v3.0 hardening per CONTEXT.md Deferred.
-- D-09 atomic phase-close commit `db8b796` landed exactly 2 files: `.planning/phases/06-agent-narrative-guardrail/06-SAMPLES.md` (new) AND `.planning/ROADMAP.md` (Phase 6 row `2.5/3 ⚠ Partial → 3/3 ✓ Complete 2026-04-25` + line-25 checkbox `[ ]`→`[x]`). No interim state where 06.1 shipped but Phase 6 remained Partial.
-- Phase 6 Success Criteria 1-5 all now satisfied (per-persona narrative+script, Pydantic validator, banned-terms rejection, eval-coverage split between offline+smoke, deployed image + DEMO-02 preservation). Phase 6 backend-half UI-03/UI-04/UI-05 requirements fully landed.
-- Phase 7 precondition met: deployed runtime ARN stable (`tariff_agent-O2Hai86N8V`), extended TrackInfo schema serving byte-exact values, `_narrative_source` marker expected to be stripped by Phase 7 API Lambda per pass-through contract.
-- [Phase ?]: Rule 4 D-16 softening: dist_bundles.* hashes are commit-bound snapshots due to vite __GIT_SHA__ embed; cross-HEAD reproducibility guarded by lockfile + synth_asset hashes + cdk diff == 0
-- [Phase ?]: WN-2 two-commit pattern: FREEZE_SHA=1a83a87c (tag^) + POST_AMEND_SHA=a09c086 (tag target); manifest self-consistent via git rev-list -n 1 demo-v2.0^ == freeze_commit_sha
-- [Phase ?]: Phase 10 ceremony pytest baseline = 189 passed / 34 deselected (python3.13 + AWS_PROFILE=cevo-dev25 + both prod+dev lockfiles mandatory per Rule 4 R2); strictly better than Phase 9 closeout 183/6/34
+- LD-1 through LD-7 (above) — load-bearing cross-cutting decisions
+- Phase 15 owns the `bedrock-agentcore` 1.6.3 → 1.6.4 dependency bump; lockfile regeneration via `pip-compile` + `--require-hashes` verification gate; FREEZE-MANIFEST lockfile-hash placeholder handed to Phase 17 for final freeze evidence
+- DOC-01 framing deliberately avoids citing specific AER/Ofgem/state-PUC clauses ("regulatory-aware architecture" framing) to keep the demo legal-review-free per SUMMARY.md open-question 3
 
 ### Pending Todos
 
-None.
+None. Awaiting `/gsd-plan-phase 11` to begin Phase 11 decomposition.
 
 ### Blockers/Concerns
 
-**Pre-demo (carry-forward from v1.0, required before any live presentation):**
+**Pre-demo (carry-forward from v1.0/v2.0, required before any live presentation):**
 
-- **T-24h visual rehearsal:** Chrome DevTools-measured 2-pass rehearsal per DEMO-RUNBOOK §2 T-24h. Every persona warm median must stay <3000ms; if not, treat as a gap against UI-02.
-- **Discipline commitment (D-13):** AWS resources are "don't touch" between the `demo-v2.0` tag and the demo.
+- **T-24h visual rehearsal:** Chrome DevTools-measured 2-pass rehearsal per DEMO-RUNBOOK §2 T-24h. Every persona warm median must stay under the relevant per-flow gate (3000ms single-tool, 2500ms multi-tool AGENT-01). If not, treat as a gap against UI-02 / AGENT-01a.
+- **Discipline commitment (D-13):** AWS resources are "don't touch" between the `demo-v3.0` tag (once cut) and the demo.
 
-**v2.0-specific (must remain true through the milestone):**
+**v3.0-specific (must remain true through the milestone):**
 
-- UI-01 (both cards above fold at 1280px) must stay satisfied with narratives at max generated length.
-- UI-02 (<3s lookup-to-rendered) must stay satisfied — primary risk is latency stacking from the extra ~80 output tokens per card.
-- Narrative outputs must never contain digits or currency symbols — enforced by the Pydantic `field_validator` delivered in Phase 6.
+- UI-01 (both cards above fold at 1280px) must stay satisfied with `ReasoningTrace` collapsed by default and `HardshipBanner` replacing (not stacking above) the card grid.
+- UI-02 (<3s lookup-to-rendered) must stay satisfied — primary risk is AGENT-01 multi-tool latency stacking (~400–900ms over v2.0 single-tool path). Mitigated by Strands 1.37 `ConcurrentToolExecutor` default + per-flow prewarm gate + 4-tool cap.
+- Cross-customer memory bleed (Pitfall C4) is the single most catastrophic failure mode — live isolation smoke test is a mandatory Phase 15 close gate.
+- Narrative outputs on hardship + follow-up surfaces must pass the same D-15 gauntlet (no digits, no currency symbols, no switch verbs, no plan IDs on hardship branch).
 
 ## Deferred Items
 
-v1.0-close carry-forwards, resolved at v2.0 start:
+v2.0-close carry-forwards resolved at v3.0 start:
 
 | Category | Item | Status | Resolved At |
 |----------|------|--------|-------------|
-| v2.0 | UI-03: LLM-generated call script snippet | In scope (Phase 6/8) | 2026-04-25 (v2.0 roadmap) |
-| v2.0 | UI-04: LLM-generated usage narrative | In scope (Phase 6/8) | 2026-04-25 (v2.0 roadmap) |
-| v2.0 | UI-05: Narrative-output validator | In scope (Phase 6) | 2026-04-25 (v2.0 roadmap) |
-| v2.0 | UI-06: `?narrative=off` feature flag | In scope (Phase 8) | 2026-04-25 (v2.0 roadmap) |
-| v2.0 | UI-07: Version indicator | In scope (Phase 8) | 2026-04-25 (v2.0 roadmap) |
-| v2.0 | UI-08: Skeleton-first narrative render | In scope (Phase 8) | 2026-04-25 (v2.0 roadmap) |
-| v2.0 | DEMO-03: Pre-warm script | In scope (Phase 7/9) | 2026-04-25 (v2.0 roadmap) |
-| v2.0 | DEMO-04: Frozen environment lock (48hr pre-presentation) | In scope (Phase 10) | 2026-04-25 (v2.0 roadmap) |
-| v2.0 | DEMO-05: Keep-alive script | In scope (Phase 9) | 2026-04-25 (v2.0 roadmap) |
-| v2.0 | DEMO-06: Rollback drill | In scope (Phase 10) | 2026-04-25 (v2.0 roadmap) |
-| v3.0 | PROD-01: Live CRM integration | Deferred to v3.0 | 2026-04-25 (v2.0 start) |
-| v3.0 | PROD-02: Customer-facing self-service portal | Deferred to v3.0 | 2026-04-25 (v2.0 start) |
-
-Non-blocking carry-forwards from v1.0 phase VERIFICATIONs (see `milestones/v1.0-phases/05-demo-hardening/05-VERIFICATION.md` Gaps Summary):
-
-- Phase 4 WR-01 / IN-01 / IN-02 — orchestrator-accepted non-blockers
-- Phase 5 visual rehearsal — scheduled at T-24h per DEMO-RUNBOOK
+| v3.0 | PROD-01: Live CRM integration | In scope (Phase 12 — Protocol + DynamoDB demo impl + Salesforce NotImplementedError stub) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | DATA-04 Solar PV persona | In scope (Phase 11) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | DATA-05 EV persona | In scope (Phase 11) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | REC-04 Solar Feed-in tariff | In scope (Phase 11) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | REC-05 EV TOU tariff | In scope (Phase 11) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | AGENT-01 Bill-shock multi-tool flow | In scope (Phase 13) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | AGENT-02 Hardship short-circuit | In scope (Phase 14) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | WF-01 Draft follow-up email | In scope (Phase 15) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | DOC-01/02/03 Presenter artefacts | In scope (Phase 16) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | DEMO-07 `?narrative=off` extended | In scope (Phase 16) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | DEMO-08 Freeze ceremony | In scope (Phase 17) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | DEMO-09 Prewarm + keep-alive extensions | In scope (Phase 16) | 2026-04-28 (v3.0 roadmap) |
+| v3.0 | DEMO-10 Eval harness extensions | In scope (Phase 16) | 2026-04-28 (v3.0 roadmap) |
+| v3.1+ | PROD-02: Customer-facing self-service portal | Remains deferred | 2026-04-28 (v3.0 requirements) |
+| v3.1+ | WF-02/03, AGENT-03/04, PROD-03/04/05 | Deferred (see REQUIREMENTS.md §Deferred to v3.1 or later) | 2026-04-28 |
 
 ### v2.0 Close Deferrals (acknowledged 2026-04-26 at milestone close)
 
@@ -134,19 +151,15 @@ Total: 5 items (2 UAT gaps, 3 verification gaps). Resolution path: `/gsd-verify-
 
 ## Session Continuity
 
-Last session: 2026-04-26T14:16:33.944Z
-Stopped at: Phase 10 context gathered
+Last session: 2026-04-28T00:00:00.000Z
+Stopped at: v3.0 roadmap written (Phase 11–17 mapped, 27 requirements covered)
 Resume file: None
 
-**Environment lock (v1.0 carry-forward):** `demo-v1.0` annotated git tag on main
-
-- Tagged commit: `aba3a99c67994f39d9d496ddfd29c9116b756928`
-- Tag object: `3bb0f51380176deedd1712d5dee17a70ccd94887`
-- Push to origin: skipped (local-only, no origin configured)
+**Environment lock (v2.0 carry-forward):** `demo-v2.0` annotated git tag on main (3 stacks frozen via deny-Update:* + termination protection; `CustomerTariffFrontend` / Amplify is unfrozen).
 
 **Suggested next commands:**
 
-- `/gsd-context-phase 07` — Gather context for Phase 7 (API Pass-Through + Pre-Warm Route)
-- Before Phase 7 live work, export env: `export AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:us-east-1:588738606436:runtime/tariff_agent-O2Hai86N8V AWS_DEFAULT_REGION=us-east-1 AWS_PROFILE=cevo-dev25`
+- `/gsd-plan-phase 11` — Decompose Phase 11 (New Personas + Tariff Archetypes) into executable plans
+- Before Phase 11 live work, export env: `export AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:us-east-1:588738606436:runtime/tariff_agent-O2Hai86N8V AWS_DEFAULT_REGION=us-east-1 AWS_PROFILE=cevo-dev25`
 
-**Planned Phase:** 10 (Freeze + Rollback Drill) — 3 plans — 2026-04-26T11:01:23.116Z
+**Planned Phase:** 11 (New Personas + Tariff Archetypes) — plans TBD — awaiting `/gsd-plan-phase 11`
