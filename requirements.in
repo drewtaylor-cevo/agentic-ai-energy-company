@@ -1,5 +1,6 @@
 aws-cdk-lib==2.251.0
 aws-cdk.aws-bedrock-agentcore-alpha==2.250.0a0
+aws-cdk-aws-amplify-alpha==2.250.0a0
 constructs==10.6.0
 boto3==1.42.96
 strands-agents==1.37.0

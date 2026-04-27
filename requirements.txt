@@ -32,6 +32,10 @@ aws-cdk-asset-node-proxy-agent-v6==2.1.1 \
     --hash=sha256:37211fea7e308144d20666b939d8763d733000d8d837ba968dacaf4983daf574 \
     --hash=sha256:a24fab484423fcb7c729fb376817a4dbb6a09c176243fd1dcbdaa05ddf62f037
     # via aws-cdk-lib
+aws-cdk-aws-amplify-alpha==2.250.0a0 \
+    --hash=sha256:4a2826efd1c953c6da9694522ff3956765f4896115a1c5d274ab82c6cd8c124b \
+    --hash=sha256:af7977ec4e2d0c9788113bc18ae00793d484409f7572996eb00b664131e55c4f
+    # via -r requirements.in
 aws-cdk-aws-bedrock-agentcore-alpha==2.250.0a0 \
     --hash=sha256:990e1bbe6c0c888f2b64d862f4654475962222e4a894a27c582e28fc68b2c7d3 \
     --hash=sha256:ff33b43c30a9f84ede99b6b33601116892d855c17f838d4a70b745b14f3ea7f2
@@ -49,6 +53,7 @@ aws-cdk-lib==2.251.0 \
     --hash=sha256:ed69e7ea6896c62ac2ce01857083601baf541d5d875370bee6d213d641e8921e
     # via
     #   -r requirements.in
+    #   aws-cdk-aws-amplify-alpha
     #   aws-cdk-aws-bedrock-agentcore-alpha
     #   aws-cdk-aws-bedrock-alpha
 bedrock-agentcore==1.6.3 \
@@ -175,6 +180,7 @@ constructs==10.6.0 \
     --hash=sha256:bc55d1d390142424861e5ff5c6b8c243c4bae18fe7302e0939c2003f329ba365
     # via
     #   -r requirements.in
+    #   aws-cdk-aws-amplify-alpha
     #   aws-cdk-aws-bedrock-agentcore-alpha
     #   aws-cdk-aws-bedrock-alpha
     #   aws-cdk-lib
@@ -277,6 +283,7 @@ jsii==1.128.0 \
     # via
     #   aws-cdk-asset-awscli-v1
     #   aws-cdk-asset-node-proxy-agent-v6
+    #   aws-cdk-aws-amplify-alpha
     #   aws-cdk-aws-bedrock-agentcore-alpha
     #   aws-cdk-aws-bedrock-alpha
     #   aws-cdk-cloud-assembly-schema
@@ -333,6 +340,7 @@ publication==0.0.3 \
     # via
     #   aws-cdk-asset-awscli-v1
     #   aws-cdk-asset-node-proxy-agent-v6
+    #   aws-cdk-aws-amplify-alpha
     #   aws-cdk-aws-bedrock-agentcore-alpha
     #   aws-cdk-aws-bedrock-alpha
     #   aws-cdk-cloud-assembly-schema
@@ -724,6 +732,7 @@ typeguard==2.13.3 \
     # via
     #   aws-cdk-asset-awscli-v1
     #   aws-cdk-asset-node-proxy-agent-v6
+    #   aws-cdk-aws-amplify-alpha
     #   aws-cdk-aws-bedrock-agentcore-alpha
     #   aws-cdk-aws-bedrock-alpha
     #   aws-cdk-cloud-assembly-schema

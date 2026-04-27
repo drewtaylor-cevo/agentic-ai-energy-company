@@ -12,17 +12,23 @@ A call centre agent can open any customer account and immediately see exactly ho
 
 **v1.0 review:** Still the right priority. Shipping validated the core value end-to-end — every persona lookup returns two differentiated savings recommendations grounded in the customer's own 12-month usage profile.
 
-## Current Milestone: v2.0 Demo Polish & LLM Narrative
+## Current Milestone: v3.0 Agentic Depth & Workflow Assist
 
-**Goal:** Upgrade the v1.0 agent-assist demo with LLM-generated narrative touches and harden the demo environment so the live presentation runs cold-start-free and locked-down.
+**Goal:** Move the demo from "structured-output formatting" to a credible AI-agent showcase by adding multi-tool reasoning, regulatory-aware autonomy boundaries, rep-side workflow surfaces, and a production-shaped CRM adapter — while staying on engineered dummy data and shipping the trust-architecture story as committed presenter artefacts.
 
-**Target features:**
-- LLM-generated call script snippet on each recommendation card (UI-03)
-- LLM-generated one-sentence usage narrative per card (UI-04)
-- Pre-warm script to eliminate Bedrock/Lambda cold starts pre-demo (DEMO-03)
-- Frozen demo environment — pinned deps + locked AWS state T-48h pre-presentation (DEMO-04)
+**Target features (built):**
+- Bill-shock multi-tool flow — second persona-flow exercising 2-3 tools in one agent turn so the agent visibly reasons (AGENT-01)
+- Hardship short-circuit branch — agent declines tariff recommendation when `hardship_flag` is set, routes to hardship workflow stub (AGENT-02)
+- Rep-side "draft follow-up email" workflow-assist surface, exercising AgentCore Memory for a follow-up turn (WF-01)
+- Richer personas: solar PV + EV (CUST-004 / CUST-005) plus at least one new tariff archetype (DATA-04, REC-04)
+- CRM-shaped adapter interface (PROD-01, partial) — `CustomerDataProvider` abstraction with DynamoDB as the demo implementation, production-shaped for a real CRM swap (PROD-01)
 
-**Deferred to v3.0:** PROD-01 (live CRM integration), PROD-02 (customer-facing self-service portal).
+**Target features (committed presenter artefacts):**
+- Trust-architecture one-pager — LLM bounding pattern (no-arithmetic invariant, narrative gauntlet, fallback bank, `_narrative_source` observability) as a presenter-ready document (DOC-01)
+- Narrative-tradeoff acknowledgement section — owns the cost-vs-value of LLM-generated narrative honestly (DOC-02)
+- Deferred-roadmap doc — architecture-with-stubs view showing PROD-01 in-flight and PROD-02 next (DOC-03)
+
+**Still deferred (PROD-02 stays out):** Customer-facing self-service portal — re-evaluated after v3.0 lands.
 
 ## Requirements
 
@@ -49,18 +55,23 @@ A call centre agent can open any customer account and immediately see exactly ho
 - ✓ Pre-warm script to avoid cold-start latency on the live demo — v2.0 Phase 7 (plumbing) + Phase 9 (tooling: `scripts/prewarm.py` + `npm run prewarm`) (DEMO-03)
 - ✓ Keep-alive script beating AgentCore's 15-minute microVM idle timeout through Q&A — v2.0 Phase 9 (`scripts/demo-keepalive.sh`) (DEMO-05)
 
-### Active (v2.0)
+### Active (v3.0)
 
-In scope this milestone — full REQ-IDs in `.planning/REQUIREMENTS.md`.
+In scope this milestone — full REQ-IDs in `.planning/REQUIREMENTS.md` once defined.
 
-- [ ] Frozen demo environment with pinned deps + locked AWS state 48h pre-presentation (DEMO-04)
+- [ ] Bill-shock multi-tool agent flow — 2-3 tool agentic reasoning, visible in UI (AGENT-01)
+- [ ] Hardship short-circuit branch — agent refusal + workflow stub when `hardship_flag` is true (AGENT-02)
+- [ ] "Draft follow-up email" workflow-assist surface — rep-side action exercising AgentCore Memory (WF-01)
+- [ ] Solar PV + EV personas seeded with realistic billing profiles (DATA-04)
+- [ ] At least one new tariff archetype matching the new personas (REC-04)
+- [ ] `CustomerDataProvider` abstraction — production-shaped adapter, DynamoDB demo implementation (PROD-01)
+- [ ] Trust-architecture one-pager committed to repo (DOC-01)
+- [ ] Narrative-tradeoff acknowledgement section (DOC-02)
+- [ ] Deferred-roadmap doc with PROD-01 in-flight + PROD-02 next view (DOC-03)
 
-### Deferred to v3.0
+### Deferred beyond v3.0
 
-Production readiness — scoped when this engagement moves past the demo.
-
-- [ ] Live CRM integration replacing the dummy data source (PROD-01)
-- [ ] Customer-facing self-service portal (v2 of the agent-assist tool) (PROD-02)
+- [ ] Customer-facing self-service portal (PROD-02) — re-evaluated after v3.0 ships
 
 ### Out of Scope
 

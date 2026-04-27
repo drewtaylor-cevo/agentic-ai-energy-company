@@ -10,6 +10,7 @@ import aws_cdk as cdk
 from infrastructure.agentcore_stack import AgentCoreStack
 from infrastructure.backend_api_stack import BackendApiStack
 from infrastructure.foundation_stack import FoundationStack
+from infrastructure.frontend_stack import FrontendStack
 
 app = cdk.App()
 
@@ -32,6 +33,13 @@ BackendApiStack(
     "CustomerTariffApi",
     env=cdk.Environment(region="us-east-1"),
     description="Phase 3: Backend API",
+)
+
+FrontendStack(
+    app,
+    "CustomerTariffFrontend",
+    env=cdk.Environment(region="us-east-1"),
+    description="Amplify Hosting for the demo UI",
 )
 
 app.synth()

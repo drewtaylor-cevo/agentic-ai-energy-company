@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: Demo Polish & LLM Narrative
+milestone: v3.0
+milestone_name: Agentic Depth & Workflow Assist
 status: planning
-stopped_at: Phase 10 context gathered
-last_updated: "2026-04-26T21:43:35.986Z"
-last_activity: 2026-04-26
+last_updated: "2026-04-27T13:34:25.886Z"
+last_activity: 2026-04-27
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,21 +24,10 @@ See: .planning/PROJECT.md (updated 2026-04-25 at v2.0 milestone start)
 
 ## Current Position
 
-Phase: 10
-Plan: Not started
-Next: Phase 7 (API Pass-Through + Pre-Warm Route) — deployed runtime ready with stable ARN and extended TrackInfo schema serving byte-exact DEMO-02 values
-Status: Ready to plan
-Last activity: 2026-04-26
-
-**AgentRuntime (for Plan 04 closeout):**
-
-- ARN: `arn:aws:bedrock-agentcore:us-east-1:588738606436:runtime/tariff_agent-O2Hai86N8V` (stable; preserved from Phase 06-03)
-- Region: us-east-1
-- AWS profile: `cevo-dev25` (account 588738606436)
-- Log group: `/aws/bedrock-agentcore/runtimes/tariff_agent-O2Hai86N8V-DEFAULT` (plural `runtimes`, `-DEFAULT` suffix — plan docs had stale singular path; see 06.1-02-SUMMARY.md Deviation 2)
-- Canary proof: Plan 06.1-03 verified DEMO-02 regression RESOLVED — three-persona canaries pass byte-exact; simulate_savings Lambda Invocations metric matches agent invocations 1:1
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-27 — Milestone v3.0 started
 
 ## v2.0 Phase Structure
 
