@@ -100,8 +100,51 @@ ELENA_VASQUEZ_RECORDS: List[Dict[str, Any]] = [
 ]
 
 
+# --- Phase 11 v3.0 personas (locked constants from scratch/target_equation_solver_v2.py) ---
+
+# CUST-004 Solar PV (DATA-04) — net-metering shape; summer = low net + high export, winter = reverse.
+# Verified: net_avg=667 kWh/mo (sum=8004), export_avg=200 kWh/mo (sum=2400).
+# Locked byte-exact savings: Green ECO $40.02/mo, Cheapest SOL $76.03/mo (per Plan 05 fixtures).
+_CUST004_USAGE_KWH = [650, 680, 780, 820, 840, 720, 620, 570, 540, 560, 600, 624]
+_CUST004_EXPORT_KWH = [200, 180, 120, 100, 90, 160, 220, 260, 300, 290, 260, 220]
+CUST004_RECORDS: List[Dict[str, Any]] = [
+    _record("CUST-004", m, u, export_kwh=e)
+    for m, u, e in zip(_MONTHS, _CUST004_USAGE_KWH, _CUST004_EXPORT_KWH)
+]
+
+# CUST-005 EV TOU (DATA-05) — 30/70 peak/offpeak split; overnight-charging-heavy, mild winter skew.
+# Verified: total_avg=583.33 kWh/mo (sum=7000), peak_sum=2100 (30%), offpeak_sum=4900 (70%).
+# Locked byte-exact savings: Green ECO $35.00/mo, Cheapest EV-TOU $84.00/mo.
+_CUST005_USAGE_KWH = [560, 570, 610, 640, 660, 590, 560, 540, 570, 580, 560, 560]
+_CUST005_PEAK_KWH = [168, 171, 183, 192, 198, 177, 168, 162, 171, 174, 168, 168]
+_CUST005_OFFPEAK_KWH = [392, 399, 427, 448, 462, 413, 392, 378, 399, 406, 392, 392]
+CUST005_RECORDS: List[Dict[str, Any]] = [
+    _record("CUST-005", m, u, peak_kwh=p, offpeak_kwh=o)
+    for m, u, p, o in zip(_MONTHS, _CUST005_USAGE_KWH, _CUST005_PEAK_KWH, _CUST005_OFFPEAK_KWH)
+]
+
+# CUST-006 Hardship (DATA-06 / D-07) — low, stressed-looking shape; avg 200 kWh/mo (sum=2400).
+# Phase 14 will short-circuit to hardship before the LLM sees this — but simulate_savings_pure
+# still produces a valid recommendation (ECO Green $12.00, VAL Cheapest $22.00).
+_CUST006_USAGE_KWH = [200, 195, 220, 225, 230, 210, 195, 185, 180, 185, 190, 185]
+CUST006_RECORDS: List[Dict[str, Any]] = [
+    _record("CUST-006", m, u) for m, u in zip(_MONTHS, _CUST006_USAGE_KWH)
+]
+
+# Phase 11 PROFILE items (D-08/D-09) — SK="PROFILE" sentinel row. CUST-006 only this phase.
+PROFILE_ITEMS: List[Dict[str, Any]] = [
+    _profile_item("CUST-006", hardship_flag=True),
+]
+
+
 ALL_RECORDS: List[Dict[str, Any]] = (
-    SARAH_CHEN_RECORDS + MARCUS_WEBB_RECORDS + ELENA_VASQUEZ_RECORDS
+    SARAH_CHEN_RECORDS
+    + MARCUS_WEBB_RECORDS
+    + ELENA_VASQUEZ_RECORDS
+    + CUST004_RECORDS
+    + CUST005_RECORDS
+    + CUST006_RECORDS
+    + PROFILE_ITEMS
 )
 
 
@@ -137,10 +180,39 @@ def to_dynamo(record: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 DYNAMO_RECORDS: List[Dict[str, Dict[str, str]]] = [to_dynamo(r) for r in ALL_RECORDS]
 
 
-# Sanity assertions — fail at import time if anyone tampers with the arrays.
+# --- Bottom-of-file invariant assertions (fail fast at Python import time) ---
+
+# V2.0 persona invariants (unchanged from pre-Phase-11)
 assert len(SARAH_CHEN_RECORDS) == 12, "Sarah must have 12 months"
 assert len(MARCUS_WEBB_RECORDS) == 12, "Marcus must have 12 months"
 assert len(ELENA_VASQUEZ_RECORDS) == 12, "Elena must have 12 months"
-assert len(ALL_RECORDS) == 36, "ALL_RECORDS must contain exactly 36 items"
-assert len(DYNAMO_RECORDS) == 36, "DYNAMO_RECORDS must contain exactly 36 items"
 assert sum(_SARAH_USAGE) / 12 == 500.0, "Sarah avg must be exactly 500 kWh"
+
+# Phase 11 v3.0 persona invariants (LOCKED per scratch/target_equation_solver_v2.py)
+assert len(CUST004_RECORDS) == 12, "CUST-004 must have 12 months"
+assert len(CUST005_RECORDS) == 12, "CUST-005 must have 12 months"
+assert len(CUST006_RECORDS) == 12, "CUST-006 must have 12 months"
+assert sum(_CUST004_USAGE_KWH) == 8004, "CUST-004 usage sum locked at 8004 (avg 667)"
+assert sum(_CUST004_EXPORT_KWH) == 2400, "CUST-004 export sum locked at 2400 (avg 200)"
+assert sum(_CUST005_USAGE_KWH) == 7000, "CUST-005 usage sum locked at 7000 (avg 583.33)"
+assert sum(_CUST005_PEAK_KWH) == 2100, "CUST-005 peak sum locked at 2100 (30% of 7000)"
+assert sum(_CUST005_OFFPEAK_KWH) == 4900, "CUST-005 offpeak sum locked at 4900 (70% of 7000)"
+assert sum(_CUST006_USAGE_KWH) == 2400, "CUST-006 usage sum locked at 2400 (avg 200)"
+
+# T-Integrity: solar records must never have export > usage (would produce negative net_kwh)
+assert all(r["export_kwh"] <= r["usage_kwh"] for r in CUST004_RECORDS), \
+    "CUST-004 export_kwh must never exceed usage_kwh (would yield negative net_kwh)"
+
+# T-Integrity: EV-TOU peak + offpeak must equal usage_kwh (30/70 split engineered)
+assert all(r["peak_kwh"] + r["offpeak_kwh"] == r["usage_kwh"] for r in CUST005_RECORDS), \
+    "CUST-005 peak_kwh + offpeak_kwh must equal usage_kwh"
+
+# PROFILE sentinel-SK invariants
+assert len(PROFILE_ITEMS) == 1, "Phase 11 owns exactly 1 PROFILE item (CUST-006 hardship)"
+assert PROFILE_ITEMS[0]["customer_id"] == "CUST-006"
+assert PROFILE_ITEMS[0]["month"] == "PROFILE"
+assert PROFILE_ITEMS[0]["hardship_flag"] is True
+
+# Aggregate counts: 36 v2.0 + 36 new billing + 1 PROFILE = 73
+assert len(ALL_RECORDS) == 73, f"ALL_RECORDS must contain exactly 73 items, got {len(ALL_RECORDS)}"
+assert len(DYNAMO_RECORDS) == 73, f"DYNAMO_RECORDS must contain exactly 73 items, got {len(DYNAMO_RECORDS)}"
