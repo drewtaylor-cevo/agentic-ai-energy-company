@@ -50,6 +50,26 @@ except ImportError:  # pragma: no cover - hit only in offline test repo layout
         validate_usage_narrative,
     )
 
+# Bi-mode import (D-16): same container /app vs repo layout rationale as above.
+try:
+    from providers import (
+        CustomerDataProvider,
+        ToolsLambdaProvider,
+        InMemoryProvider,
+        SalesforceCustomerDataProvider,
+        set_provider,
+        get_provider,
+    )
+except ImportError:  # pragma: no cover - hit only in offline test repo layout
+    from agent.providers import (
+        CustomerDataProvider,
+        ToolsLambdaProvider,
+        InMemoryProvider,
+        SalesforceCustomerDataProvider,
+        set_provider,
+        get_provider,
+    )
+
 logger = logging.getLogger(__name__)
 
 # --- Environment (injected by CDK) ---
@@ -58,6 +78,10 @@ _REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 # --- boto3 client (module-level, reused across invocations) ---
 _lambda_client = boto3.client("lambda", region_name=_REGION)
+
+# D-03: module-level provider singleton — swapped in tests via set_provider(InMemoryProvider(...)).
+_provider = ToolsLambdaProvider(_lambda_client, _TOOLS_LAMBDA_ARN)
+set_provider(_provider)
 
 
 # --- Pydantic response schema (REC-03: both tracks always present) ---
@@ -252,22 +276,8 @@ def simulate_savings(customer_id: str) -> dict:
         Dict with 'green' and 'cheapest' keys, each containing plan_id,
         plan_name, saving_monthly ($/month), and saving_annual ($/year).
     """
-    if not _TOOLS_LAMBDA_ARN:
-        raise RuntimeError("TOOLS_LAMBDA_ARN not set — agent misconfigured")
-
-    resp = _lambda_client.invoke(
-        FunctionName=_TOOLS_LAMBDA_ARN,
-        InvocationType="RequestResponse",
-        Payload=json.dumps({"customer_id": customer_id}).encode(),
-    )
-
-    payload = json.loads(resp["Payload"].read())
-
-    # Check for Lambda errors
-    if "FunctionError" in resp:
-        raise RuntimeError(f"ToolsLambda error: {payload}")
-
-    return payload
+    # D-04: provider wraps the Lambda invoke; arithmetic stays in Tools Lambda (SAV-03).
+    return get_provider().simulate_savings(customer_id)
 
 
 # --- System prompt (REC-03: both tracks, never ranked) ---
