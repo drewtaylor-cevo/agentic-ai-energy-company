@@ -1,0 +1,18 @@
+{
+  "cheapest": {
+    "call_script": "Bring up Solar Feed-in \u2014 a cost-leading option designed to reward your home's solar capacity.",
+    "plan_id": "SOL",
+    "plan_name": "Solar Feed-in",
+    "saving_annual": 912.36,
+    "saving_monthly": 76.03,
+    "usage_narrative": "Solar-capable household with generation potential that aligns well with feed-in reward plans."
+  },
+  "green": {
+    "call_script": "Ask about EcoFlex \u2014 a renewable-backed plan well-suited to your home's eco-aligned profile.",
+    "plan_id": "ECO",
+    "plan_name": "EcoFlex 100",
+    "saving_annual": 480.24,
+    "saving_monthly": 40.02,
+    "usage_narrative": "Eco-aligned household with moderate steady consumption suited to renewable energy plans."
+  }
+}

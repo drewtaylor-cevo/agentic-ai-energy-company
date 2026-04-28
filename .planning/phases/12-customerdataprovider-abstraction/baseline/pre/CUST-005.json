@@ -1,0 +1,18 @@
+{
+  "cheapest": {
+    "call_script": "Ask about EV Drive TOU \u2014 a cost-focused plan tailored to time-of-use and EV charging patterns.",
+    "plan_id": "EV-TOU",
+    "plan_name": "EV Drive TOU",
+    "saving_annual": 1008.0,
+    "saving_monthly": 84.0,
+    "usage_narrative": "Customer with time-of-use demand patterns, likely driven by electric vehicle charging needs."
+  },
+  "green": {
+    "call_script": "Ask about EcoFlex \u2014 a great eco-aligned plan well-suited to your household energy profile.",
+    "plan_id": "ECO",
+    "plan_name": "EcoFlex 100",
+    "saving_annual": 420.0,
+    "saving_monthly": 35.0,
+    "usage_narrative": "Eco-aligned household with consistent demand across the year and a green energy preference."
+  }
+}
