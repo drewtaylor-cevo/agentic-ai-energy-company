@@ -58,6 +58,46 @@ def all_billing():
     return ALL_RECORDS
 
 
+# --- Phase 12 provider swap fixtures (D-11) ---
+
+
+@pytest.fixture
+def inmemory_provider():
+    """Explicit-dependency fixture: a fresh InMemoryProvider seeded with ALL_RECORDS.
+
+    Tests write `def test_foo(inmemory_provider): ...` when they want the
+    provider object visible in scope (e.g. direct method calls). The
+    autouse `_provider_swap` fixture already registers an InMemoryProvider
+    as the module-level singleton for every test; this fixture just exposes
+    it as a named parameter.
+    """
+    from agent.providers import InMemoryProvider
+    return InMemoryProvider()
+
+
+@pytest.fixture(autouse=True)
+def _provider_swap():
+    """D-11 autouse: every test runs with an InMemoryProvider installed.
+
+    Saves the module-level singleton, swaps in InMemory on setup, restores
+    the original on teardown. Greppable via `git grep _provider_swap`.
+
+    Blast radius: safe for existing tests that mock _lambda_client directly
+    (test_agent_tools, test_simulate_savings, test_get_billing_history) —
+    they bypass the provider singleton. Tests that route through
+    `get_provider()` (tests/test_providers.py) will see the InMemory.
+    """
+    from agent.providers import get_provider, set_provider, InMemoryProvider
+    try:
+        original = get_provider()
+    except RuntimeError:
+        original = None
+    set_provider(InMemoryProvider())
+    yield
+    if original is not None:
+        set_provider(original)
+
+
 # --- Phase 2 agent fixtures ---
 
 
