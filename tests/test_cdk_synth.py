@@ -54,11 +54,14 @@ def test_table_removal_policy_is_destroy(synth_template):
 
 
 def test_has_tools_lambda(synth_template):
+    # Phase 12 D-02: Lambda entry point is now the action dispatcher
+    # `handler.handler`; the old `handler.simulate_savings` target became one of
+    # the dispatcher's routed actions.
     synth_template.has_resource_properties(
         "AWS::Lambda::Function",
         {
             "Runtime": "python3.12",
-            "Handler": "handler.simulate_savings",
+            "Handler": "handler.handler",
             "FunctionName": "tariff-tools",
         },
     )

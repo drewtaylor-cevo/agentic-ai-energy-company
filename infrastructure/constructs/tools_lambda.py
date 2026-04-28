@@ -26,7 +26,7 @@ class ToolsLambdaConstruct(Construct):
             "TariffTools",
             function_name="tariff-tools",
             runtime=lambda_.Runtime.PYTHON_3_12,
-            handler="handler.simulate_savings",
+            handler="handler.handler",
             code=lambda_.Code.from_asset("lambda"),
             environment={"TABLE_NAME": table.table_name},
             timeout=Duration.seconds(10),
