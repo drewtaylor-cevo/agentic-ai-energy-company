@@ -10,7 +10,7 @@ cost_usd is computed at definition time (not stored as a literal) so it stays
 consistent with usage_kwh. Savings math in lambda/handler.py always reads
 usage_kwh, never cost_usd (DATA-03 requirement).
 """
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 # Supply charge and current-plan rate are uniform for all personas.
 # These constants mirror tariff_plans.json STD entry and must not drift.
@@ -25,13 +25,48 @@ def _cost(usage_kwh: int) -> float:
     return round(usage_kwh * STD_RATE + SUPPLY_CHARGE * DAYS_PER_MONTH, 2)
 
 
-def _record(customer_id: str, month: str, usage_kwh: int) -> Dict[str, Any]:
-    return {
+def _record(
+    customer_id: str,
+    month: str,
+    usage_kwh: int,
+    *,
+    export_kwh: int = 0,
+    peak_kwh: Optional[int] = None,
+    offpeak_kwh: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Build a billing record. v2.0 personas call with positional args; new personas use kwargs.
+
+    For solar (CUST-004): export_kwh > 0; net_kwh computed as usage_kwh - export_kwh.
+    For EV-TOU (CUST-005): peak_kwh + offpeak_kwh = usage_kwh.
+    For v2.0 / CUST-006 (flat): export_kwh=0, peak_kwh=None, offpeak_kwh=None.
+    """
+    net_kwh = usage_kwh - export_kwh  # D-01 back-compat: v2.0 records → export_kwh=0 → net_kwh=usage_kwh
+
+    record = {
         "customer_id": customer_id,
         "month": month,
         "usage_kwh": usage_kwh,
-        "cost_usd": _cost(usage_kwh),
+        # D-20: solar records use net_kwh in cost_usd (reflects STD baseline without FiT);
+        # flat records (v2.0 + CUST-006) have export_kwh=0 so net_kwh=usage_kwh → same result.
+        "cost_usd": _cost(net_kwh if export_kwh > 0 else usage_kwh),
         "plan_id": "STD",
+    }
+    if export_kwh > 0:
+        record["export_kwh"] = export_kwh
+        record["net_kwh"] = net_kwh
+    if peak_kwh is not None:
+        record["peak_kwh"] = peak_kwh
+    if offpeak_kwh is not None:
+        record["offpeak_kwh"] = offpeak_kwh
+    return record
+
+
+def _profile_item(customer_id: str, hardship_flag: bool = False) -> Dict[str, Any]:
+    """D-08/D-09: PROFILE sentinel-SK row. Phase 11: only hardship_flag attribute."""
+    return {
+        "customer_id": customer_id,
+        "month": "PROFILE",
+        "hardship_flag": hardship_flag,
     }
 
 
@@ -70,21 +105,33 @@ ALL_RECORDS: List[Dict[str, Any]] = (
 )
 
 
-def to_dynamo(record: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
+def to_dynamo(record: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     """Convert Python-native record to DynamoDB wire format.
 
-    Required because AwsSdkCall in the seeder custom resource uses the raw
-    DynamoDB service API (not DocumentClient). Numeric values MUST be wrapped
-    as {"N": "<stringified-number>"} — passing bare Python ints raises
-    SerializationException at cdk deploy time (PITFALL 1 in 01-RESEARCH.md).
+    Phase 11: emits optional attributes (export_kwh, net_kwh, peak_kwh, offpeak_kwh) only when
+    present; BOOL wire type for hardship_flag on PROFILE rows (Pattern 3).
     """
-    return {
+    out: Dict[str, Dict[str, Any]] = {
         "customer_id": {"S": record["customer_id"]},
         "month": {"S": record["month"]},
-        "usage_kwh": {"N": str(record["usage_kwh"])},
-        "cost_usd": {"N": str(record["cost_usd"])},
-        "plan_id": {"S": record["plan_id"]},
     }
+    if "usage_kwh" in record:
+        out["usage_kwh"] = {"N": str(record["usage_kwh"])}
+    if "cost_usd" in record:
+        out["cost_usd"] = {"N": str(record["cost_usd"])}
+    if "plan_id" in record:
+        out["plan_id"] = {"S": record["plan_id"]}
+    if "export_kwh" in record:
+        out["export_kwh"] = {"N": str(record["export_kwh"])}
+    if "net_kwh" in record:
+        out["net_kwh"] = {"N": str(record["net_kwh"])}
+    if "peak_kwh" in record:
+        out["peak_kwh"] = {"N": str(record["peak_kwh"])}
+    if "offpeak_kwh" in record:
+        out["offpeak_kwh"] = {"N": str(record["offpeak_kwh"])}
+    if "hardship_flag" in record:
+        out["hardship_flag"] = {"BOOL": bool(record["hardship_flag"])}
+    return out
 
 
 DYNAMO_RECORDS: List[Dict[str, Dict[str, str]]] = [to_dynamo(r) for r in ALL_RECORDS]
