@@ -157,3 +157,114 @@ def test_dispatcher_routes_tou_plan():
     # Actually, let's just verify the function runs without error - full validation comes in GREEN
     assert "green" in result
     assert "cheapest" in result
+
+
+# --- Phase 11 Plan 05: v3.0 persona byte-exact parametrisations (DATA-07) ---
+
+def test_cust004_byte_exact(cust004_billing, tariff_plans, mock_cust004_response):
+    """CUST-004 solar: Green ECO $40.02, Cheapest SOL $76.03 (locked per solver_v2).
+
+    Witnesses: Plan 01 SOL entry (solar_fit, rate 0.23, fit_rate 0.08) +
+    Plan 02 solar_fit dispatcher branch + Plan 03 CUST004_RECORDS export_kwh -> byte-exact.
+    """
+    result = simulate_savings_pure(cust004_billing, tariff_plans)
+    assert result["green"]["plan_id"] == mock_cust004_response["green"]["plan_id"]
+    assert result["green"]["plan_name"] == mock_cust004_response["green"]["plan_name"]
+    assert abs(result["green"]["saving_monthly"] - mock_cust004_response["green"]["saving_monthly"]) < 0.01
+    assert abs(result["green"]["saving_annual"] - mock_cust004_response["green"]["saving_annual"]) < 0.01
+    assert result["cheapest"]["plan_id"] == mock_cust004_response["cheapest"]["plan_id"]
+    assert result["cheapest"]["plan_name"] == mock_cust004_response["cheapest"]["plan_name"]
+    assert abs(result["cheapest"]["saving_monthly"] - mock_cust004_response["cheapest"]["saving_monthly"]) < 0.01
+    assert abs(result["cheapest"]["saving_annual"] - mock_cust004_response["cheapest"]["saving_annual"]) < 0.01
+
+
+def test_cust005_byte_exact(cust005_billing, tariff_plans, mock_cust005_response):
+    """CUST-005 EV: Green ECO $35.00, Cheapest EV-TOU $84.00 (locked per solver_v2).
+
+    Witnesses: Plan 01 EV-TOU entry (time_of_use, peak 0.40, offpeak 0.08) +
+    Plan 02 time_of_use dispatcher branch + Plan 03 CUST005_RECORDS 30/70 split -> byte-exact.
+    """
+    result = simulate_savings_pure(cust005_billing, tariff_plans)
+    assert result["green"]["plan_id"] == mock_cust005_response["green"]["plan_id"]
+    assert result["green"]["plan_name"] == mock_cust005_response["green"]["plan_name"]
+    assert abs(result["green"]["saving_monthly"] - mock_cust005_response["green"]["saving_monthly"]) < 0.01
+    assert abs(result["green"]["saving_annual"] - mock_cust005_response["green"]["saving_annual"]) < 0.01
+    assert result["cheapest"]["plan_id"] == mock_cust005_response["cheapest"]["plan_id"]
+    assert result["cheapest"]["plan_name"] == mock_cust005_response["cheapest"]["plan_name"]
+    assert abs(result["cheapest"]["saving_monthly"] - mock_cust005_response["cheapest"]["saving_monthly"]) < 0.01
+    assert abs(result["cheapest"]["saving_annual"] - mock_cust005_response["cheapest"]["saving_annual"]) < 0.01
+
+
+def test_cust006_byte_exact(cust006_billing, tariff_plans, mock_cust006_response):
+    """CUST-006 hardship: Green ECO $12.00, Cheapest VAL $22.00 (locked, flat-rate fallback).
+
+    CUST-006 has no peak/offpeak/export fields - dispatcher hits default flat path for
+    all plans. SOL/EV-TOU compute via their fallback defaults (export=0 / 100% peak) and
+    lose to VAL on a 200 kWh/mo flat shape. D-07: a valid recommendation IS produced;
+    Phase 14 will short-circuit to hardship before the LLM sees it.
+    """
+    result = simulate_savings_pure(cust006_billing, tariff_plans)
+    assert result["green"]["plan_id"] == mock_cust006_response["green"]["plan_id"]
+    assert abs(result["green"]["saving_monthly"] - mock_cust006_response["green"]["saving_monthly"]) < 0.01
+    assert abs(result["green"]["saving_annual"] - mock_cust006_response["green"]["saving_annual"]) < 0.01
+    assert result["cheapest"]["plan_id"] == mock_cust006_response["cheapest"]["plan_id"]
+    assert abs(result["cheapest"]["saving_monthly"] - mock_cust006_response["cheapest"]["saving_monthly"]) < 0.01
+    assert abs(result["cheapest"]["saving_annual"] - mock_cust006_response["cheapest"]["saving_annual"]) < 0.01
+
+
+# --- Phase 11 Plan 05: cross-persona invariants extended to 6 personas ---
+
+def test_cheapest_always_gte_green_all_personas(
+    sarah_billing, marcus_billing, elena_billing,
+    cust004_billing, cust005_billing, cust006_billing, tariff_plans
+):
+    """REC-03 analogue: cheapest saving >= green saving across ALL 6 personas under the 6-plan catalog."""
+    for billing in (sarah_billing, marcus_billing, elena_billing,
+                    cust004_billing, cust005_billing, cust006_billing):
+        result = simulate_savings_pure(billing, tariff_plans)
+        assert result["cheapest"]["saving_monthly"] >= result["green"]["saving_monthly"], \
+            f"Invariant violated for {billing[0]['customer_id']}: " \
+            f"cheapest={result['cheapest']['saving_monthly']} < green={result['green']['saving_monthly']}"
+
+
+def test_tou_legacy_never_selected(
+    sarah_billing, marcus_billing, elena_billing,
+    cust004_billing, cust005_billing, cust006_billing, tariff_plans
+):
+    """Legacy TOU plan (plan_id='TOU', the v2.0 'Flex Time') never wins Green or Cheapest
+    for any of the 6 personas. Note: CUST-005 Cheapest is EV-TOU (distinct plan_id)."""
+    for billing in (sarah_billing, marcus_billing, elena_billing,
+                    cust004_billing, cust005_billing, cust006_billing):
+        result = simulate_savings_pure(billing, tariff_plans)
+        assert result["green"]["plan_id"] != "TOU", \
+            f"TOU won Green for {billing[0]['customer_id']}"
+        assert result["cheapest"]["plan_id"] != "TOU", \
+            f"TOU won Cheapest for {billing[0]['customer_id']}"
+
+
+def test_sol_wins_cheapest_only_for_solar_persona(
+    sarah_billing, marcus_billing, elena_billing,
+    cust004_billing, cust005_billing, cust006_billing, tariff_plans
+):
+    """Pitfall 3 negative witness: SOL wins Cheapest ONLY for CUST-004."""
+    result_004 = simulate_savings_pure(cust004_billing, tariff_plans)
+    assert result_004["cheapest"]["plan_id"] == "SOL"
+    for billing in (sarah_billing, marcus_billing, elena_billing,
+                    cust005_billing, cust006_billing):
+        result = simulate_savings_pure(billing, tariff_plans)
+        assert result["cheapest"]["plan_id"] != "SOL", \
+            f"SOL won Cheapest for non-solar persona {billing[0]['customer_id']}"
+
+
+def test_evtou_wins_cheapest_only_for_ev_persona(
+    sarah_billing, marcus_billing, elena_billing,
+    cust004_billing, cust005_billing, cust006_billing, tariff_plans
+):
+    """Pitfall 3 negative witness: EV-TOU wins Cheapest ONLY for CUST-005."""
+    result_005 = simulate_savings_pure(cust005_billing, tariff_plans)
+    assert result_005["cheapest"]["plan_id"] == "EV-TOU"
+    for billing in (sarah_billing, marcus_billing, elena_billing,
+                    cust004_billing, cust006_billing):
+        result = simulate_savings_pure(billing, tariff_plans)
+        assert result["cheapest"]["plan_id"] != "EV-TOU", \
+            f"EV-TOU won Cheapest for non-EV persona {billing[0]['customer_id']}"
