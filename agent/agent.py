@@ -50,6 +50,26 @@ except ImportError:  # pragma: no cover - hit only in offline test repo layout
         validate_usage_narrative,
     )
 
+# Bi-mode import (D-16): same container /app vs repo layout rationale as above.
+try:
+    from providers import (
+        CustomerDataProvider,
+        ToolsLambdaProvider,
+        InMemoryProvider,
+        SalesforceCustomerDataProvider,
+        set_provider,
+        get_provider,
+    )
+except ImportError:  # pragma: no cover - hit only in offline test repo layout
+    from agent.providers import (
+        CustomerDataProvider,
+        ToolsLambdaProvider,
+        InMemoryProvider,
+        SalesforceCustomerDataProvider,
+        set_provider,
+        get_provider,
+    )
+
 logger = logging.getLogger(__name__)
 
 # --- Environment (injected by CDK) ---
@@ -58,6 +78,10 @@ _REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 # --- boto3 client (module-level, reused across invocations) ---
 _lambda_client = boto3.client("lambda", region_name=_REGION)
+
+# D-03: module-level provider singleton — swapped in tests via set_provider(InMemoryProvider(...)).
+_provider = ToolsLambdaProvider(_lambda_client, _TOOLS_LAMBDA_ARN)
+set_provider(_provider)
 
 
 # --- Pydantic response schema (REC-03: both tracks always present) ---
