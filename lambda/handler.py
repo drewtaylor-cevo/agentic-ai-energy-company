@@ -188,3 +188,43 @@ def simulate_savings(event: Dict[str, Any], context) -> Dict[str, Any]:
     if not billing:
         raise ValueError(f"No billing history for {event.get('customer_id')!r}")
     return simulate_savings_pure(billing, TARIFF_PLANS)
+
+
+# --- Phase 12 action dispatcher (D-02) ---
+
+def handler(event: Dict[str, Any], context) -> Any:
+    """Phase 12 action dispatcher — routes to existing handlers.
+
+    Per D-02: routes on `event["action"]`. Per D-05: missing action defaults
+    to `simulate_savings` for back-compat with v2.0 callers (the agent's
+    pre-provider `_lambda_client.invoke(...{customer_id})` and the fallback
+    path at agent/agent.py:394-418 still work).
+
+    Routed actions (matches agent/providers.py::ToolsLambdaProvider payload shapes):
+      - "get_billing_history" → get_billing_history(event, context)
+      - "get_hardship_flag"   → get_hardship_flag_pure(customer_id, table)
+      - "get_customer"        → {"customer_id": customer_id}  (Phase 12 stub)
+      - "simulate_savings"    → simulate_savings(event, context)
+      - (none)                → simulate_savings(event, context)  (D-05 back-compat)
+    """
+    action = event.get("action")
+
+    if action == "get_billing_history":
+        return get_billing_history(event, context)
+
+    if action == "get_hardship_flag":
+        customer_id = _validate_customer_id(event.get("customer_id"))
+        if table is None:
+            raise RuntimeError("TABLE_NAME env var not set — Lambda misconfigured")
+        return get_hardship_flag_pure(customer_id, table)
+
+    if action == "get_customer":
+        # Phase 12 stub — Phase 13/14 may extend the shape (CONTEXT §Claude's Discretion).
+        customer_id = _validate_customer_id(event.get("customer_id"))
+        return {"customer_id": customer_id}
+
+    if action == "simulate_savings":
+        return simulate_savings(event, context)
+
+    # D-05 back-compat: action-less event → simulate_savings (v2.0 shape).
+    return simulate_savings(event, context)
