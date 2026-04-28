@@ -57,7 +57,13 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
   3. Pytest `test_tariff_plans_byte_equivalence` (or equivalent) asserts `lambda/tariff_plans.json == infrastructure/seed_data/tariff_plans.json` and passes after both archetypes are added.
   4. The three v2.0 persona savings invariants (Sarah $30/$55, Marcus $16.90/$30.98, Elena $14.00/$25.67) remain byte-exact after the `plan_type` dispatcher refactor inside `simulate_savings_pure`.
   5. The customer flagged with `hardship_flag: true` in the PROFILE items is discoverable via a pure helper (`get_hardship_flag_pure` or equivalent) and returns the expected `{hardship: true, ...}` shape offline — no new LLM wiring required at this phase.
-**Plans**: TBD
+**Plans**: 6 plans
+  - [ ] 11-01-PLAN.md — Extend tariff_plans.json with SOL + EV-TOU + NEW byte-equality gate test (M1 mitigation)
+  - [ ] 11-02-PLAN.md — Extend simulate_savings_pure with plan_type dispatcher; preserve v2.0 byte-exact
+  - [ ] 11-03-PLAN.md — Seed CUST-004/005/006 records + PROFILE item in billing_records.py (73 items total)
+  - [ ] 11-04-PLAN.md — Add get_hardship_flag_pure helper + PROFILE filter in get_billing_history
+  - [ ] 11-05-PLAN.md — Add 7 conftest fixtures + 7 byte-exact/invariant tests for new personas
+  - [ ] 11-06-PLAN.md — Extend smoke tests + live CDK deploy ceremony (LIFT → DEPLOY → REAPPLY → VERIFY)
 **Invariant ownership**: SAV-03 (byte-exact carry-forward for v2.0 personas through TOU dispatch), `tariff_plans.json` duplication source-of-truth (byte-equality gate), frozen-lockfile contract (no dep bump this phase).
 
 ### Phase 12: CustomerDataProvider Abstraction
