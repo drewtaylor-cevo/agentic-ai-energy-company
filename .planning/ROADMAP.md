@@ -58,7 +58,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
   4. The three v2.0 persona savings invariants (Sarah $30/$55, Marcus $16.90/$30.98, Elena $14.00/$25.67) remain byte-exact after the `plan_type` dispatcher refactor inside `simulate_savings_pure`.
   5. The customer flagged with `hardship_flag: true` in the PROFILE items is discoverable via a pure helper (`get_hardship_flag_pure` or equivalent) and returns the expected `{hardship: true, ...}` shape offline — no new LLM wiring required at this phase.
 **Plans**: 6 plans
-  - [ ] 11-01-PLAN.md — Extend tariff_plans.json with SOL + EV-TOU + NEW byte-equality gate test (M1 mitigation)
+  - [x] 11-01-PLAN.md — Extend tariff_plans.json with SOL + EV-TOU + NEW byte-equality gate test (M1 mitigation)
   - [ ] 11-02-PLAN.md — Extend simulate_savings_pure with plan_type dispatcher; preserve v2.0 byte-exact
   - [ ] 11-03-PLAN.md — Seed CUST-004/005/006 records + PROFILE item in billing_records.py (73 items total)
   - [ ] 11-04-PLAN.md — Add get_hardship_flag_pure helper + PROFILE filter in get_billing_history
@@ -159,7 +159,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 | 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 4/4 | ✓ Complete | 2026-04-26 |
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 4/4 | ✓ Complete | 2026-04-26 |
 | 10. Freeze + Rollback Drill | v2.0 | 3/3 | ✓ Complete | 2026-04-26 |
-| 11. New Personas + Tariff Archetypes | v3.0 | 0/? | Not started | — |
+| 11. New Personas + Tariff Archetypes | v3.0 | 1/6 | In Progress|  |
 | 12. CustomerDataProvider Abstraction | v3.0 | 0/? | Not started | — |
 | 13. Bill-Shock Multi-Tool Flow (AGENT-01) | v3.0 | 0/? | Not started | — |
 | 14. Hardship Short-Circuit (AGENT-02) | v3.0 | 0/? | Not started | — |
