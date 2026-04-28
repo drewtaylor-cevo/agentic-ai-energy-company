@@ -38,5 +38,28 @@
     "plan_type": "time_of_use",
     "renewable_pct": 20,
     "description": "Time-of-use: peak rate shown. Off-peak 0.14/kWh. Variable."
+  },
+  {
+    "plan_id": "SOL",
+    "plan_name": "Solar Feed-in",
+    "rate_per_kwh": 0.23,
+    "daily_supply_charge": 1.10,
+    "green_score": 80,
+    "plan_type": "solar_fit",
+    "renewable_pct": 40,
+    "fit_rate": 0.08,
+    "description": "Solar net-metering. Export credit at $0.08/kWh offsets consumption."
+  },
+  {
+    "plan_id": "EV-TOU",
+    "plan_name": "EV Drive TOU",
+    "rate_per_kwh": 0.40,
+    "daily_supply_charge": 1.10,
+    "green_score": 30,
+    "plan_type": "time_of_use",
+    "renewable_pct": 20,
+    "peak_rate": 0.40,
+    "offpeak_rate": 0.08,
+    "description": "EV-optimised time-of-use. Peak $0.40/kWh; off-peak $0.08/kWh (11pm-7am)."
   }
 ]
