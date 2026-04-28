@@ -37,7 +37,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 
 ### 🚧 v3.0 Agentic Depth & Workflow Assist (Phases 11–17)
 
-- [ ] **Phase 11: New Personas + Tariff Archetypes** — CUST-004 (solar PV) + CUST-005 (EV) seeded, two new tariff plans (Solar Feed-in + EV TOU), TOU-dispatched savings math, hardship_flag PROFILE items
+- [x] **Phase 11: New Personas + Tariff Archetypes** — CUST-004 (solar PV) + CUST-005 (EV) seeded, two new tariff plans (Solar Feed-in + EV TOU), TOU-dispatched savings math, hardship_flag PROFILE items (completed 2026-04-28)
 - [ ] **Phase 12: CustomerDataProvider Abstraction** — `agent/providers.py` Protocol + DynamoDB impl + InMemory test double + Salesforce NotImplementedError stub; strangler-fig around existing agent tools with SAV-03 byte-exact preservation
 - [ ] **Phase 13: Bill-Shock Multi-Tool Flow (AGENT-01)** — action dispatcher on Tools Lambda, 2-3 tool composition per turn, 4-tool code-enforced cap, reasoning trace surfaced to UI, warm p95 < 2500ms per-flow prewarm gate
 - [ ] **Phase 14: Hardship Short-Circuit (AGENT-02)** — code-side pre-LLM guard, Pydantic discriminated union `kind: recommendation | hardship`, surgical update to `api_lambda/handler.py:152`, dignity-preserving hardship narrative passing D-15 validators
@@ -63,7 +63,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
   - [x] 11-03-PLAN.md — Seed CUST-004/005/006 records + PROFILE item in billing_records.py (73 items total)
   - [x] 11-04-PLAN.md — Add get_hardship_flag_pure helper + PROFILE filter in get_billing_history
   - [x] 11-05-PLAN.md — Add 7 conftest fixtures + 7 byte-exact/invariant tests for new personas
-  - [ ] 11-06-PLAN.md — Extend smoke tests + live CDK deploy ceremony (LIFT → DEPLOY → REAPPLY → VERIFY)
+  - [x] 11-06-PLAN.md — Extend smoke tests + live CDK deploy ceremony (LIFT → DEPLOY → REAPPLY → VERIFY)
 **Invariant ownership**: SAV-03 (byte-exact carry-forward for v2.0 personas through TOU dispatch), `tariff_plans.json` duplication source-of-truth (byte-equality gate), frozen-lockfile contract (no dep bump this phase).
 
 ### Phase 12: CustomerDataProvider Abstraction
@@ -159,7 +159,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 | 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 4/4 | ✓ Complete | 2026-04-26 |
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 4/4 | ✓ Complete | 2026-04-26 |
 | 10. Freeze + Rollback Drill | v2.0 | 3/3 | ✓ Complete | 2026-04-26 |
-| 11. New Personas + Tariff Archetypes | v3.0 | 5/6 | In Progress|  |
+| 11. New Personas + Tariff Archetypes | v3.0 | 6/6 | Complete   | 2026-04-28 |
 | 12. CustomerDataProvider Abstraction | v3.0 | 0/? | Not started | — |
 | 13. Bill-Shock Multi-Tool Flow (AGENT-01) | v3.0 | 0/? | Not started | — |
 | 14. Hardship Short-Circuit (AGENT-02) | v3.0 | 0/? | Not started | — |
