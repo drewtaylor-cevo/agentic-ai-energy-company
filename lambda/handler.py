@@ -96,12 +96,17 @@ def simulate_savings_pure(
             return peak_kwh_avg * peak_rate + offpeak_kwh_avg * offpeak_rate + supply
 
         if plan_type == "solar_fit":
-            # D-04/D-12: SOL math. Default export=0 if records lack export_kwh.
-            net_kwh_avg = sum(float(r.get("net_kwh", r.get("usage_kwh", 0))) for r in billing_history) / len(billing_history)
+            # D-04/D-12: SOL math. The SOL tariff bills gross consumption at rate_per_kwh
+            # and separately credits exported kWh at fit_rate. This matches the solver's
+            # convention (scratch/target_equation_solver_v2.py projected_sol where the
+            # first argument is gross usage). The `net_kwh` field on records is informational
+            # (grid-import after export offset) and is NOT used here. Default export=0 if
+            # records lack export_kwh (v2.0 persona fallback).
+            gross_kwh_avg = avg_kwh  # already computed above from usage_kwh
             export_kwh_avg = sum(float(r.get("export_kwh", 0)) for r in billing_history) / len(billing_history)
             sol_rate = float(plan["rate_per_kwh"])
             fit_rate = float(plan.get("fit_rate", 0))
-            return net_kwh_avg * sol_rate - export_kwh_avg * fit_rate + supply
+            return gross_kwh_avg * sol_rate - export_kwh_avg * fit_rate + supply
 
         # Default: flat_rate / green_premium — BYTE-EXACT preservation of v2.0 formula
         return avg_kwh * float(plan["rate_per_kwh"]) + supply
@@ -135,6 +140,27 @@ def simulate_savings_pure(
     }
 
 
+def get_hardship_flag_pure(customer_id: str, table_client) -> Dict[str, Any]:
+    """D-10 pure helper — injectable table_client (mirror of simulate_savings_pure shape).
+
+    Returns {hardship: bool, customer_id: str}. Missing PROFILE row returns hardship=False
+    (m3 mitigation — hardship default False for existing personas).
+
+    STRIDE: V5 Input Validation — _validate_customer_id gates entry before any DynamoDB call.
+    """
+    _validate_customer_id(customer_id)
+    response = table_client.get_item(
+        Key={"customer_id": customer_id, "month": "PROFILE"}
+    )
+    item = response.get("Item")
+    if item is None:
+        return {"hardship": False, "customer_id": customer_id}
+    return {
+        "hardship": bool(item.get("hardship_flag", False)),
+        "customer_id": customer_id,
+    }
+
+
 # --- Lambda handler entry points ---
 
 def get_billing_history(event: Dict[str, Any], context) -> List[Dict[str, Any]]:
@@ -151,6 +177,8 @@ def get_billing_history(event: Dict[str, Any], context) -> List[Dict[str, Any]]:
         ExpressionAttributeValues={":cid": customer_id},
     )
     items = response.get("Items", [])
+    # Phase 11 D-21: filter sentinel PROFILE row so simulate_savings_pure sees only month rows
+    items = [i for i in items if i["month"] != "PROFILE"]
     return sorted(items, key=lambda x: x["month"])
 
 
