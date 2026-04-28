@@ -77,10 +77,12 @@ def test_lambda_has_table_name_env(synth_template):
     )
 
 
-def test_seeder_creates_two_batches(synth_template):
+def test_seeder_creates_three_batches(synth_template):
     # Each AwsCustomResource renders as one Custom::AWS CloudFormation resource.
-    # With 36 records at 25/batch we expect exactly 2 seeder resources.
-    synth_template.resource_count_is("Custom::AWS", 2)
+    # Phase 11 expanded seed data from 36 → 73 records (6 personas × 12 months
+    # + 1 PROFILE row). At 25 records/batch the chunker (math.ceil(73/25)) emits
+    # 3 BillingSeeder resources.
+    synth_template.resource_count_is("Custom::AWS", 3)
 
 
 def test_seeder_iam_scoped_to_batchwriteitem(synth_template):
