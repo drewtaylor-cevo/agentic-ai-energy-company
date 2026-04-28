@@ -13,12 +13,12 @@ Continues numbering from v1.0 and v2.0. All validated requirements from v1.0/v2.
 
 ### Personas & Data (DATA / REC)
 
-- [ ] **DATA-04**: Seed Solar PV persona (CUST-004) with realistic 12-month billing profile including net-metering (consumption_kwh + export_kwh → net_kwh) shape
-- [ ] **DATA-05**: Seed EV persona (CUST-005) with realistic 12-month billing profile reflecting off-peak EV charging time-of-use (TOU) usage shape
-- [ ] **DATA-06**: Mark one existing or new persona with `hardship_flag: true` in the customer record so AGENT-02 has a deterministic trigger for the demo
-- [ ] **REC-04**: Add Solar Feed-in tariff archetype to `tariff_plans.json` (both `lambda/` and `infrastructure/seed_data/` — byte-equality test must pass)
-- [ ] **REC-05**: Add EV Time-of-Use tariff archetype to `tariff_plans.json` (both locations)
-- [ ] **DATA-07**: New personas round-trip through existing `simulate_savings_pure` with byte-exact engineered savings figures locked in `tests/conftest.py` fixtures — existing persona figures (Sarah $30/$55, Marcus $16.90/$30.98, Elena $14.00/$25.67) must remain unchanged
+- [x] **DATA-04**: Seed Solar PV persona (CUST-004) with realistic 12-month billing profile including net-metering (consumption_kwh + export_kwh → net_kwh) shape
+- [x] **DATA-05**: Seed EV persona (CUST-005) with realistic 12-month billing profile reflecting off-peak EV charging time-of-use (TOU) usage shape
+- [x] **DATA-06**: Mark one existing or new persona with `hardship_flag: true` in the customer record so AGENT-02 has a deterministic trigger for the demo
+- [x] **REC-04**: Add Solar Feed-in tariff archetype to `tariff_plans.json` (both `lambda/` and `infrastructure/seed_data/` — byte-equality test must pass)
+- [x] **REC-05**: Add EV Time-of-Use tariff archetype to `tariff_plans.json` (both locations)
+- [x] **DATA-07**: New personas round-trip through existing `simulate_savings_pure` with byte-exact engineered savings figures locked in `tests/conftest.py` fixtures — existing persona figures (Sarah $30/$55, Marcus $16.90/$30.98, Elena $14.00/$25.67) must remain unchanged
 
 ### Agentic Depth (AGENT)
 
@@ -123,12 +123,12 @@ Which phases cover which requirements. Filled by gsd-roadmapper on 2026-04-28.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-04 | Phase 11 | Pending |
-| DATA-05 | Phase 11 | Pending |
-| DATA-06 | Phase 11 | Pending |
-| DATA-07 | Phase 11 | Pending |
-| REC-04 | Phase 11 | Pending |
-| REC-05 | Phase 11 | Pending |
+| DATA-04 | Phase 11 | Complete |
+| DATA-05 | Phase 11 | Complete |
+| DATA-06 | Phase 11 | Complete |
+| DATA-07 | Phase 11 | Complete |
+| REC-04 | Phase 11 | Complete |
+| REC-05 | Phase 11 | Complete |
 | PROD-01 | Phase 12 | Pending |
 | PROD-01a | Phase 12 | Pending |
 | PROD-01b | Phase 12 | Pending |

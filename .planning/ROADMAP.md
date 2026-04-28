@@ -159,7 +159,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 | 8. UI Integration + Feature Flag + Version Indicator | v2.0 | 4/4 | ✓ Complete | 2026-04-26 |
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 4/4 | ✓ Complete | 2026-04-26 |
 | 10. Freeze + Rollback Drill | v2.0 | 3/3 | ✓ Complete | 2026-04-26 |
-| 11. New Personas + Tariff Archetypes | v3.0 | 6/6 | Complete   | 2026-04-28 |
+| 11. New Personas + Tariff Archetypes | v3.0 | 6/6 | Complete    | 2026-04-28 |
 | 12. CustomerDataProvider Abstraction | v3.0 | 0/? | Not started | — |
 | 13. Bill-Shock Multi-Tool Flow (AGENT-01) | v3.0 | 0/? | Not started | — |
 | 14. Hardship Short-Circuit (AGENT-02) | v3.0 | 0/? | Not started | — |
