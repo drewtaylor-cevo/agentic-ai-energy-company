@@ -84,10 +84,27 @@ def simulate_savings_pure(
         raise ValueError(f"current plan {current_plan_id!r} not in catalog")
 
     def projected_monthly_cost(plan: Dict[str, Any]) -> float:
-        return (
-            avg_kwh * float(plan["rate_per_kwh"])
-            + float(plan["daily_supply_charge"]) * DAYS_PER_MONTH
-        )
+        plan_type = plan.get("plan_type", "flat_rate")
+        supply = float(plan["daily_supply_charge"]) * DAYS_PER_MONTH
+
+        if plan_type == "time_of_use":
+            # D-05/D-12: EV-TOU math. Default 100% peak if records lack peak/offpeak fields.
+            peak_kwh_avg = sum(float(r.get("peak_kwh", r.get("usage_kwh", 0))) for r in billing_history) / len(billing_history)
+            offpeak_kwh_avg = sum(float(r.get("offpeak_kwh", 0)) for r in billing_history) / len(billing_history)
+            peak_rate = float(plan.get("peak_rate", plan["rate_per_kwh"]))
+            offpeak_rate = float(plan.get("offpeak_rate", plan["rate_per_kwh"]))
+            return peak_kwh_avg * peak_rate + offpeak_kwh_avg * offpeak_rate + supply
+
+        if plan_type == "solar_fit":
+            # D-04/D-12: SOL math. Default export=0 if records lack export_kwh.
+            net_kwh_avg = sum(float(r.get("net_kwh", r.get("usage_kwh", 0))) for r in billing_history) / len(billing_history)
+            export_kwh_avg = sum(float(r.get("export_kwh", 0)) for r in billing_history) / len(billing_history)
+            sol_rate = float(plan["rate_per_kwh"])
+            fit_rate = float(plan.get("fit_rate", 0))
+            return net_kwh_avg * sol_rate - export_kwh_avg * fit_rate + supply
+
+        # Default: flat_rate / green_premium — BYTE-EXACT preservation of v2.0 formula
+        return avg_kwh * float(plan["rate_per_kwh"]) + supply
 
     current_cost = projected_monthly_cost(current_plan)
     candidates = [p for p in plans if p["plan_id"] != current_plan_id]
