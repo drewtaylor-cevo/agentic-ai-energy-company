@@ -2,11 +2,22 @@
 
 Creates N AwsCustomResource instances, each backed by a CDK-auto-generated
 Lambda that calls DynamoDB.batchWriteItem. BatchWriteItem accepts a maximum
-of 25 items per call, so 36 records require 2 batches (25 + 11).
+of 25 items per call, so 73 records require 3 batches (25 + 25 + 23).
 
 Uses on_create ONLY — on_update would re-run seeding on every cdk deploy,
 overwriting any manually modified records. To force re-seed, change the
-physical_resource_id string.
+physical_resource_id string suffix (vN → vN+1).
+
+Resource-id version history:
+  v1 — original demo-v2.0 release (36 items: CUST-001/002/003)
+  v2 — Phase 11 re-chunk (73 items: +CUST-004/005/006 + PROFILE row).
+       Bumped because seed growth 36→73 shifted batch contents — Seeder1
+       now carries CUST-003 tail + new CUST-004/005 rows, and without a
+       phys-id bump CFN treats it as a no-op update (v1 on_create already
+       fired, no on_update handler defined). BatchWriteItem is a PutItem
+       under the hood, so re-running on existing CUST-001/002/003 rows is
+       byte-exact-idempotent — the preserved records in DYNAMO_RECORDS are
+       byte-identical to what v1 wrote.
 
 IAM is scoped to dynamodb:BatchWriteItem on this table ARN only.
 """
@@ -51,7 +62,7 @@ class SeederConstruct(Construct):
                         "RequestItems": {table.table_name: request_items}
                     },
                     physical_resource_id=cr.PhysicalResourceId.of(
-                        f"BillingSeeder-{i}-v1"
+                        f"BillingSeeder-{i}-v2"
                     ),
                 ),
                 policy=cr.AwsCustomResourcePolicy.from_statements([
