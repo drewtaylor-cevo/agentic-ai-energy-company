@@ -276,22 +276,8 @@ def simulate_savings(customer_id: str) -> dict:
         Dict with 'green' and 'cheapest' keys, each containing plan_id,
         plan_name, saving_monthly ($/month), and saving_annual ($/year).
     """
-    if not _TOOLS_LAMBDA_ARN:
-        raise RuntimeError("TOOLS_LAMBDA_ARN not set — agent misconfigured")
-
-    resp = _lambda_client.invoke(
-        FunctionName=_TOOLS_LAMBDA_ARN,
-        InvocationType="RequestResponse",
-        Payload=json.dumps({"customer_id": customer_id}).encode(),
-    )
-
-    payload = json.loads(resp["Payload"].read())
-
-    # Check for Lambda errors
-    if "FunctionError" in resp:
-        raise RuntimeError(f"ToolsLambda error: {payload}")
-
-    return payload
+    # D-04: provider wraps the Lambda invoke; arithmetic stays in Tools Lambda (SAV-03).
+    return get_provider().simulate_savings(customer_id)
 
 
 # --- System prompt (REC-03: both tracks, never ranked) ---
