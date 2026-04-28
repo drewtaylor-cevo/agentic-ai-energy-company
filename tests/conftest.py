@@ -35,6 +35,24 @@ def elena_billing():
 
 
 @pytest.fixture
+def cust004_billing():
+    from infrastructure.seed_data.billing_records import CUST004_RECORDS
+    return CUST004_RECORDS
+
+
+@pytest.fixture
+def cust005_billing():
+    from infrastructure.seed_data.billing_records import CUST005_RECORDS
+    return CUST005_RECORDS
+
+
+@pytest.fixture
+def cust006_billing():
+    from infrastructure.seed_data.billing_records import CUST006_RECORDS
+    return CUST006_RECORDS
+
+
+@pytest.fixture
 def all_billing():
     from infrastructure.seed_data.billing_records import ALL_RECORDS
     return ALL_RECORDS
@@ -97,6 +115,85 @@ def mock_elena_response():
             "saving_monthly": 25.67,
             "saving_annual": 308.04,
         },
+    }
+
+
+@pytest.fixture
+def mock_cust004_response():
+    """CUST-004 solar persona — Green (ECO) and Cheapest (SOL).
+
+    Locked byte-exact per scratch/target_equation_solver_v2.py:
+    net_avg=667, export_avg=200, sol_rate=0.23, fit_rate=0.08.
+    """
+    return {
+        "green": {
+            "plan_id": "ECO",
+            "plan_name": "EcoFlex 100",
+            "saving_monthly": 40.02,
+            "saving_annual": 480.24,
+        },
+        "cheapest": {
+            "plan_id": "SOL",
+            "plan_name": "Solar Feed-in",
+            "saving_monthly": 76.03,
+            "saving_annual": 912.36,
+        },
+    }
+
+
+@pytest.fixture
+def mock_cust005_response():
+    """CUST-005 EV persona — Green (ECO) and Cheapest (EV-TOU).
+
+    Locked byte-exact per scratch/target_equation_solver_v2.py:
+    total_avg=583.33, 30/70 peak/offpeak, peak_rate=0.40, offpeak_rate=0.08.
+    """
+    return {
+        "green": {
+            "plan_id": "ECO",
+            "plan_name": "EcoFlex 100",
+            "saving_monthly": 35.00,
+            "saving_annual": 420.00,
+        },
+        "cheapest": {
+            "plan_id": "EV-TOU",
+            "plan_name": "EV Drive TOU",
+            "saving_monthly": 84.00,
+            "saving_annual": 1008.00,
+        },
+    }
+
+
+@pytest.fixture
+def mock_cust006_response():
+    """CUST-006 hardship persona — valid flat-catalog recommendation.
+
+    Phase 14 will short-circuit to hardship before the LLM sees this — but
+    simulate_savings_pure still produces a valid recommendation per D-07.
+    avg_kwh=200, Green ECO $12.00/mo, Cheapest VAL $22.00/mo.
+    """
+    return {
+        "green": {
+            "plan_id": "ECO",
+            "plan_name": "EcoFlex 100",
+            "saving_monthly": 12.00,
+            "saving_annual": 144.00,
+        },
+        "cheapest": {
+            "plan_id": "VAL",
+            "plan_name": "Value 12",
+            "saving_monthly": 22.00,
+            "saving_annual": 264.00,
+        },
+    }
+
+
+@pytest.fixture
+def mock_cust006_hardship():
+    """CUST-006 hardship-flag lookup — shape returned by get_hardship_flag_pure."""
+    return {
+        "hardship": True,
+        "customer_id": "CUST-006",
     }
 
 
