@@ -33,22 +33,29 @@ Mirrors DEMO-RUNBOOK §7 Phase 11 amendment pattern.
 
 **Decision: proceed to Task 2 (lift CustomerTariff).**
 
-## Task 2 — Lift CustomerTariff Stack Policy
+## Task 2 — LIFT + DEPLOY CustomerTariff (PASS 2026-04-28)
+
+| Step | Timestamp (UTC) | Command | Output | Result |
+|------|-----------------|---------|--------|--------|
+| A. LIFT | 2026-04-28T23:47:20Z | `aws cloudformation set-stack-policy --stack-name CustomerTariff --stack-policy-body file://infrastructure/stack-policies/foundation-allow-all.json` + `update-termination-protection --no-enable-termination-protection --stack-name CustomerTariff` | Policy `Effect: Allow`; `EnableTerminationProtection: False` | ✓ Lifted |
+| B. DEPLOY | 2026-04-28T23:49:22Z | `cdk deploy CustomerTariff --require-approval never` | Deployment time 33.35s, total 96.15s. `AWS::Lambda::Function` ToolsLambda/TariffTools UPDATE_COMPLETE at 9:51:22am. Stack UPDATE_COMPLETE at 9:51:26am. | ✓ UPDATE_COMPLETE |
+| C1. Live gate simulate_savings CUST-001 | 2026-04-28T23:51:42Z | `aws lambda invoke --function-name tariff-tools --payload '{"action":"simulate_savings","customer_id":"CUST-001"}'` | `{"green": {"plan_id": "ECO", "plan_name": "EcoFlex 100", "saving_monthly": 30.0, "saving_annual": 360.0}, "cheapest": {"plan_id": "VAL", "plan_name": "Value 12", "saving_monthly": 55.0, "saving_annual": 660.0}}` | ✓ Byte-exact match to pre-baseline |
+| C2. Live gate get_hardship_flag CUST-006 | 2026-04-28T23:51:42Z | `aws lambda invoke --function-name tariff-tools --payload '{"action":"get_hardship_flag","customer_id":"CUST-006"}'` | `{"hardship": true, "customer_id": "CUST-006"}` | ✓ New dispatcher action routes correctly |
+
+**Decision: proceed to Task 3 (lift + deploy CustomerTariffAgent).** `CustomerTariff` stack policy stays Allow-all until Task 5.
+
+## Task 3 — LIFT + DEPLOY CustomerTariffAgent
 
 (pending)
 
-## Task 3 — Deploy CustomerTariff
+## Task 4 — Post-Capture + Byte-Equality Gate
 
 (pending)
 
-## Task 4 — Lift + Deploy CustomerTariffAgent
+## Task 5 — Re-apply Freeze Policies + Termination Protection
 
 (pending)
 
-## Task 5 — Post-Capture + Byte-Equality Gate
-
-(pending)
-
-## Task 6 — Re-apply Freeze Policies + Termination Protection
+## Task 6 — Ceremony Close
 
 (pending)
