@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Agentic Depth & Workflow Assist
-status: executing
-stopped_at: Phase 13 verified (gaps_found — two P0 regressions for 13.1)
-last_updated: "2026-04-29T13:30:00Z"
-last_activity: 2026-04-29 -- Phase 13 ceremony closed with gaps; awaiting /gsd-plan-phase 13 --gaps
+status: pending_plan — Phase 13.1 inserted to close AGENT-01 Gap 1 + Gap 2
+stopped_at: Phase 13.1 context gathered
+last_updated: "2026-04-29T13:45:47.850Z"
+last_activity: 2026-04-29 -- Phase 13 ceremony + verifier complete; Phase 13.1 scope in 13-VERIFICATION.md
 progress:
-  total_phases: 7
-  completed_phases: 2
+  total_phases: 8
+  completed_phases: 3
   total_plans: 21
   completed_plans: 21
-  percent: 62
+  percent: 100
 ---
 
 # Project State
@@ -27,14 +27,16 @@ See: .planning/PROJECT.md (updated 2026-04-28 at v3.0 milestone start)
 
 Phase: 13 (bill-shock-multi-tool-flow-agent-01) — VERIFIED WITH GAPS
 Plan: 9 of 9 (all executed; Plan 08 ceremony closed with documented gaps)
-Status: gaps_found — Phase 13.1 required to close two P0 regressions
+Status: pending_plan — Phase 13.1 inserted to close AGENT-01 Gap 1 + Gap 2
 Last activity: 2026-04-29 -- Phase 13 ceremony + verifier complete; Phase 13.1 scope in 13-VERIFICATION.md
 
 ### Phase 13 Outstanding Gaps (for Phase 13.1)
+
 - **Gap 1 (P0, AGENT-01a):** Warm latency gate fails 5.7-7.9× — CUST-001 17.2s vs 3000ms, CUST-003 19.7s vs 2500ms. Root cause: Plan 03 preference-ordered prompt causes 3-tool flow on all personas.
 - **Gap 2 (P0, D-12):** 404 unknown-customer detection broken — curl /recommendations/CUST-999 returns HTTP 200 with synthetic UNKNOWN tracks. `api_lambda/handler.py:152` detection no longer fires because agent composes full RecommendationResponse with UNKNOWN placeholder tracks.
 
 ### Phase 13 Deployed State
+
 - Runtime: `tariff_agent-O2Hai86N8V` v12 (container `sha256:15bb94c16f8f55bb70954da9f0fe3bcd235c855cadd3f369c9dbb77d47bc618d`)
 - Pre-ceremony HEAD: b45b843 | Final HEAD: 56440032e9f45a73097d9392744e608f0a2e34ae
 - All 3 stacks back to Deny + TP=True; SAV-03 byte-equivalence preserved.
@@ -67,6 +69,7 @@ Last activity: 2026-04-29 -- Phase 13 ceremony + verifier complete; Phase 13.1 s
 
 - Phase 06.1 inserted after Phase 6: Resolve Sonnet 4.6 tool-use regression (DEMO-02) (URGENT)
 - v3.0 roadmap added 2026-04-28: 7 phases (11–17) derived from 27 requirement checkboxes per LD-1 build order
+- Phase 13.1 inserted after Phase 13: AGENT-01 Gap Closure — Latency Short-Circuit + 404 Detection (URGENT)
 
 ### Locked Decisions (v3.0)
 
@@ -161,9 +164,9 @@ Total: 5 items (2 UAT gaps, 3 verification gaps). Resolution path: `/gsd-verify-
 
 ## Session Continuity
 
-Last session: 2026-04-29T03:29:50.151Z
-Stopped at: Phase 13 context gathered
-Resume file: .planning/phases/13-bill-shock-multi-tool-flow-agent-01/13-CONTEXT.md
+Last session: 2026-04-29T13:45:47.825Z
+Stopped at: Phase 13.1 context gathered
+Resume file: .planning/phases/13.1-agent-01-gap-closure-latency-short-circuit-404-detection/13.1-CONTEXT.md
 
 **Environment lock (v2.0 carry-forward):** `demo-v2.0` annotated git tag on main (3 stacks frozen via deny-Update:* + termination protection; `CustomerTariffFrontend` / Amplify is unfrozen).
 

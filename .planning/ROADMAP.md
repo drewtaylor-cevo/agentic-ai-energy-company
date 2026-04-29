@@ -107,6 +107,16 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
   - [x] 13-09-PLAN.md — CLAUDE.md addendum (D-11 exemption, D-15 cap routing, D-22 Strands pin) + DEMO-RUNBOOK.md Marcus→Elena swap
 **Invariant ownership**: SAV-03 (extended — every new arithmetic tool stays pure Python in Tools Lambda), UI-01 (collapsed trace = zero vertical cost), UI-02 (per-flow prewarm gate replaces v2.0 global 3000ms gate), D-04 (4-tool-cap fallback path), `_narrative_source` pattern extension (`_reasoning_trace` or public `reasoning_trace` — API Lambda pass-through contract must be explicit).
 
+### Phase 13.1: AGENT-01 Gap Closure — Latency Short-Circuit + 404 Detection (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 13
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 13.1 to break down)
+
 ### Phase 14: Hardship Short-Circuit (AGENT-02)
 **Goal**: When a customer record carries `hardship_flag: true`, the agent refuses tariff recommendations via a code-enforced pre-LLM guard and returns a dignity-preserving routing response, without regressing the customer-not-found detection or the D-04 never-500 contract.
 **Depends on**: Phase 13 (shares Tools Lambda action dispatcher + `get_hardship_flag` tool)
