@@ -210,3 +210,53 @@ def test_prewarm_median_computation(monkeypatch):
     # Sanity: prewarm.py references statistics.median at least once
     prewarm_src = Path(__file__).resolve().parent.parent.joinpath("scripts", "prewarm.py").read_text()
     assert "statistics.median" in prewarm_src, "scripts/prewarm.py must invoke statistics.median per D-02"
+
+
+# ----------------------------------------------------------------------
+# Phase 13 Plan 07 — per-flow gate + rotation + warming-pass count (RED).
+# ----------------------------------------------------------------------
+
+
+def test_personas_rotation_is_cust001_and_cust003():
+    """A-01: Marcus (CUST-002) removed; Elena (CUST-003) added."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("prewarm", "scripts/prewarm.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.PERSONAS == ["CUST-001", "CUST-003"]
+    assert "CUST-002" not in module.PERSONAS
+
+
+def test_gate_ms_is_per_flow_map_not_scalar():
+    """D-18: per-persona gate dict, NOT a single MEDIAN_GATE_MS scalar (Pitfall 1)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("prewarm", "scripts/prewarm.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert isinstance(module.GATE_MS, dict)
+    assert module.GATE_MS["CUST-001"] == 3000
+    assert module.GATE_MS["CUST-003"] == 2500
+    # Belt-and-braces: the old scalar is GONE.
+    assert not hasattr(module, "MEDIAN_GATE_MS"), (
+        "MEDIAN_GATE_MS scalar should be removed — per-flow map replaces it"
+    )
+
+
+def test_warming_passes_is_three():
+    """A-03: 3 warming passes (promotion from 2)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("prewarm", "scripts/prewarm.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.WARMING_PASSES == 3
+
+
+def test_measurement_samples_and_settle_wait_unchanged():
+    """Regression: load-bearing constants from Phase 9 SC-2 unchanged."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("prewarm", "scripts/prewarm.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.SETTLE_WAIT_S == 30
+    assert module.MEASUREMENT_SAMPLES == 3
+    assert module.HTTP_TIMEOUT_S == 30
