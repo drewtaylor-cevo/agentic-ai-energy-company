@@ -2,6 +2,60 @@
 
 **Gathered:** 2026-04-29
 **Status:** Ready for planning
+**Amended:** 2026-04-29 post-research — see `## Research Amendments (2026-04-29)` below. Amendments override the original decisions where explicitly stated.
+
+## Research Amendments (2026-04-29)
+
+Two blockers surfaced during `/gsd-plan-phase 13` research (see `13-RESEARCH.md` §RESEARCH BLOCKED + §1 + §6). User decisions below **override** the original CONTEXT.md text wherever they conflict. Original decision bodies are preserved for traceability, but planners and executors MUST follow the amendment where the two disagree.
+
+### A-01 — Designated bill-shock persona is **CUST-003 (Elena Vasquez)**, not CUST-002 (Marcus Webb)
+
+**Blocker:** MARCUS_WEBB_RECORDS does not trip the D-03 30% symmetric threshold on any month (peak 0.167 on 2025-10). See RESEARCH §6. CONTEXT.md §Non-integration points explicitly flagged fixture engineering as a Phase 11 amendment out-of-scope here.
+
+**Decision:** **Reassign the designated bill-shock persona to CUST-003 Elena.** Elena has 7 months above the 30% gate (peak 0.634 on 2025-10). No fixture edits. Phase 11 D-13 byte-exact Marcus savings ($16.90 / $30.98) untouched. Elena's existing CUST-003 byte-exact fixtures ($14.00 / $25.67) are now the canary target.
+
+**What this amends (override):**
+
+- **D-03 threshold:** UNCHANGED — stays at `|monthly_delta| > 30% of 11-month mean`. Elena already trips on the live fixture.
+- **D-09 system-prompt ordering rule:** Preference graph unchanged. `?flow=bill_shock` still rejected. LLM-decides still the pattern. Only the demo-time target customer ID changes.
+- **D-16 `test_four_tool_cap_fires_gracefully`:** Hardcoded `customer_id` for the cap test — planner MAY pick any persona; CUST-001 still fine.
+- **D-18 per-flow prewarm rotation:** **CUST-003 (multi-tool) + CUST-001 (single-tool)** — was CUST-002 + CUST-001. Planner updates `scripts/prewarm.py` rotation list accordingly.
+- **D-19 latency-floor witness (smoke):** `test_agent01_latency_floor` asserts **CUST-003** live response latency > 1000ms (was CUST-002).
+- **D-20 cross-persona canary (offline):** Invoke on **CUST-003 (bill-shock)** and **CUST-002 Marcus (non-shock)**. Assert `detect_bill_shock` result differs (`is_shock=True` for CUST-003, `is_shock=False` for CUST-002). Assert savings differ ($14.00/$25.67 vs $16.90/$30.98). Assert `reasoning_trace` differs byte-exact. Marcus becomes the non-shock foil; CUST-004 usage in the original D-20 is deprecated for this canary.
+- **D-21 CloudWatch counter (smoke):** Assertion over a single **CUST-003** lookup (was CUST-002).
+- **D-29 mock fixtures:** `MOCK_REASONING_TRACE_CUST003` (not CUST002). CUST-003 mock response gains the 3-entry trace; CUST-001, CUST-002, CUST-004, CUST-005 get `reasoning_trace: []`.
+- **D-33 byte-equivalence baselines:** Pre/post captures MUST include CUST-001 + **CUST-003** + CUST-002 (as non-shock sanity) at minimum — was CUST-001 + CUST-002 + CUST-004. Path stays `.planning/phases/13-*/baseline/{pre,post}/{customer_id}.json`.
+- **Canonical refs §"Prior phase context":** The reference to "MARCUS_WEBB_RECORDS fixture is the CUST-002 bill-shock source" is deprecated. Planner instead reads Phase 11 D-13 Elena fixtures for the multi-tool target.
+- **DEMO-RUNBOOK §T-24h rehearsal:** Warm-median target stays 2500ms; persona in the rehearsal rotation swaps Marcus→Elena for the AGENT-01 demo beat. Planner adds a DEMO-RUNBOOK update task.
+
+### A-02 — 4-tool cap implemented via **Strands `HookProvider`**, not `Agent(max_iterations=N)`
+
+**Blocker:** Strands 1.37.0 `Agent.__init__` has **no `max_iterations` parameter**. Only `Swarm.max_iterations` exists. Strands' `StopReason` literals are `cancelled, checkpoint, content_filtered, end_turn, guardrail_intervened, interrupt, max_tokens, stop_sequence, tool_use` — no `max_iterations_exceeded`. See RESEARCH §1.
+
+**Decision:** **Use a Strands `HookProvider`** that subscribes to `BeforeToolCallEvent` (or `AfterToolCallEvent`, planner's choice from Strands 1.37.0 hooks), increments a per-invocation tool-call counter, and calls `agent.cancel()` when the counter reaches 4. Result: `agent_result.stop_reason == "cancelled"`. D-15 cap-fallback branch detects `stop_reason == "cancelled"` and routes through the existing `except Exception` fallback at `agent/agent.py:394-418` (unchanged path — D-04 preserved).
+
+**What this amends (override):**
+
+- **D-14:** Replace "`Agent(max_iterations=4)` on the Strands `_agent` singleton" with: "a new `agent/hooks/four_tool_cap.py` (or inline in `agent/agent.py`, planner discretion) registers a `HookProvider` passed to `Agent(..., hooks=[FourToolCapHook()])`. The hook stores counter state on the per-call context (NOT module-level — session bleed concern, SC-3 mirror). Research pinned — no open question remains." Planner MUST confirm the exact event class name (`BeforeToolCallEvent` or `AfterToolCallEvent` per Strands 1.37.0) and the exact Agent parameter name (`hooks` or `hook_providers`) from `.venv/lib/python3.13/site-packages/strands/` source during planning.
+- **D-15 cap-fallback branch:** Detection semantics change from "exception branch OR stop_reason inspection" to **"stop_reason inspection only"** (`if agent_result.stop_reason == "cancelled":`). The existing `except Exception` at `agent/agent.py:394-418` stays for other failure modes. `_narrative_source = "fallback"` still stamped; partial `reasoning_trace` assembled from whatever fired before the cancel.
+- **D-16 offline cap pytest:** The crafted-loop test uses the real hook + a test-only self-referential `@tool` (or monkey-patches the hook's threshold to `max_calls=2` for a cheaper fake loop). Either works; planner picks. Still fully offline via `_provider_swap` + `InMemoryProvider`.
+- **D-17 no live smoke:** unchanged — Sonnet 4.6 is still tuned away from runaway loops; cap hook's contract proven offline.
+- **D-22 Strands pinned:** unchanged — `--require-hashes` invariant holds, zero deps.
+- **D-24 cross-persona canary guards prompt:** unchanged — also now guards the hook (any hook edit re-runs the canary).
+
+### A-03 — Latency budget has **no headroom at 2500ms**
+
+**Finding:** RESEARCH §4 — no repo measurements; PITFALLS.md C1 estimates 2600-5400ms warm for a 3-tool turn. 2500ms gate has zero margin. **Not a blocker — but a named risk.**
+
+**Decision:** **Proceed with the 2500ms gate as-specified (AGENT-01a contractual target).** Add TWO new planner obligations:
+
+1. **Sighting-shot measurement before Wave N (lift ceremony).** A new task in an early wave runs a lightweight warm-median measurement on the deployed CUST-003 flow BEFORE the stack-policy lift. If median > 2500ms on a 3-tool turn, planner pivots to the **break-glass: drop to 2-tool CUST-003 demo** (`get_billing_history` + `simulate_savings`, skip `detect_bill_shock` in the prompt's preferred order). `detect_bill_shock` stays wired as a tool — the agent just isn't asked to call it on CUST-003 unless the rep explicitly asks via a future UX. This preserves AGENT-01's "visible reasoning" demo at one-tool-less latency.
+2. **Prewarm pass count promotion to 3 (from 2).** `scripts/prewarm.py` takes a THIRD warming pass on CUST-003 before measuring the gate. Mitigates Strands + Bedrock first-call variance.
+
+Neither mitigation changes any locked decision; both are additive planner instructions.
+
+---
+
 
 <domain>
 ## Phase Boundary
