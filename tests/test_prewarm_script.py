@@ -59,17 +59,21 @@ def _no_real_sleeps(monkeypatch):
 
 @patch("scripts.prewarm.urllib.request.urlopen")
 def test_prewarm_happy_path_exit_0(mock_urlopen, monkeypatch, capsys):
-    """D-06: all personas under gate → exit 0 + 'all personas under gate — exit 0' line."""
+    """D-06: all personas under gate → exit 0 + 'all personas under gate — exit 0' line.
+
+    Phase 13 A-01/A-03: 2 personas × 3 warming passes = 6 warm 204s;
+    2 personas × 3 measurement samples = 6 measurement 200s.
+    """
     monkeypatch.setenv("BACKEND_API_URL", "https://mock.example")
-    # 3 prewarm calls return 204, then 9 measurement calls return 200
+    # 6 prewarm 204s (CUST-001 x3 + CUST-003 x3), then 6 measurement 200s.
     mock_urlopen.side_effect = [
-        _make_urlopen_response(204) for _ in range(3)
+        _make_urlopen_response(204) for _ in range(6)
     ] + [
-        _make_urlopen_response(200, b'{"green":{},"cheapest":{}}') for _ in range(9)
+        _make_urlopen_response(200, b'{"green":{},"cheapest":{}}') for _ in range(6)
     ]
-    # perf_counter is called: t_start (1x), then per warm call (2x = start/stop, 3 calls),
-    # then per measurement call (2x = start/stop, 9 calls), then total at end (1x).
-    # Total: 1 + 6 + 18 + 1 = 26. Provide a generous sequence.
+    # perf_counter is called: t_start (1x), then per warm call (2x = start/stop, 6 calls),
+    # then per measurement call (2x = start/stop, 6 calls), then total at end (1x).
+    # Total: 1 + 12 + 12 + 1 = 26. Provide a generous sequence.
     counters = iter([i * 0.1 for i in range(60)])
     monkeypatch.setattr("scripts.prewarm.time.perf_counter", lambda: next(counters))
     result = prewarm.main()
@@ -80,32 +84,39 @@ def test_prewarm_happy_path_exit_0(mock_urlopen, monkeypatch, capsys):
 
 @patch("scripts.prewarm.urllib.request.urlopen")
 def test_prewarm_gate_fail_exit_1(mock_urlopen, monkeypatch, capsys):
-    """D-06: median ≥3000ms on any persona → exit 1 + 'FAIL' in that persona's summary line."""
+    """D-06: median above per-flow gate → exit 1 + 'FAIL' in that persona's summary line.
+
+    Phase 13 A-01: CUST-003 gate is 2500ms (multi-tool). Measurement medians
+    above 2500ms should trip the gate and exit 1.
+    """
     monkeypatch.setenv("BACKEND_API_URL", "https://mock.example")
+    # 6 warm 204s + 6 measurement 200s.
     mock_urlopen.side_effect = [
-        _make_urlopen_response(204) for _ in range(3)
+        _make_urlopen_response(204) for _ in range(6)
     ] + [
-        _make_urlopen_response(200, b"{}") for _ in range(9)
+        _make_urlopen_response(200, b"{}") for _ in range(6)
     ]
-    # Warm pass: t_start (0.0), then 3 warm call pairs (all fast ~100ms).
-    # Measurement: CUST-001 fast (~100ms), CUST-002 [3174, 3050, 3100]ms, CUST-003 fast (~100ms).
-    # Sequence: [t_start, warm×6, meas×18, t_end] = 26 values.
+    # Warm pass: t_start (0.0), then 6 warm call pairs (all fast ~100ms).
+    # Measurement: CUST-001 fast (~100ms) — under 3000ms gate.
+    # CUST-003 [2600, 2550, 2700]ms — median 2600 >= 2500ms gate, fails.
+    # Sequence: [t_start, warm×12, meas×12, t_end] = 26 values.
     counters = iter([
-        0.0,                                          # t_start
-        0.0, 0.1, 0.1, 0.2, 0.2, 0.3,                 # warm pass × 3 (start/stop)
-        # CUST-001 measurement: 3 × ~100ms
-        0.3, 0.4, 0.4, 0.5, 0.5, 0.6,
-        # CUST-002 measurement: [3174, 3050, 3100]ms
-        0.6, 3.774, 3.774, 6.824, 6.824, 9.924,
-        # CUST-003 measurement: 3 × ~100ms
-        9.924, 10.024, 10.024, 10.124, 10.124, 10.224,
-        15.0,                                         # t_end for total
+        0.0,                                                      # t_start
+        0.0, 0.1, 0.1, 0.2, 0.2, 0.3,                             # CUST-001 warm pass 1/2/3 (start/stop)
+        0.3, 0.4, 0.4, 0.5, 0.5, 0.6,                             # CUST-003 warm pass 1/2/3
+        # CUST-001 measurement: 3 × ~100ms (under 3000ms gate)
+        0.6, 0.7, 0.7, 0.8, 0.8, 0.9,
+        # CUST-003 measurement: [2600, 2550, 2700]ms → median 2600 >= 2500ms gate → FAIL
+        0.9, 3.5, 3.5, 6.05, 6.05, 8.75,
+        10.0,                                                     # t_end
     ])
     monkeypatch.setattr("scripts.prewarm.time.perf_counter", lambda: next(counters))
     result = prewarm.main()
     assert result == 1, f"Expected exit 1, got {result}"
     out = capsys.readouterr().out
-    assert "median CUST-002" in out and "FAIL" in out, f"Missing D-04 gate-fail line for CUST-002; stdout:\n{out}"
+    assert "median CUST-003" in out and "FAIL" in out, (
+        f"Missing D-04 gate-fail line for CUST-003; stdout:\n{out}"
+    )
     assert "exit 1" in out, f"Missing 'exit 1' summary token; stdout:\n{out}"
 
 
@@ -140,21 +151,27 @@ def test_prewarm_missing_env_var_exit_2(monkeypatch, capsys):
 
 @patch("scripts.prewarm.urllib.request.urlopen")
 def test_prewarm_measurement_timeout_pushes_median(mock_urlopen, monkeypatch, capsys):
-    """D-08: socket.timeout on a measurement call → treated as ≥3000ms sample → median can fail gate."""
+    """D-08: socket.timeout on a measurement call → treated as >= gate-ceiling sample → median fails gate.
+
+    Phase 13 A-01/A-03: 2 personas × 3 warming passes = 6 warm 204s. Two
+    CUST-001 measurement timeouts + one fast sample sends the median to the
+    timeout sentinel (max(GATE_MS.values()) = 3000ms), failing CUST-001's
+    3000ms gate.
+    """
     monkeypatch.setenv("BACKEND_API_URL", "https://mock.example")
-    # 3 prewarm 204s, then CUST-001 measurement: [TIMEOUT, TIMEOUT, 200ms OK].
-    # With two 3000ms timeout samples + one 200ms real sample, sorted = [200, 3000, 3000],
-    # median = 3000 → gate FAILS (≥3000ms).
+    # 6 warm 204s (CUST-001 x3 + CUST-003 x3), then:
+    # CUST-001 measurement: [TIMEOUT, TIMEOUT, 200ms OK] → median = 3000 (sentinel) → FAIL
+    # CUST-003 measurement: 3 x fast
     mock_urlopen.side_effect = [
-        _make_urlopen_response(204),  # warm CUST-001
-        _make_urlopen_response(204),  # warm CUST-002
-        _make_urlopen_response(204),  # warm CUST-003
+        _make_urlopen_response(204),  # CUST-001 warm pass 1
+        _make_urlopen_response(204),  # CUST-001 warm pass 2
+        _make_urlopen_response(204),  # CUST-001 warm pass 3
+        _make_urlopen_response(204),  # CUST-003 warm pass 1
+        _make_urlopen_response(204),  # CUST-003 warm pass 2
+        _make_urlopen_response(204),  # CUST-003 warm pass 3
         socket.timeout(),              # CUST-001 measure 1/3 → TIMEOUT
         socket.timeout(),              # CUST-001 measure 2/3 → TIMEOUT
         _make_urlopen_response(200, b"{}"),  # CUST-001 measure 3/3 → 200ms
-        _make_urlopen_response(200, b"{}"),  # CUST-002 x3 fast
-        _make_urlopen_response(200, b"{}"),
-        _make_urlopen_response(200, b"{}"),
         _make_urlopen_response(200, b"{}"),  # CUST-003 x3 fast
         _make_urlopen_response(200, b"{}"),
         _make_urlopen_response(200, b"{}"),
@@ -171,31 +188,51 @@ def test_prewarm_measurement_timeout_pushes_median(mock_urlopen, monkeypatch, ca
 
 @patch("scripts.prewarm.urllib.request.urlopen")
 def test_prewarm_per_call_log_format(mock_urlopen, monkeypatch, capsys):
-    """D-04: stdout carries 'prewarm CUST-001: 204 Xms ok' and 'CUST-001 warm 1/3: Xms 200 ok' verbatim."""
+    """D-04: stdout log-line format stays operator-greppable after Phase 13 A-01/A-03 changes.
+
+    Phase 13: warm lines now 'prewarm CUST-XXX pass N/3: 204 ... ok' (new pass idx);
+    measurement lines unchanged 'CUST-XXX warm N/3: ...'; summary lines per-flow
+    gate 'PASS (<3000ms)' / 'PASS (<2500ms)'.
+    """
     monkeypatch.setenv("BACKEND_API_URL", "https://mock.example")
-    mock_urlopen.side_effect = [_make_urlopen_response(204) for _ in range(3)] + [
-        _make_urlopen_response(200, b"{}") for _ in range(9)
+    # 6 warm 204s + 6 measurement 200s.
+    mock_urlopen.side_effect = [_make_urlopen_response(204) for _ in range(6)] + [
+        _make_urlopen_response(200, b"{}") for _ in range(6)
     ]
     counters = iter([i * 0.1 for i in range(60)])
     monkeypatch.setattr("scripts.prewarm.time.perf_counter", lambda: next(counters))
     result = prewarm.main()
     assert result == 0, f"Sanity: happy-path test; expected exit 0, got {result}"
     out = capsys.readouterr().out
-    # D-04 format — prewarm line (status + ms + 'ok'):
-    assert "prewarm CUST-001:" in out, f"Missing 'prewarm CUST-001:' log line; stdout:\n{out}"
-    assert "prewarm CUST-002:" in out, f"Missing 'prewarm CUST-002:' log line; stdout:\n{out}"
-    assert "prewarm CUST-003:" in out, f"Missing 'prewarm CUST-003:' log line; stdout:\n{out}"
-    # D-04 format — measurement line (warm N/3 + ms + 200 + ok):
+    # D-04 format — prewarm lines now include 'pass N/3' per A-03 (3-pass warming):
+    assert "prewarm CUST-001 pass 1/3:" in out, (
+        f"Missing 'prewarm CUST-001 pass 1/3:' log line; stdout:\n{out}"
+    )
+    assert "prewarm CUST-001 pass 3/3:" in out, (
+        f"Missing 'prewarm CUST-001 pass 3/3:' log line; stdout:\n{out}"
+    )
+    assert "prewarm CUST-003 pass 1/3:" in out, (
+        f"Missing 'prewarm CUST-003 pass 1/3:' log line; stdout:\n{out}"
+    )
+    assert "prewarm CUST-003 pass 3/3:" in out, (
+        f"Missing 'prewarm CUST-003 pass 3/3:' log line; stdout:\n{out}"
+    )
+    # CUST-002 must NOT be in the warm output (A-01 removed from rotation):
+    assert "prewarm CUST-002" not in out, (
+        f"CUST-002 should not appear in prewarm rotation (A-01); stdout:\n{out}"
+    )
+    # D-04 format — measurement line (warm N/3 + ms + 200 + ok) unchanged:
     assert "CUST-001 warm 1/3:" in out, f"Missing 'CUST-001 warm 1/3:' line; stdout:\n{out}"
-    assert "CUST-002 warm 2/3:" in out, f"Missing 'CUST-002 warm 2/3:' line; stdout:\n{out}"
     assert "CUST-003 warm 3/3:" in out, f"Missing 'CUST-003 warm 3/3:' line; stdout:\n{out}"
     # D-04 wait marker
     assert "(wait 30s)" in out, f"Missing '(wait 30s)' marker; stdout:\n{out}"
     # D-04 summary separator
     assert "---" in out, f"Missing '---' summary separator; stdout:\n{out}"
-    # D-04 per-persona median line + PASS token
+    # D-04 per-persona median line + per-flow PASS token (Phase 13 D-18):
     assert "median CUST-001:" in out, f"Missing 'median CUST-001:' summary line; stdout:\n{out}"
-    assert "PASS (<3000ms)" in out, f"Missing 'PASS (<3000ms)' marker; stdout:\n{out}"
+    assert "median CUST-003:" in out, f"Missing 'median CUST-003:' summary line; stdout:\n{out}"
+    assert "PASS (<3000ms)" in out, f"Missing 'PASS (<3000ms)' marker for CUST-001; stdout:\n{out}"
+    assert "PASS (<2500ms)" in out, f"Missing 'PASS (<2500ms)' marker for CUST-003; stdout:\n{out}"
 
 
 def test_prewarm_median_computation(monkeypatch):
