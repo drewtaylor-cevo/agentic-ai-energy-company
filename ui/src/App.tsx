@@ -23,6 +23,7 @@ import { useRecommendations } from '@/hooks/useRecommendations';
 import { LookupForm } from '@/components/LookupForm';
 import { PersonaChips } from '@/components/PersonaChips';
 import { RecommendationCard } from '@/components/RecommendationCard';
+import { ReasoningTrace } from '@/components/ReasoningTrace';
 import { RecommendationSkeletons } from '@/components/RecommendationSkeletons';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { EmptyState } from '@/components/EmptyState';
@@ -61,11 +62,17 @@ function App() {
           )}
 
           {state.status === 'success' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Card order stable: Green first, Cheapest second. */}
-              <RecommendationCard track="green" data={state.data.green} />
-              <RecommendationCard track="cheapest" data={state.data.cheapest} />
-            </div>
+            <>
+              {/* Phase 13 D-28: ReasoningTrace lives ABOVE the card grid
+                  (turn-level, shared). Empty trace / ?narrative=off →
+                  component renders null. */}
+              <ReasoningTrace trace={state.data.reasoning_trace ?? []} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Card order stable: Green first, Cheapest second. */}
+                <RecommendationCard track="green" data={state.data.green} />
+                <RecommendationCard track="cheapest" data={state.data.cheapest} />
+              </div>
+            </>
           )}
         </section>
       </main>
