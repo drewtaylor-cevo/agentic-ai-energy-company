@@ -14,6 +14,19 @@ import importlib
 
 import pytest
 
+from strands import Agent
+
+from agent.agent import (
+    SYSTEM_PROMPT,
+    RecommendationResponse,
+    _four_tool_cap,
+    detect_bill_shock,
+    get_billing_history,
+    get_hardship_flag,
+    simulate_savings,
+)
+from tests.fixtures.mocked_model_provider import MockedModelProvider
+
 # `from lambda.handler import ...` is a SyntaxError (lambda = Python keyword).
 handler = importlib.import_module("lambda.handler")
 detect_bill_shock_pure = handler.detect_bill_shock_pure
@@ -538,3 +551,259 @@ class TestCrossPersonaCanary:
 
         # simulate_savings summary specifically MUST differ (byte-exact Phase 11 carry-forward).
         assert elena_trace[2].summary != marcus_trace[2].summary
+
+
+class TestShortCircuit:
+    """D-13.1-03 + D-13.1-15: real Strands decision loop against scripted mock-Bedrock.
+
+    The mock is scripted with EXACTLY the tool calls a persona SHOULD
+    drive per D-13.1-14. If the real prompt drives MORE tools, the
+    MockedModelProvider bounds check raises AssertionError on index
+    overflow. If the real prompt drives FEWER, the explicit assertion
+    on tool_use_names fails with a clear diagnostic.
+
+    These tests EXERCISE the real SYSTEM_PROMPT (post Phase 13.1 Plan 01
+    edit) against a scripted model. They catch "prompt says X but Strands
+    interprets as Y" failures at merge time — the blind spot that let
+    Phase 13 Gap 1 ship (17.2s / 19.7s latency vs 3000ms / 2500ms gate).
+
+    Imports real @tool wrappers so the tool registry + cap hook + provider
+    singleton all wire up exactly as in production; the only swap is the
+    Model (Sonnet 4.6 → MockedModelProvider).
+    """
+
+    TARGET_TOOL_NAMES = {
+        "get_hardship_flag",
+        "detect_bill_shock",
+        "get_billing_history",
+        "simulate_savings",
+    }
+
+    def _sarah_recommendation_input(self):
+        """Valid RecommendationResponse input for CUST-001 (Sarah Chen).
+
+        Savings figures byte-match tests/conftest.py::mock_savings_response.
+        """
+        return {
+            "green": {
+                "plan_id": "ECO",
+                "plan_name": "EcoFlex 100",
+                "saving_monthly": 30.00,
+                "saving_annual": 360.00,
+                "usage_narrative": "Winter-heavy household with consistent usage across the year.",
+                "call_script": "Ask about EcoFlex — it suits this winter-heavy household usage profile.",
+            },
+            "cheapest": {
+                "plan_id": "VAL",
+                "plan_name": "Value 12",
+                "saving_monthly": 55.00,
+                "saving_annual": 660.00,
+                "usage_narrative": "Winter-heavy household with consistent usage across the year.",
+                "call_script": "Ask about Value — flat pricing fits this household's steady winter profile.",
+            },
+            "reasoning_trace": [],
+        }
+
+    def _elena_recommendation_input(self):
+        """Valid RecommendationResponse input for CUST-003 (Elena Vasquez).
+
+        Savings figures byte-match tests/conftest.py::mock_elena_response.
+        """
+        return {
+            "green": {
+                "plan_id": "ECO",
+                "plan_name": "EcoFlex 100",
+                "saving_monthly": 14.00,
+                "saving_annual": 168.00,
+                "usage_narrative": "Summer peak usage with a sharp recent month spike.",
+                "call_script": "Ask about EcoFlex — it suits this summer peak usage profile.",
+            },
+            "cheapest": {
+                "plan_id": "VAL",
+                "plan_name": "Value 12",
+                "saving_monthly": 25.67,
+                "saving_annual": 308.04,
+                "usage_narrative": "Summer peak usage with a sharp recent month spike.",
+                "call_script": "Ask about Value — flat pricing frames the recent usage spike.",
+            },
+            "reasoning_trace": [],
+        }
+
+    def _observed_tool_names(self, agent: Agent) -> list[str]:
+        """Extract the ordered tool-use names from agent.messages, filtering
+        to the @tool wrappers (exclude the terminal RecommendationResponse
+        structured-output toolUse block)."""
+        names: list[str] = []
+        for msg in agent.messages:
+            for block in msg.get("content", []) or []:
+                if "toolUse" in block and block["toolUse"]["name"] in self.TARGET_TOOL_NAMES:
+                    names.append(block["toolUse"]["name"])
+        return names
+
+    def test_non_shock_sarah_drives_2_tools_only(self, inmemory_provider):
+        """CUST-001 Sarah is non-shock — prompt SHORT-CIRCUIT RULE must drive
+        the 2-tool path: get_hardship_flag → simulate_savings.
+        """
+        scripted = [
+            {"role": "assistant", "content": [{
+                "toolUse": {
+                    "name": "get_hardship_flag", "toolUseId": "tu-1",
+                    "input": {"customer_id": "CUST-001"},
+                },
+            }]},
+            {"role": "assistant", "content": [{
+                "toolUse": {
+                    "name": "simulate_savings", "toolUseId": "tu-2",
+                    "input": {"customer_id": "CUST-001"},
+                },
+            }]},
+            {"role": "assistant", "content": [{
+                "toolUse": {
+                    "name": "RecommendationResponse", "toolUseId": "tu-3",
+                    "input": self._sarah_recommendation_input(),
+                },
+            }]},
+        ]
+
+        mock = MockedModelProvider(scripted)
+        _four_tool_cap.reset()
+
+        agent = Agent(
+            model=mock,
+            system_prompt=SYSTEM_PROMPT,
+            callback_handler=None,
+            tools=[simulate_savings, detect_bill_shock,
+                   get_billing_history, get_hardship_flag],
+            hooks=[_four_tool_cap],
+        )
+
+        agent(
+            "Get tariff savings recommendations for customer CUST-001",
+            structured_output_model=RecommendationResponse,
+        )
+
+        observed = self._observed_tool_names(agent)
+        assert observed == ["get_hardship_flag", "simulate_savings"], (
+            f"Short-circuit broken: CUST-001 (non-shock) drove "
+            f"{len(observed)} tools {observed}; expected exactly "
+            f"['get_hardship_flag', 'simulate_savings'] per D-13.1-14."
+        )
+
+    def test_non_shock_marcus_drives_2_tools_only(self, inmemory_provider):
+        """CUST-002 Marcus is also non-shock — same 2-tool contract as Sarah."""
+        scripted = [
+            {"role": "assistant", "content": [{
+                "toolUse": {
+                    "name": "get_hardship_flag", "toolUseId": "tu-1",
+                    "input": {"customer_id": "CUST-002"},
+                },
+            }]},
+            {"role": "assistant", "content": [{
+                "toolUse": {
+                    "name": "simulate_savings", "toolUseId": "tu-2",
+                    "input": {"customer_id": "CUST-002"},
+                },
+            }]},
+            {"role": "assistant", "content": [{
+                "toolUse": {
+                    "name": "RecommendationResponse", "toolUseId": "tu-3",
+                    "input": {
+                        "green": {
+                            "plan_id": "ECO", "plan_name": "EcoFlex 100",
+                            "saving_monthly": 16.90, "saving_annual": 202.80,
+                            "usage_narrative": "Steady baseline with seasonal dip.",
+                            "call_script": "Ask about EcoFlex — fits this steady usage profile.",
+                        },
+                        "cheapest": {
+                            "plan_id": "VAL", "plan_name": "Value 12",
+                            "saving_monthly": 30.98, "saving_annual": 371.76,
+                            "usage_narrative": "Steady baseline with seasonal dip.",
+                            "call_script": "Ask about Value — flat pricing suits the steady profile.",
+                        },
+                        "reasoning_trace": [],
+                    },
+                },
+            }]},
+        ]
+
+        mock = MockedModelProvider(scripted)
+        _four_tool_cap.reset()
+
+        agent = Agent(
+            model=mock,
+            system_prompt=SYSTEM_PROMPT,
+            callback_handler=None,
+            tools=[simulate_savings, detect_bill_shock,
+                   get_billing_history, get_hardship_flag],
+            hooks=[_four_tool_cap],
+        )
+
+        agent(
+            "Get tariff savings recommendations for customer CUST-002",
+            structured_output_model=RecommendationResponse,
+        )
+
+        observed = self._observed_tool_names(agent)
+        assert observed == ["get_hardship_flag", "simulate_savings"], (
+            f"Short-circuit broken: CUST-002 (non-shock) drove "
+            f"{len(observed)} tools {observed}; expected exactly "
+            f"['get_hardship_flag', 'simulate_savings'] per D-13.1-14."
+        )
+
+    def test_shock_elena_drives_3_tools(self, inmemory_provider):
+        """CUST-003 Elena is shock — preferred 3-tool flow per D-13.1-14:
+        get_hardship_flag → detect_bill_shock → simulate_savings."""
+        scripted = [
+            {"role": "assistant", "content": [{
+                "toolUse": {
+                    "name": "get_hardship_flag", "toolUseId": "tu-1",
+                    "input": {"customer_id": "CUST-003"},
+                },
+            }]},
+            {"role": "assistant", "content": [{
+                "toolUse": {
+                    "name": "detect_bill_shock", "toolUseId": "tu-2",
+                    "input": {"customer_id": "CUST-003"},
+                },
+            }]},
+            {"role": "assistant", "content": [{
+                "toolUse": {
+                    "name": "simulate_savings", "toolUseId": "tu-3",
+                    "input": {"customer_id": "CUST-003"},
+                },
+            }]},
+            {"role": "assistant", "content": [{
+                "toolUse": {
+                    "name": "RecommendationResponse", "toolUseId": "tu-4",
+                    "input": self._elena_recommendation_input(),
+                },
+            }]},
+        ]
+
+        mock = MockedModelProvider(scripted)
+        _four_tool_cap.reset()
+
+        agent = Agent(
+            model=mock,
+            system_prompt=SYSTEM_PROMPT,
+            callback_handler=None,
+            tools=[simulate_savings, detect_bill_shock,
+                   get_billing_history, get_hardship_flag],
+            hooks=[_four_tool_cap],
+        )
+
+        agent(
+            "Get tariff savings recommendations for customer CUST-003",
+            structured_output_model=RecommendationResponse,
+        )
+
+        observed = self._observed_tool_names(agent)
+        # Shock persona: first tool must be hardship; total 3 tools; final
+        # is simulate_savings. detect_bill_shock is the middle step.
+        assert len(observed) == 3, (
+            f"Shock path broken: CUST-003 drove {len(observed)} tools "
+            f"{observed}; expected 3 per D-13.1-14."
+        )
+        assert observed[0] == "get_hardship_flag"
+        assert observed[-1] == "simulate_savings"
+        assert "detect_bill_shock" in observed
