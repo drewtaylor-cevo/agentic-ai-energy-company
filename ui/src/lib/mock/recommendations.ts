@@ -1,4 +1,4 @@
-import type { RecommendationResponse } from '../types';
+import type { ReasoningTraceEntry, RecommendationResponse } from '../types';
 
 // Values ported from tests/conftest.py:47-100 (mock_savings_response,
 // mock_marcus_response, mock_elena_response). These MUST stay in sync with the
@@ -17,6 +17,41 @@ import type { RecommendationResponse } from '../types';
 // copied VERBATIM (byte-for-byte) from agent/narrative/fallbacks.py. If
 // fallbacks.py changes, update this file in the same commit — same
 // discipline as the savings numbers above. No auto-sync script (D-20).
+//
+// Phase 13 D-29: reasoning_trace entries below MUST stay in sync with
+// `agent/reasoning/summaries.py` formatters. Elena CUST-003 is the designated
+// bill-shock persona (A-01 amendment); CUST-001/CUST-002 have empty traces.
+// Run `npm run test` + `pytest tests/test_bill_shock_flow.py::TestCrossPersonaCanary`
+// in the same commit when these values change.
+
+// Phase 13: byte-exact trace for Elena (CUST-003), the designated bill-shock
+// persona. Tool order follows the preference graph in _BASE_SYSTEM_PROMPT:
+//   1. get_hardship_flag — evidence check
+//   2. detect_bill_shock — optional anomaly confirmation
+//   3. simulate_savings — ALWAYS last (REC-03)
+//
+// SUMMARIES MUST MATCH agent/reasoning/summaries.py OUTPUT EXACTLY.
+// See `.planning/phases/13-*/13-01-SUMMARY.md` + 13-05-SUMMARY.md for Elena's
+// measured pure-helper output (delta $65.16, mean $102.72, current $167.88,
+// 2025-10 shock month). Byte-verified via:
+//   python3 -c "from agent.reasoning.summaries import summary_detect_bill_shock;
+//               from lambda.handler import detect_bill_shock_pure;
+//               from infrastructure.seed_data.billing_records import ELENA_VASQUEZ_RECORDS;
+//               print(summary_detect_bill_shock(detect_bill_shock_pure(ELENA_VASQUEZ_RECORDS)))"
+export const MOCK_REASONING_TRACE_CUST003: ReasoningTraceEntry[] = [
+  { tool: 'get_hardship_flag', summary: 'hardship_flag=False' },
+  {
+    tool: 'detect_bill_shock',
+    summary:
+      'Bill shock detected: +$65.16 2025-10 vs 11-month avg ($167.88 vs $102.72)',
+  },
+  {
+    tool: 'simulate_savings',
+    // Elena's byte-exact Phase 11 D-13 fixtures: green $14.00/mo, cheapest $25.67/mo.
+    summary: 'Green $14.00/mo; Cheapest $25.67/mo',
+  },
+];
+
 export const MOCK_RECOMMENDATIONS: Record<string, RecommendationResponse> = {
   'CUST-001': {
     green: {
@@ -35,6 +70,7 @@ export const MOCK_RECOMMENDATIONS: Record<string, RecommendationResponse> = {
       usage_narrative: 'Consistently high household consumption with cool-season peaks.',
       call_script: 'Bring up Value Twelve — a budget-first pick for a high-usage home.',
     },
+    reasoning_trace: [],
   },
   'CUST-002': {
     green: {
@@ -53,6 +89,7 @@ export const MOCK_RECOMMENDATIONS: Record<string, RecommendationResponse> = {
       usage_narrative: 'Moderate apartment consumption with only mild cool-season lifts.',
       call_script: 'Bring up Value Twelve — a cost-led pick for a mid-range apartment.',
     },
+    reasoning_trace: [],
   },
   'CUST-003': {
     green: {
@@ -71,5 +108,6 @@ export const MOCK_RECOMMENDATIONS: Record<string, RecommendationResponse> = {
       usage_narrative: 'Warm-season heavy with light winter usage and a cooling-led pattern.',
       call_script: 'Bring up Value Twelve — a cost-led option for a warm-season household.',
     },
+    reasoning_trace: MOCK_REASONING_TRACE_CUST003,
   },
 };
