@@ -85,9 +85,27 @@ This is the load-bearing phase-close gate (D-06, D-08, SAV-03).
 
 **Decision: the provider abstraction passed SAV-03. Proceed to Task 5 (re-apply freeze policies + termination protection).**
 
-## Task 5 — Re-apply Freeze Policies + Termination Protection
+## Task 5 — RE-APPLY Freeze Policies + Re-enable Termination Protection (PASS 2026-04-29)
 
-(pending)
+| Step | Timestamp (UTC) | Command | Output | Result |
+|------|-----------------|---------|--------|--------|
+| A. Re-apply | 2026-04-29T00:16:48Z | `aws cloudformation set-stack-policy --stack-name {CustomerTariff,CustomerTariffAgent} --stack-policy-body file://infrastructure/stack-policies/{foundation,agentcore}-freeze.json` | (silent success on both) | ✓ |
+| B. Re-enable TP | 2026-04-29T00:17:43Z | `aws cloudformation update-termination-protection --enable-termination-protection --stack-name {CustomerTariff,CustomerTariffAgent}` | Both returned StackId | ✓ |
+| C. Verify CustomerTariff | 2026-04-29T00:18:07Z | `get-stack-policy` + `describe-stacks` | Policy `Effect: Deny`; TP=`True` | ✓ |
+| C. Verify CustomerTariffAgent | 2026-04-29T00:18:29Z | `get-stack-policy` + `describe-stacks` | Policy `Effect: Deny`; TP=`True` | ✓ |
+| D. CustomerTariffApi untouched | 2026-04-29T00:18:43Z | `get-stack-policy` + `describe-stacks` | Policy `Effect: Deny`; TP=`True` (same as pre-lift — D-07 upheld) | ✓ |
+| E. Byte-equal vs source JSONs | 2026-04-29T00:19:53Z+ | Orchestrator-side deep-equal comparison | CustomerTariff `OK byte-equal` vs `foundation-freeze.json`; CustomerTariffAgent `OK byte-equal` vs `agentcore-freeze.json` | ✓ |
+
+### Freeze State Restored — Deny·Deny·Deny Across the Three Stacks
+
+| Stack | Policy | TP | Change this phase |
+|-------|--------|-----|-------------------|
+| CustomerTariff | Deny (`foundation-freeze.json`) | True | Lifted + re-applied byte-equal (this ceremony) |
+| CustomerTariffAgent | Deny (`agentcore-freeze.json`) | True | Lifted + re-applied byte-equal (this ceremony) |
+| CustomerTariffApi | Deny | True | UNTOUCHED (D-07) |
+| CustomerTariffFrontend | no policy (Amplify) | n/a | Not involved |
+
+**Decision: proceed to Task 6 (ceremony close — public API smoke test).**
 
 ## Task 6 — Ceremony Close
 
