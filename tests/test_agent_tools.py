@@ -135,3 +135,81 @@ def test_tool_handles_lambda_error():
     )
 
     assert "FunctionError" in resp
+
+
+# ----------------------------------------------------------------------
+# Phase 13 Plan 03 Task 3.1 — RED-phase smoke tests for the 3 new @tool
+# wrappers (detect_bill_shock, get_billing_history, get_hardship_flag).
+#
+# These assert structural presence only: import succeeds, @tool decoration
+# produces the Strands DecoratedFunctionTool shape, tool_name matches, and
+# the _agent tool_registry includes all four tools. Detailed payload-shape
+# assertions live in Task 3.3 (appended below after implementation).
+# ----------------------------------------------------------------------
+
+
+def test_detect_bill_shock_tool_importable():
+    """Phase 13 D-01: detect_bill_shock @tool exists in agent.agent."""
+    from agent.agent import detect_bill_shock
+
+    # Strands @tool → DecoratedFunctionTool (callable).
+    assert callable(detect_bill_shock)
+    # Strands exposes the tool name via .tool_name attribute.
+    assert getattr(detect_bill_shock, "tool_name", None) == "detect_bill_shock"
+
+
+def test_get_billing_history_tool_importable():
+    """Phase 13 D-01: get_billing_history @tool exists in agent.agent."""
+    from agent.agent import get_billing_history
+
+    assert callable(get_billing_history)
+    assert getattr(get_billing_history, "tool_name", None) == "get_billing_history"
+
+
+def test_get_hardship_flag_tool_importable():
+    """Phase 13 D-01: get_hardship_flag @tool exists in agent.agent."""
+    from agent.agent import get_hardship_flag
+
+    assert callable(get_hardship_flag)
+    assert getattr(get_hardship_flag, "tool_name", None) == "get_hardship_flag"
+
+
+def test_agent_registry_contains_all_four_tools():
+    """Phase 13 D-01: _agent tool_registry lists all 4 tools."""
+    from agent.agent import _agent
+
+    registry = _agent.tool_registry
+    tool_names = set(registry.registry.keys()) if hasattr(registry, "registry") else set()
+    expected = {
+        "simulate_savings",
+        "detect_bill_shock",
+        "get_billing_history",
+        "get_hardship_flag",
+    }
+    assert expected.issubset(tool_names), (
+        f"Expected 4 tools registered, got {sorted(tool_names)}"
+    )
+
+
+def test_simulate_savings_still_registered_via_provider():
+    """Phase 13 D-02 regression: simulate_savings unchanged (still provider-routed)."""
+    from agent.agent import simulate_savings
+
+    # Docstring still mentions deterministic savings engine / savings — sanity.
+    assert callable(simulate_savings)
+    doc = getattr(simulate_savings, "__doc__", "") or ""
+    assert "saving" in doc.lower()
+
+
+def test_agent_has_no_max_iterations_leak():
+    """Phase 13 Pitfall 2: max_iterations is NOT a Strands 1.37 Agent kwarg.
+
+    This regression guard ensures no-one accidentally reintroduces the
+    primitive (Plan 04 adds hooks=[FourToolCapHook] instead).
+    """
+    import agent.agent as agent_module
+    source = open(agent_module.__file__).read()
+    assert "max_iterations" not in source, (
+        "Pitfall 2: max_iterations is NOT a Strands 1.37 Agent parameter; "
+        "the 4-tool cap lands as a HookProvider in Plan 04."
+    )
