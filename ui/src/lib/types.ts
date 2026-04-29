@@ -11,9 +11,20 @@ export interface TrackInfo {
   call_script: string;
 }
 
+// Phase 13 D-07: one entry in the reasoning_trace surface.
+// D-11 EXEMPTION: summary INTENTIONALLY contains digits, $, dates, %.
+// Backend formatters live in agent/reasoning/summaries.py — keep byte-sync.
+export interface ReasoningTraceEntry {
+  tool: string;
+  summary: string;
+}
+
 export interface RecommendationResponse {
   green: TrackInfo;
   cheapest: TrackInfo;
+  // Phase 13 D-07 — optional: empty/omitted on single-tool turns (CUST-001/004/005).
+  // PUBLIC field; NOT stripped by api_lambda/handler.py (D-12).
+  reasoning_trace?: ReasoningTraceEntry[];
 }
 
 // Matches api_lambda/handler.py::_error body shape (lines 46-52).

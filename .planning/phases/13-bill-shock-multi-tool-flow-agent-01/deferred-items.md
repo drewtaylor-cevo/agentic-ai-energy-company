@@ -32,3 +32,30 @@ future phase.
   - tests/test_get_billing_history.py              11/11
   - tests/test_providers.py                        14/14
   - Full non-smoke suite (excluding frontend_synth): 236 passed, 12 skipped.
+
+### ui — 6 pre-existing lint errors (Plan 13-06 discovery)
+
+**Discovered:** Plan 13-06 execution, 2026-04-29.
+**Trigger:** `npm run lint` as part of Task 6.5 verification gate.
+**Errors:**
+  - `ui/src/components/ui/badge.tsx:48:17` — `react-refresh/only-export-components`
+  - `ui/src/components/ui/button.tsx:64:18` — `react-refresh/only-export-components`
+  - `ui/src/hooks/useRecommendations.test.ts:57,133` — `@typescript-eslint/no-unused-vars` on `_url` / `_init` (intentional unused-args prefix but not matching lint ignore pattern)
+**Root cause:** shadcn/ui badge.tsx and button.tsx export both a component and
+a variant-builder constant (`badgeVariants`, `buttonVariants`) from the same
+file — the eslint-plugin-react-refresh rule prefers single-export-per-file.
+The test file uses the `_` prefix convention for unused function params but
+the project's `@typescript-eslint/no-unused-vars` rule is not configured to
+honour it.
+**Impact:** None on Plan 13-06 deliverables. The 5 files this plan created
+or modified all pass `npx eslint src/components/ReasoningTrace.tsx
+src/components/ReasoningTrace.test.tsx src/lib/types.ts
+src/lib/mock/recommendations.ts src/App.tsx` with zero warnings.
+**Pre-existing:** Yes — reproducible on the base commit `4039aa1` without any
+Plan 13-06 change.
+**Status:** Not fixed. Tracked here per executor SCOPE BOUNDARY rule.
+**Resolution path:** Either (a) refactor shadcn/ui files to split the variant
+constants into sibling `*.variants.ts` files and extend the test-file eslint
+config with `argsIgnorePattern: "^_"`, or (b) relax the rules for
+`src/components/ui/**` and `**/*.test.ts`. Tooling task for a future phase
+(not a Plan 13-06 regression).
