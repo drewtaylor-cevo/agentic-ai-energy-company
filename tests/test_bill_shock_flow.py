@@ -464,93 +464,211 @@ class TestCrossPersonaCanary:
     def test_end_to_end_reasoning_trace_differs_elena_vs_marcus(
         self, elena_billing, marcus_billing, mock_elena_response, mock_marcus_response
     ):
-        """Top-layer assertion: simulated agent_result → extractor → trace diverges."""
+        """Top-layer assertion: simulated agent_result → extractor → trace diverges.
+
+        D-13.1-04 (Phase 13.1): per-persona trace SHAPE. Post-Phase-13.1, Marcus
+        is non-shock and drops to the 2-tool short-circuit path. Elena stays at
+        3 tools (shock persona). The OLD assertion `len(marcus_trace) == 3`
+        was correct for the Phase 13 Plan 03 preference-ordered prompt era;
+        Phase 13.1 D-13.1-14 changes that contract.
+        """
         from agent.agent import _extract_reasoning_trace
 
-        def _build_agent_result(
-            persona_billing, persona_savings, persona_hardship=False
-        ):
-            """Compose a fake AgentResult.message with 3 tool-use/tool-result pairs."""
+        def _build_agent_result_shock(persona_billing, persona_savings, persona_hardship=False):
+            """3-tool shape: get_hardship_flag → detect_bill_shock → simulate_savings.
+
+            Used for shock personas (e.g. Elena) per D-13.1-14.
+            """
             shock = detect_bill_shock_pure(persona_billing)
             return MagicMock(
                 message={
                     "content": [
                         # Turn 1: get_hardship_flag
-                        {
-                            "toolUse": {
-                                "name": "get_hardship_flag",
-                                "toolUseId": "tu-1",
-                                "input": {},
-                            }
-                        },
-                        {
-                            "toolResult": {
-                                "toolUseId": "tu-1",
-                                "status": "success",
-                                "content": [
-                                    {"json": {"hardship_flag": persona_hardship}}
-                                ],
-                            }
-                        },
+                        {"toolUse": {"name": "get_hardship_flag", "toolUseId": "tu-1", "input": {}}},
+                        {"toolResult": {"toolUseId": "tu-1", "status": "success",
+                                        "content": [{"json": {"hardship_flag": persona_hardship}}]}},
                         # Turn 2: detect_bill_shock
-                        {
-                            "toolUse": {
-                                "name": "detect_bill_shock",
-                                "toolUseId": "tu-2",
-                                "input": {},
-                            }
-                        },
-                        {
-                            "toolResult": {
-                                "toolUseId": "tu-2",
-                                "status": "success",
-                                "content": [{"json": shock}],
-                            }
-                        },
+                        {"toolUse": {"name": "detect_bill_shock", "toolUseId": "tu-2", "input": {}}},
+                        {"toolResult": {"toolUseId": "tu-2", "status": "success",
+                                        "content": [{"json": shock}]}},
                         # Turn 3: simulate_savings
-                        {
-                            "toolUse": {
-                                "name": "simulate_savings",
-                                "toolUseId": "tu-3",
-                                "input": {},
-                            }
-                        },
-                        {
-                            "toolResult": {
-                                "toolUseId": "tu-3",
-                                "status": "success",
-                                "content": [{"json": persona_savings}],
-                            }
-                        },
+                        {"toolUse": {"name": "simulate_savings", "toolUseId": "tu-3", "input": {}}},
+                        {"toolResult": {"toolUseId": "tu-3", "status": "success",
+                                        "content": [{"json": persona_savings}]}},
                     ]
                 }
             )
 
-        elena_result = _build_agent_result(elena_billing, mock_elena_response)
-        marcus_result = _build_agent_result(marcus_billing, mock_marcus_response)
+        def _build_agent_result_non_shock(persona_billing, persona_savings, persona_hardship=False):
+            """2-tool shape: get_hardship_flag → simulate_savings.
+
+            Used for non-shock personas (e.g. Marcus, Sarah) per D-13.1-14
+            SHORT-CIRCUIT RULE. persona_billing accepted for signature
+            symmetry with the shock variant, but intentionally unused —
+            non-shock personas do NOT call detect_bill_shock, so the
+            shock-pure output never enters the trace.
+            """
+            del persona_billing  # accepted for signature symmetry
+            return MagicMock(
+                message={
+                    "content": [
+                        # Turn 1: get_hardship_flag
+                        {"toolUse": {"name": "get_hardship_flag", "toolUseId": "tu-1", "input": {}}},
+                        {"toolResult": {"toolUseId": "tu-1", "status": "success",
+                                        "content": [{"json": {"hardship_flag": persona_hardship}}]}},
+                        # Turn 2: simulate_savings (short-circuit — detect_bill_shock skipped)
+                        {"toolUse": {"name": "simulate_savings", "toolUseId": "tu-2", "input": {}}},
+                        {"toolResult": {"toolUseId": "tu-2", "status": "success",
+                                        "content": [{"json": persona_savings}]}},
+                    ]
+                }
+            )
+
+        elena_result = _build_agent_result_shock(elena_billing, mock_elena_response)
+        marcus_result = _build_agent_result_non_shock(marcus_billing, mock_marcus_response)
 
         elena_trace = _extract_reasoning_trace(elena_result)
         marcus_trace = _extract_reasoning_trace(marcus_result)
 
-        # Both should have 3 entries (get_hardship_flag + detect_bill_shock + simulate_savings).
-        assert len(elena_trace) == 3
-        assert len(marcus_trace) == 3
+        # D-13.1-04 shape assertions: Elena 3 tools (shock), Marcus 2 tools (non-shock short-circuit).
+        assert len(elena_trace) == 3, (
+            f"Elena (shock persona) expected 3 reasoning_trace entries per "
+            f"D-13.1-14; got {len(elena_trace)}."
+        )
+        assert len(marcus_trace) == 2, (
+            f"Marcus (non-shock persona) expected 2 reasoning_trace entries "
+            f"per D-13.1-14 short-circuit; got {len(marcus_trace)}. If this "
+            f"test fails, either the prompt (Plan 01) regressed or the test "
+            f"helper _build_agent_result_non_shock has not been updated to "
+            f"the 2-tool shape for non-shock personas."
+        )
 
-        # Trace tool names are identical order (both followed the preference graph),
-        # but summaries MUST diverge byte-exact.
+        # D-20 C5 fabrication signature: summaries MUST diverge byte-exact.
+        # Shape-asymmetric list comparison still catches fabrication because
+        # get_hardship_flag + simulate_savings summaries are persona-parameterised.
         elena_summaries = [e.summary for e in elena_trace]
         marcus_summaries = [e.summary for e in marcus_trace]
         assert elena_summaries != marcus_summaries, (
             "C5 FABRICATION SIGNATURE: Elena + Marcus produced identical summaries"
         )
 
-        # detect_bill_shock summary specifically MUST differ.
+        # detect_bill_shock is Elena-only post-13.1 — Marcus short-circuits past it.
         assert elena_trace[1].tool == "detect_bill_shock"
-        assert marcus_trace[1].tool == "detect_bill_shock"
-        assert elena_trace[1].summary != marcus_trace[1].summary
+        assert "detect_bill_shock" not in [e.tool for e in marcus_trace]
 
         # simulate_savings summary specifically MUST differ (byte-exact Phase 11 carry-forward).
-        assert elena_trace[2].summary != marcus_trace[2].summary
+        # Elena's simulate_savings is at index 2, Marcus's at index 1 (post-short-circuit).
+        assert elena_trace[2].tool == "simulate_savings"
+        assert marcus_trace[1].tool == "simulate_savings"
+        assert elena_trace[2].summary != marcus_trace[1].summary
+
+
+class TestEmptyBillingStop:
+    """D-13.1-09: offline agent-side guard for the empty-billing case.
+
+    Closes Gap 2 at the agent layer: for an unknown customer (CUST-999),
+    the agent MUST NOT synthesise a RecommendationResponse with UNKNOWN
+    tracks. Either the prompt STOP rule fires (agent emits errorMessage),
+    OR the D-04 fallback fires (except Exception in invoke()). In both
+    cases the final body must have NO green/cheapest keys — the exact
+    condition api_lambda/handler.py:152 checks for 404.
+    """
+
+    def test_unknown_customer_prompt_stop_emits_no_tracks(self, inmemory_provider):
+        """CUST-999 is not in ALL_RECORDS — InMemoryProvider.get_billing_history
+        returns [] per Assumption A7. Prompt EMPTY BILLING STOP RULE (Phase
+        13.1 Plan 01) fires; agent emits errorMessage text; no tracks.
+
+        The scripted mock represents the agent's OBSERVED output after the
+        STOP rule fires: get_hardship_flag (universal first step) then
+        assistant text "customer not found" (no tool calls after the
+        billing lookup returned empty).
+        """
+        scripted = [
+            # Turn 1: hardship check (always)
+            {"role": "assistant", "content": [{
+                "toolUse": {
+                    "name": "get_hardship_flag", "toolUseId": "tu-1",
+                    "input": {"customer_id": "CUST-999"},
+                },
+            }]},
+            # Turn 2: agent sees empty billing from the provider; STOP.
+            # Emits plain text, NOT a toolUse.
+            {"role": "assistant", "content": [
+                {"text": "customer not found"}
+            ]},
+        ]
+
+        mock = MockedModelProvider(scripted)
+        _four_tool_cap.reset()
+
+        from agent.agent import invoke
+
+        patched_agent = Agent(
+            model=mock,
+            system_prompt=SYSTEM_PROMPT,
+            callback_handler=None,
+            tools=[simulate_savings, detect_bill_shock,
+                   get_billing_history, get_hardship_flag],
+            hooks=[_four_tool_cap],
+        )
+
+        with patch("agent.agent._agent", patched_agent):
+            response = invoke({"customer_id": "CUST-999"})
+
+        # Acceptance: body has NO green/cheapest keys — exactly the condition
+        # api_lambda/handler.py:152 (D-12 primary heuristic) checks for 404.
+        assert "green" not in response, (
+            f"Agent synthesised green track for unknown customer: {response}"
+        )
+        assert "cheapest" not in response, (
+            f"Agent synthesised cheapest track for unknown customer: {response}"
+        )
+        # D-04 never-500: response is a dict (not an exception)
+        assert isinstance(response, dict)
+
+    @patch("agent.agent._agent")
+    @patch("agent.agent._lambda_client")
+    def test_unknown_customer_d04_fallback_emits_no_tracks(
+        self, mock_lambda_client, mock_agent
+    ):
+        """Defence-in-depth: if the LLM disobeys the STOP rule and raises,
+        the existing D-04 fallback path in invoke() must STILL produce a
+        body with no green/cheapest keys.
+
+        Mirror the @patch wiring from
+        TestFourToolCap::test_invoke_routes_through_d04_fallback_on_cancelled_stop_reason
+        verbatim — same @patch("agent.agent._agent") decorator, same
+        mock_agent.return_value = <mock_agent_result> inside the body,
+        same @patch("agent.agent._lambda_client") for Tools-Lambda fallback.
+        """
+        from agent.agent import invoke
+
+        # Mock _agent(...) returning an AgentResult that forces the
+        # structured-output salvage/D-04 fallback branch.
+        mock_agent_result = MagicMock()
+        mock_agent_result.stop_reason = "end_turn"
+        mock_agent_result.message = {"content": []}
+        mock_agent_result.structured_output = None
+        mock_agent.return_value = mock_agent_result
+
+        # Tools Lambda fallback returns an errorMessage shape for unknown
+        # customer — matches lambda/handler.py existing behaviour for
+        # CUST-999 (empty billing history).
+        mock_lambda_client.invoke.return_value = {
+            "Payload": io.BytesIO(
+                json.dumps({"errorMessage": "customer not found"}).encode()
+            )
+        }
+
+        _four_tool_cap.reset()
+        response = invoke({"customer_id": "CUST-999"})
+
+        # Same acceptance: body has NO green/cheapest keys — exact condition
+        # api_lambda/handler.py:152 (D-12 primary heuristic) checks for 404.
+        assert "green" not in response
+        assert "cheapest" not in response
+        assert isinstance(response, dict)
 
 
 class TestShortCircuit:
