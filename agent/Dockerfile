@@ -9,6 +9,7 @@ COPY agent.py .
 COPY providers.py .
 COPY narrative/ ./narrative/
 COPY reasoning/ ./reasoning/
+COPY hooks/ ./hooks/
 
 EXPOSE 8080
 
