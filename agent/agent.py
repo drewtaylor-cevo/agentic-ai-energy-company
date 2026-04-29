@@ -90,6 +90,15 @@ except ImportError:  # pragma: no cover - hit only in offline test repo layout
         summary_simulate_savings,
     )
 
+# Phase 13 AGENT-01b: Strands HookProvider-based 4-tool cap (A-02 amendment).
+# Bi-mode import: agent/hooks/ is COPYed to /app/hooks/ by agent/Dockerfile;
+# in the repo layout the module is agent/hooks/four_tool_cap.py. Same
+# precedent as narrative/, reasoning/, providers.py.
+try:
+    from hooks.four_tool_cap import FourToolCapHook
+except ImportError:  # pragma: no cover - hit only in offline test repo layout
+    from agent.hooks.four_tool_cap import FourToolCapHook
+
 logger = logging.getLogger(__name__)
 
 # --- Environment (injected by CDK) ---
@@ -564,6 +573,14 @@ _model = BedrockModel(
     region_name=_REGION,
 )
 
+# Phase 13 D-14 (amended A-02): module-level FourToolCapHook instance.
+# `used` counter is reset by invoke() at the top of every invocation to
+# avoid session bleed (SC-3 mirror — module-level counters leak across
+# invocations). The cap mechanism is a Strands HookProvider — NOT an
+# Agent constructor iteration-cap kwarg (Strands 1.37.0 has no such
+# kwarg; Pitfall 2 prevention).
+_four_tool_cap = FourToolCapHook(budget=4)
+
 _agent = Agent(
     model=_model,
     system_prompt=SYSTEM_PROMPT,
@@ -573,6 +590,7 @@ _agent = Agent(
         get_billing_history,
         get_hardship_flag,
     ],
+    hooks=[_four_tool_cap],
 )
 
 
@@ -603,6 +621,12 @@ def invoke(payload: dict) -> dict:
         "cheapest": {"usage_narrative": "model", "call_script": "model"},
     }
 
+    # A-02 (Phase 13 D-14 amended): reset per-invocation cap counter. The
+    # module-level _four_tool_cap accumulates state across invocations
+    # otherwise and silently denies tool calls to later requests (SC-3 mirror
+    # — module-level counters leak).
+    _four_tool_cap.reset()
+
     # D-01: retry-once-then-per-field-fallback owned HERE (not Strands).
     # Under Strands 1.37.0+ the retry is INLINE within one _agent() call
     # (StructuredOutputTool.stream() catches ValidationError + yields tool-error
@@ -615,6 +639,13 @@ def invoke(payload: dict) -> dict:
             _build_narrative_prompt(customer_id),
             structured_output_model=RecommendationResponse,
         )
+        # Phase 13 D-14 + D-15 (A-02 amendment): if the 4-tool cap hook
+        # cancelled the loop, route through the D-04 fallback by raising
+        # into the existing except Exception below. The partial tool-call
+        # evidence (whatever fired before the cap) is still stitched into
+        # the response via _extract_reasoning_trace in the fallback branch.
+        if agent_result.stop_reason == "cancelled":
+            raise RuntimeError("tool budget exhausted")
         result = agent_result.structured_output
         if result is None:
             # End-of-turn without structured output — force round must have failed.
@@ -674,11 +705,24 @@ def invoke(payload: dict) -> dict:
                 narrative_source[track]["call_script"] = "fallback"
             raw[track] = raw_track
         raw["_narrative_source"] = narrative_source
+        # Phase 13 D-15 (amended A-02): stitch whatever partial trace we
+        # captured before the cap fired (or empty list if the agent never
+        # started, or the cap cancelled before any tool completed).
+        # agent_result may be None or bound to the cancelled result — the
+        # extractor tolerates both (returns [] on any failure).
+        raw["reasoning_trace"] = [
+            entry.model_dump() for entry in _extract_reasoning_trace(agent_result)
+        ]
         return raw
 
     # Happy path — validator passed (possibly after Strands' inline self-correction).
     body = result.model_dump()
     body["_narrative_source"] = narrative_source
+    # Phase 13 D-07 + D-08: attach reasoning_trace to the response body.
+    # Extractor is best-effort (returns [] on any failure — never raises).
+    body["reasoning_trace"] = [
+        entry.model_dump() for entry in _extract_reasoning_trace(agent_result)
+    ]
     return body
 
 
