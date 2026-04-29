@@ -38,7 +38,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 ### 🚧 v3.0 Agentic Depth & Workflow Assist (Phases 11–17)
 
 - [x] **Phase 11: New Personas + Tariff Archetypes** — CUST-004 (solar PV) + CUST-005 (EV) seeded, two new tariff plans (Solar Feed-in + EV TOU), TOU-dispatched savings math, hardship_flag PROFILE items (completed 2026-04-28)
-- [ ] **Phase 12: CustomerDataProvider Abstraction** — `agent/providers.py` Protocol + DynamoDB impl + InMemory test double + Salesforce NotImplementedError stub; strangler-fig around existing agent tools with SAV-03 byte-exact preservation
+- [x] **Phase 12: CustomerDataProvider Abstraction** — `agent/providers.py` Protocol + DynamoDB impl + InMemory test double + Salesforce NotImplementedError stub; strangler-fig around existing agent tools with SAV-03 byte-exact preservation (completed 2026-04-29)
 - [ ] **Phase 13: Bill-Shock Multi-Tool Flow (AGENT-01)** — action dispatcher on Tools Lambda, 2-3 tool composition per turn, 4-tool code-enforced cap, reasoning trace surfaced to UI, warm p95 < 2500ms per-flow prewarm gate
 - [ ] **Phase 14: Hardship Short-Circuit (AGENT-02)** — code-side pre-LLM guard, Pydantic discriminated union `kind: recommendation | hardship`, surgical update to `api_lambda/handler.py:152`, dignity-preserving hardship narrative passing D-15 validators
 - [ ] **Phase 15: Draft Follow-Up Email via AgentCore Memory (WF-01)** — new API route, short-term Memory with `actorId=customer:{id}` + deterministic `session_id={id}-{UTC-ISO-day}`, cross-customer isolation canary, bedrock-agentcore 1.6.4 + lockfile regen
@@ -82,7 +82,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
   - [x] 12-03-PLAN.md — Create scripts/capture_live_recommendations.py + capture baseline/pre/ JSONs from live v2.0 runtime
   - [x] 12-04-PLAN.md — Add tests/test_providers.py + _provider_swap autouse fixture (D-09 pre-deploy gate)
   - [x] 12-05-PLAN.md — Wire agent/agent.py (bi-mode imports + _provider singleton + @tool refactor) + Dockerfile COPY providers.py
-  - [ ] 12-06-PLAN.md — Stack-policy lift → deploy CustomerTariff+CustomerTariffAgent → post-capture + byte-equality gate → re-apply freeze + termination protection + bi-mode container smoke
+  - [x] 12-06-PLAN.md — Stack-policy lift → deploy CustomerTariff+CustomerTariffAgent → post-capture + byte-equality gate → re-apply freeze + termination protection + bi-mode container smoke
 **Invariant ownership**: SAV-03 byte-exact preservation through the new indirection layer, bi-mode imports pattern (`try: from providers … except: from agent.providers …`), Chesterton's-Fence risk on `simulate_savings_pure` (wrap around, never through).
 
 ### Phase 13: Bill-Shock Multi-Tool Flow (AGENT-01)
@@ -166,7 +166,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 | 9. Pre-Warm Tooling + Eval Harness + Keep-Alive | v2.0 | 4/4 | ✓ Complete | 2026-04-26 |
 | 10. Freeze + Rollback Drill | v2.0 | 3/3 | ✓ Complete | 2026-04-26 |
 | 11. New Personas + Tariff Archetypes | v3.0 | 6/6 | Complete    | 2026-04-28 |
-| 12. CustomerDataProvider Abstraction | v3.0 | 5/6 | In Progress|  |
+| 12. CustomerDataProvider Abstraction | v3.0 | 6/6 | Complete   | 2026-04-29 |
 | 13. Bill-Shock Multi-Tool Flow (AGENT-01) | v3.0 | 0/? | Not started | — |
 | 14. Hardship Short-Circuit (AGENT-02) | v3.0 | 0/? | Not started | — |
 | 15. Draft Follow-Up Email via AgentCore Memory (WF-01) | v3.0 | 0/? | Not started | — |
