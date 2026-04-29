@@ -105,6 +105,92 @@ def test_missing_cheapest_returns_404(mock_client):
     assert result["statusCode"] == 404
 
 
+@patch("api_lambda.handler._agentcore_client")
+def test_unknown_customer_sentinel_returns_404(mock_client):
+    """D-13.1-13: synthetic UNKNOWN-track response body → HTTP 404.
+
+    Defence-in-depth against Gap 2 regression. When the agent disobeys the
+    EMPTY BILLING STOP rule (Phase 13.1 Plan 01, D-13.1-12) and synthesises
+    a full RecommendationResponse with plan_id='UNKNOWN' on both tracks
+    (the exact shape captured live in 13-08-CEREMONY-LOG.md §Post-freeze
+    Live Sanity lines 112-121), the api_lambda sentinel branch catches it.
+
+    Paired with test_unknown_customer_returns_404 in smoke (live coverage).
+    """
+    unknown_body = {
+        "green": {
+            "plan_id": "UNKNOWN",
+            "plan_name": "UNKNOWN",
+            "saving_monthly": 0.0,
+            "saving_annual": 0.0,
+            "usage_narrative": "Customer record not available.",
+            "call_script": "Apologise; escalate to the customer-data team.",
+        },
+        "cheapest": {
+            "plan_id": "UNKNOWN",
+            "plan_name": "UNKNOWN",
+            "saving_monthly": 0.0,
+            "saving_annual": 0.0,
+            "usage_narrative": "Customer record not available.",
+            "call_script": "Apologise; escalate to the customer-data team.",
+        },
+        "reasoning_trace": [],
+    }
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(unknown_body)
+
+    result = handler(_make_event("CUST-999"), None)
+
+    assert result["statusCode"] == 404, (
+        f"D-13.1-13 sentinel did not fire for symmetric UNKNOWN body: "
+        f"{result}"
+    )
+    body = json.loads(result["body"])
+    assert "not found" in body["error"], (
+        f"Error message did not match expected 'not found' string: "
+        f"{body}"
+    )
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_unknown_sentinel_fires_when_only_green_is_unknown(mock_client):
+    """D-13.1-13 asymmetric variant — if ONLY green.plan_id == 'UNKNOWN',
+    the sentinel still returns 404.
+
+    Guards against a future Sonnet / Strands drift that emits placeholder
+    on just one track. The CONTEXT.md D-13.1-13 rationale note
+    ('symmetric across tracks because the LLM synthesises UNKNOWN on both
+    simultaneously') reflects CURRENT observed behaviour; this test is
+    the regression guard against that assumption changing.
+    """
+    half_unknown_body = {
+        "green": {
+            "plan_id": "UNKNOWN",
+            "plan_name": "UNKNOWN",
+            "saving_monthly": 0.0,
+            "saving_annual": 0.0,
+            "usage_narrative": "Customer record not available.",
+            "call_script": "Apologise; escalate to the customer-data team.",
+        },
+        "cheapest": {
+            "plan_id": "VAL",
+            "plan_name": "Value 12",
+            "saving_monthly": 55.0,
+            "saving_annual": 660.0,
+            "usage_narrative": "Winter-heavy household with steady usage.",
+            "call_script": "Ask about Value 12 — its flat pricing suits this profile.",
+        },
+        "reasoning_trace": [],
+    }
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(half_unknown_body)
+
+    result = handler(_make_event("CUST-999"), None)
+
+    assert result["statusCode"] == 404, (
+        f"D-13.1-13 sentinel did not fire for asymmetric UNKNOWN body "
+        f"(green only): {result}"
+    )
+
+
 # --- Timeout (504) ---
 
 

@@ -207,3 +207,42 @@ def test_agent01_tools_actually_invoked():
         f"[{t0.isoformat()}, {t1.isoformat()}], got {total_invocations}. "
         f"C5 fabrication signature: agent likely skipped real tool calls."
     )
+
+
+@pytest.mark.smoke
+def test_agent01_non_shock_stays_2_tools():
+    """D-13.1-16: CUST-001 Sarah (non-shock) live reasoning_trace has <= 2 entries.
+
+    Paired with D-13.1-03 offline mock-model test TestShortCircuit::
+    test_non_shock_sarah_drives_2_tools_only. Offline proves the prompt CAN
+    drive 2 tools against a scripted model; this smoke proves Sonnet 4.6's
+    actual judgement matches against the real deployed stack.
+
+    If this test fails post-Phase-13.1 ceremony, Gap 1 has regressed — the
+    prompt SHORT-CIRCUIT RULE is not firing in production. Triage path:
+    (a) re-run offline TestShortCircuit to confirm the prompt text is
+    loaded into the container (container rebuild may have failed);
+    (b) if offline still passes, iterate the prompt wording in Plan 01
+    and re-run the ceremony.
+
+    Latency expectations (not asserted here; Plan 04 ceremony captures
+    actuals and updates DEMO-RUNBOOK.md per D-13.1-21):
+      Pre-13.1: CUST-001 ~17.2s warm
+      Post-13.1 target: warm < 3000ms (per-flow gate; Elena 3-tool path
+                        has 2500ms gate and may still miss per D-13.1-02).
+    """
+    backend_api_url = os.environ["BACKEND_API_URL"].rstrip("/")
+    r = requests.get(
+        f"{backend_api_url}/recommendations/CUST-001",
+        timeout=60,
+    )
+    assert r.status_code == 200, (
+        f"CUST-001 returned {r.status_code}: {r.text}"
+    )
+    body = r.json()
+    trace = body.get("reasoning_trace", [])
+    assert len(trace) <= 2, (
+        f"Non-shock persona CUST-001 drove {len(trace)} tools "
+        f"{[e.get('tool') for e in trace]}; D-13.1-14 requires <= 2 "
+        f"(expected shape: get_hardship_flag + simulate_savings)."
+    )
