@@ -370,3 +370,170 @@ class TestFourToolCap:
             "agent.py references max_iterations — Strands 1.37.0 has no such "
             "kwarg; the 4-tool cap is enforced via FourToolCapHook instead."
         )
+
+
+# ----------------------------------------------------------------------
+# TestCrossPersonaCanary — Plan 05: D-20 fabrication detector (C5).
+# ----------------------------------------------------------------------
+# A-01 amendment: Elena CUST-003 is the designated bill-shock persona
+# (peak ratio 0.6344, 7 months above 30% gate). Marcus CUST-002 is the
+# non-shock foil (peak 0.167 — 45% short of gate).
+#
+# Phase 06.1 fabrication signature: identical numeric content across
+# DIFFERENT personas. This canary asserts Elena vs Marcus produce
+# byte-different detect_bill_shock results, byte-different trace summaries,
+# and byte-different savings.
+# ----------------------------------------------------------------------
+
+
+class TestCrossPersonaCanary:
+    """D-20 offline — Elena (shock) vs Marcus (non-shock) diverge byte-exact."""
+
+    def test_detect_bill_shock_pure_differs_elena_vs_marcus(
+        self, elena_billing, marcus_billing
+    ):
+        """Bottom-layer assertion: the pure helper itself distinguishes personas."""
+        elena_shock = detect_bill_shock_pure(elena_billing)
+        marcus_shock = detect_bill_shock_pure(marcus_billing)
+
+        # Core C5 contrast: Elena trips, Marcus doesn't.
+        assert elena_shock["is_shock"] is True
+        assert marcus_shock["is_shock"] is False
+
+        # Delta and mean MUST be numerically distinct (not "coincidentally equal").
+        assert elena_shock["delta_dollars"] != marcus_shock["delta_dollars"]
+        assert elena_shock["mean_dollars"] != marcus_shock["mean_dollars"]
+        assert elena_shock["current_dollars"] != marcus_shock["current_dollars"]
+
+        # Shock-month identification: both happen to peak in 2025-10 per RESEARCH §6,
+        # so shock_month CAN match — but the ratio is entirely different.
+        elena_ratio = abs(elena_shock["delta_dollars"]) / elena_shock["mean_dollars"]
+        marcus_ratio = abs(marcus_shock["delta_dollars"]) / marcus_shock["mean_dollars"]
+        assert elena_ratio > 0.60  # RESEARCH §6: Elena 0.6344
+        assert marcus_ratio < 0.20  # RESEARCH §6: Marcus 0.167
+
+    def test_summaries_differ_byte_exact_elena_vs_marcus(
+        self, elena_billing, marcus_billing
+    ):
+        """Middle-layer assertion: code-composed summaries distinguish personas."""
+        from agent.reasoning.summaries import summary_detect_bill_shock
+
+        elena_summary = summary_detect_bill_shock(detect_bill_shock_pure(elena_billing))
+        marcus_summary = summary_detect_bill_shock(detect_bill_shock_pure(marcus_billing))
+
+        # Strict byte-difference — this is the exact Phase 06.1 regression pattern.
+        assert elena_summary != marcus_summary
+
+        # Marcus returns the canned non-shock string.
+        assert marcus_summary == "No bill shock: monthly usage within 11-month envelope"
+
+        # Elena has digits + $ + shock_month in the summary.
+        assert "Bill shock detected" in elena_summary
+        assert "$" in elena_summary
+        assert "2025-10" in elena_summary
+
+    def test_savings_fixtures_differ_elena_vs_marcus(
+        self, mock_elena_response, mock_marcus_response
+    ):
+        """Byte-exact savings must differ — Phase 11 D-13 byte-exact carry-forward."""
+        # Elena: green $14.00 / cheapest $25.67
+        # Marcus: green $16.90 / cheapest $30.98
+        assert (
+            mock_elena_response["green"]["saving_monthly"]
+            != mock_marcus_response["green"]["saving_monthly"]
+        )
+        assert (
+            mock_elena_response["cheapest"]["saving_monthly"]
+            != mock_marcus_response["cheapest"]["saving_monthly"]
+        )
+
+    def test_end_to_end_reasoning_trace_differs_elena_vs_marcus(
+        self, elena_billing, marcus_billing, mock_elena_response, mock_marcus_response
+    ):
+        """Top-layer assertion: simulated agent_result → extractor → trace diverges."""
+        from agent.agent import _extract_reasoning_trace
+
+        def _build_agent_result(
+            persona_billing, persona_savings, persona_hardship=False
+        ):
+            """Compose a fake AgentResult.message with 3 tool-use/tool-result pairs."""
+            shock = detect_bill_shock_pure(persona_billing)
+            return MagicMock(
+                message={
+                    "content": [
+                        # Turn 1: get_hardship_flag
+                        {
+                            "toolUse": {
+                                "name": "get_hardship_flag",
+                                "toolUseId": "tu-1",
+                                "input": {},
+                            }
+                        },
+                        {
+                            "toolResult": {
+                                "toolUseId": "tu-1",
+                                "status": "success",
+                                "content": [
+                                    {"json": {"hardship_flag": persona_hardship}}
+                                ],
+                            }
+                        },
+                        # Turn 2: detect_bill_shock
+                        {
+                            "toolUse": {
+                                "name": "detect_bill_shock",
+                                "toolUseId": "tu-2",
+                                "input": {},
+                            }
+                        },
+                        {
+                            "toolResult": {
+                                "toolUseId": "tu-2",
+                                "status": "success",
+                                "content": [{"json": shock}],
+                            }
+                        },
+                        # Turn 3: simulate_savings
+                        {
+                            "toolUse": {
+                                "name": "simulate_savings",
+                                "toolUseId": "tu-3",
+                                "input": {},
+                            }
+                        },
+                        {
+                            "toolResult": {
+                                "toolUseId": "tu-3",
+                                "status": "success",
+                                "content": [{"json": persona_savings}],
+                            }
+                        },
+                    ]
+                }
+            )
+
+        elena_result = _build_agent_result(elena_billing, mock_elena_response)
+        marcus_result = _build_agent_result(marcus_billing, mock_marcus_response)
+
+        elena_trace = _extract_reasoning_trace(elena_result)
+        marcus_trace = _extract_reasoning_trace(marcus_result)
+
+        # Both should have 3 entries (get_hardship_flag + detect_bill_shock + simulate_savings).
+        assert len(elena_trace) == 3
+        assert len(marcus_trace) == 3
+
+        # Trace tool names are identical order (both followed the preference graph),
+        # but summaries MUST diverge byte-exact.
+        elena_summaries = [e.summary for e in elena_trace]
+        marcus_summaries = [e.summary for e in marcus_trace]
+        assert elena_summaries != marcus_summaries, (
+            "C5 FABRICATION SIGNATURE: Elena + Marcus produced identical summaries"
+        )
+
+        # detect_bill_shock summary specifically MUST differ.
+        assert elena_trace[1].tool == "detect_bill_shock"
+        assert marcus_trace[1].tool == "detect_bill_shock"
+        assert elena_trace[1].summary != marcus_trace[1].summary
+
+        # simulate_savings summary specifically MUST differ (byte-exact Phase 11 carry-forward).
+        assert elena_trace[2].summary != marcus_trace[2].summary
