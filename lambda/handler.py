@@ -140,6 +140,74 @@ def simulate_savings_pure(
     }
 
 
+def detect_bill_shock_pure(
+    billing_history: List[Dict[str, Any]],
+    *,
+    threshold: float = 0.30,  # D-03 symmetric gate on 11-month mean
+    rate_per_kwh: float = 0.32,   # STD plan rate (matches seed_data STD_RATE)
+    daily_supply: float = 1.10,   # STD plan daily supply
+) -> Dict[str, Any]:
+    """Detect bill-shock anomaly on projected STD cost (SAV-03 compliant — pure Python).
+
+    Algorithm (D-03 symmetric, per-month scan per RESEARCH §6):
+      1. Sort billing_history ASC by month (defensive — dispatcher already sorts).
+      2. For EACH month, compute the self-excluded 11-month reference mean of
+         projected STD costs = usage_kwh * rate + supply_month.
+      3. Identify the month with the MAX abs-delta ratio vs its reference mean
+         (the "peak shock candidate"). `shock_month` is that month's key.
+      4. 'is_shock' = peak ratio > threshold (bool).
+
+    This per-month scan is the semantics pinned by RESEARCH §6 (Elena's peak
+    shock is 2025-10 at 0.6344; Marcus's peak is 2025-10 at 0.167 — neither
+    month is the chronologically-last record). The CONTEXT.md A-01 amendment
+    + Plan 01 TestDetectBillShockPure.test_elena_trips_shock_gate assert
+    shock_month == "2025-10", requiring this peak-scan semantics rather than
+    a "most-recent-month only" check.
+
+    Per D-11: summary strings consuming this output intentionally contain digits,
+    currency, and dates — do NOT apply narrative validators downstream.
+
+    Raises:
+        ValueError: if billing_history has < 2 months (can't compute reference mean).
+    """
+    if len(billing_history) < 2:
+        raise ValueError("billing_history must have >= 2 months for anomaly detection")
+
+    SUPPLY_MONTH = daily_supply * DAYS_PER_MONTH
+    ordered = sorted(billing_history, key=lambda r: r["month"])
+    costs = [float(r["usage_kwh"]) * rate_per_kwh + SUPPLY_MONTH for r in ordered]
+    total_cost = sum(costs)
+    n = len(costs)
+
+    # Per-month scan: for each index i, reference_mean_i is the mean of the
+    # OTHER (n-1) months' projected costs (self-excluded). Find the month with
+    # the maximum |delta_i| / reference_mean_i ratio — that is the shock candidate.
+    best_idx = 0
+    best_ratio = -1.0
+    best_delta = 0.0
+    best_mean = 0.0
+    for i, cost_i in enumerate(costs):
+        reference_mean_i = (total_cost - cost_i) / (n - 1)
+        delta_i = cost_i - reference_mean_i
+        ratio_i = abs(delta_i) / reference_mean_i
+        if ratio_i > best_ratio:
+            best_ratio = ratio_i
+            best_idx = i
+            best_delta = delta_i
+            best_mean = reference_mean_i
+
+    peak_cost = costs[best_idx]
+    is_shock = best_ratio > threshold
+
+    return {
+        "is_shock": is_shock,
+        "delta_dollars": round(best_delta, 2),
+        "shock_month": ordered[best_idx]["month"],
+        "mean_dollars": round(best_mean, 2),
+        "current_dollars": round(peak_cost, 2),
+    }
+
+
 def get_hardship_flag_pure(customer_id: str, table_client) -> Dict[str, Any]:
     """D-10 pure helper — injectable table_client (mirror of simulate_savings_pure shape).
 
