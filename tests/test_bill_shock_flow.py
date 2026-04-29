@@ -180,3 +180,29 @@ class TestDetectBillShockDispatcher:
         monkeypatch.setattr(handler, "simulate_savings", fake_simulate_savings)
         dispatcher({"customer_id": "CUST-001"}, None)  # no "action" key
         assert called["hit"] is True
+
+
+# ----------------------------------------------------------------------
+# Task 4.1 RED gate: minimal smoke test for agent/hooks/four_tool_cap.py.
+# Replaced in Task 4.3 by the full TestFourToolCap class with 7+ tests.
+# ----------------------------------------------------------------------
+
+
+class TestFourToolCapHookSmoke:
+    """Task 4.1 RED — module + class + instance attributes exist (AGENT-01b)."""
+
+    def test_four_tool_cap_hook_importable(self):
+        from agent.hooks.four_tool_cap import FourToolCapHook  # noqa: F401
+
+    def test_four_tool_cap_hook_instantiates_with_defaults(self):
+        from agent.hooks.four_tool_cap import FourToolCapHook
+        hook = FourToolCapHook(budget=4)
+        assert hook.budget == 4
+        assert hook.used == 0
+
+    def test_four_tool_cap_hook_is_hook_provider(self):
+        """Protocol-runtime duck-type: HookProvider is runtime_checkable."""
+        from strands.hooks import HookProvider
+        from agent.hooks.four_tool_cap import FourToolCapHook
+        assert isinstance(FourToolCapHook(), HookProvider)
+
