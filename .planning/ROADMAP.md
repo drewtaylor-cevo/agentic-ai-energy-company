@@ -39,7 +39,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 
 - [x] **Phase 11: New Personas + Tariff Archetypes** — CUST-004 (solar PV) + CUST-005 (EV) seeded, two new tariff plans (Solar Feed-in + EV TOU), TOU-dispatched savings math, hardship_flag PROFILE items (completed 2026-04-28)
 - [x] **Phase 12: CustomerDataProvider Abstraction** — `agent/providers.py` Protocol + DynamoDB impl + InMemory test double + Salesforce NotImplementedError stub; strangler-fig around existing agent tools with SAV-03 byte-exact preservation (completed 2026-04-29)
-- [ ] **Phase 13: Bill-Shock Multi-Tool Flow (AGENT-01)** — action dispatcher on Tools Lambda, 2-3 tool composition per turn, 4-tool code-enforced cap, reasoning trace surfaced to UI, warm p95 < 2500ms per-flow prewarm gate
+- [x] **Phase 13: Bill-Shock Multi-Tool Flow (AGENT-01)** — action dispatcher on Tools Lambda, 2-3 tool composition per turn, 4-tool code-enforced cap, reasoning trace surfaced to UI, warm p95 < 2500ms per-flow prewarm gate (completed 2026-04-29)
 - [ ] **Phase 14: Hardship Short-Circuit (AGENT-02)** — code-side pre-LLM guard, Pydantic discriminated union `kind: recommendation | hardship`, surgical update to `api_lambda/handler.py:152`, dignity-preserving hardship narrative passing D-15 validators
 - [ ] **Phase 15: Draft Follow-Up Email via AgentCore Memory (WF-01)** — new API route, short-term Memory with `actorId=customer:{id}` + deterministic `session_id={id}-{UTC-ISO-day}`, cross-customer isolation canary, bedrock-agentcore 1.6.4 + lockfile regen
 - [ ] **Phase 16: Presenter Artefacts + Operational Consolidation** — DOC-01/02/03 committed, `?narrative=off` kill switch extended, prewarm + keep-alive + eval harness extended to new personas and multi-tool + follow-up routes
@@ -103,8 +103,8 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
   - [x] 13-05-PLAN.md — Cross-persona canary (D-20: Elena shock vs Marcus non-shock foil per A-01) + api_lambda pass-through tests (D-12)
   - [x] 13-06-PLAN.md — UI ReasoningTrace.tsx + 6 vitest D-30 cases + App.tsx insertion + mock byte-sync with Python formatters
   - [x] 13-07-PLAN.md — scripts/prewarm.py per-flow gate map + 3-pass warming (A-03) + D-19 latency floor + D-21 CloudWatch counter + A-03 sighting-shot operator gate
-  - [ ] 13-08-PLAN.md — Stack-policy lift ceremony (2-3 stacks per cdk diff) + baseline/pre+post capture + byte-equivalence gate + re-apply freeze (autonomous: false)
-  - [ ] 13-09-PLAN.md — CLAUDE.md addendum (D-11 exemption, D-15 cap routing, D-22 Strands pin) + DEMO-RUNBOOK.md Marcus→Elena swap
+  - [x] 13-08-PLAN.md — Stack-policy lift ceremony (2-3 stacks per cdk diff) + baseline/pre+post capture + byte-equivalence gate + re-apply freeze (autonomous: false)
+  - [x] 13-09-PLAN.md — CLAUDE.md addendum (D-11 exemption, D-15 cap routing, D-22 Strands pin) + DEMO-RUNBOOK.md Marcus→Elena swap
 **Invariant ownership**: SAV-03 (extended — every new arithmetic tool stays pure Python in Tools Lambda), UI-01 (collapsed trace = zero vertical cost), UI-02 (per-flow prewarm gate replaces v2.0 global 3000ms gate), D-04 (4-tool-cap fallback path), `_narrative_source` pattern extension (`_reasoning_trace` or public `reasoning_trace` — API Lambda pass-through contract must be explicit).
 
 ### Phase 14: Hardship Short-Circuit (AGENT-02)
@@ -176,7 +176,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 | 10. Freeze + Rollback Drill | v2.0 | 3/3 | ✓ Complete | 2026-04-26 |
 | 11. New Personas + Tariff Archetypes | v3.0 | 6/6 | Complete    | 2026-04-28 |
 | 12. CustomerDataProvider Abstraction | v3.0 | 6/6 | Complete    | 2026-04-29 |
-| 13. Bill-Shock Multi-Tool Flow (AGENT-01) | v3.0 | 7/9 | In Progress|  |
+| 13. Bill-Shock Multi-Tool Flow (AGENT-01) | v3.0 | 9/9 | Complete   | 2026-04-29 |
 | 14. Hardship Short-Circuit (AGENT-02) | v3.0 | 0/? | Not started | — |
 | 15. Draft Follow-Up Email via AgentCore Memory (WF-01) | v3.0 | 0/? | Not started | — |
 | 16. Presenter Artefacts + Operational Consolidation | v3.0 | 0/? | Not started | — |
