@@ -206,3 +206,14 @@ class TestFourToolCapHookSmoke:
         from agent.hooks.four_tool_cap import FourToolCapHook
         assert isinstance(FourToolCapHook(), HookProvider)
 
+
+class TestFourToolCapWiringSmoke:
+    """Task 4.2 RED — module-level _four_tool_cap exposed + wired on _agent."""
+
+    def test_agent_module_exposes_four_tool_cap(self):
+        from agent.agent import _four_tool_cap
+        assert _four_tool_cap.budget == 4
+
+    def test_agent_module_imports_FourToolCapHook(self):
+        from agent.agent import FourToolCapHook  # noqa: F401
+
