@@ -412,6 +412,87 @@ def simulate_savings(customer_id: str) -> dict:
     return get_provider().simulate_savings(customer_id)
 
 
+# Phase 13 D-01: three new @tool wrappers that go DIRECT to _lambda_client.invoke
+# (NOT through get_provider()) — preserves LD-5 3-method Protocol in
+# agent/providers.py. Each wrapper posts {"action": "<name>", "customer_id": ...}
+# to the Phase 12 action dispatcher at lambda/handler.py::handler.
+# Matches the pre-Phase-12 simulate_savings Lambda wrapper style; sync callable
+# (Strands' @tool handles threading via ConcurrentToolExecutor internally).
+
+
+@tool
+def detect_bill_shock(customer_id: str) -> dict:
+    """Detect bill-shock anomaly on the most recent month's projected STD cost.
+
+    Numeric content (delta, mean, current-month cost) is computed by a pure
+    Python helper in the Tools Lambda — SAV-03. Do NOT estimate or round any
+    value yourself; copy the tool's return dict verbatim.
+
+    Args:
+        customer_id: Customer identifier in format CUST-NNN (e.g. CUST-003).
+
+    Returns:
+        Dict with keys: is_shock (bool), delta_dollars (float), shock_month
+        (str, YYYY-MM), mean_dollars (float), current_dollars (float).
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(
+            {"action": "detect_bill_shock", "customer_id": customer_id}
+        ).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
+@tool
+def get_billing_history(customer_id: str) -> dict:
+    """Return the 12-month billing history for a customer.
+
+    PROFILE row is filtered server-side per Phase 11 D-21 — the result is a
+    list of 12 monthly billing records, ASC by month.
+
+    Args:
+        customer_id: Customer identifier in format CUST-NNN.
+
+    Returns:
+        Response payload containing the 12-month billing-record list.
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(
+            {"action": "get_billing_history", "customer_id": customer_id}
+        ).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
+@tool
+def get_hardship_flag(customer_id: str) -> dict:
+    """Return the hardship_flag boolean for a customer (Phase 14 co-land).
+
+    Phase 13 exposes the tool but does NOT enforce short-circuit — Phase 14
+    wires the pre-LLM guard + discriminated union. For now the agent can call
+    it as an evidence-gathering step; the result enters the reasoning_trace
+    observability surface.
+
+    Args:
+        customer_id: Customer identifier in format CUST-NNN.
+
+    Returns:
+        Dict with `hardship_flag: bool` (keyed to match Phase 11 pure helper).
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(
+            {"action": "get_hardship_flag", "customer_id": customer_id}
+        ).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
 # --- System prompt (REC-03: both tracks, never ranked) ---
 
 _BASE_SYSTEM_PROMPT = """\
@@ -455,7 +536,12 @@ _model = BedrockModel(
 _agent = Agent(
     model=_model,
     system_prompt=SYSTEM_PROMPT,
-    tools=[simulate_savings],
+    tools=[
+        simulate_savings,
+        detect_bill_shock,
+        get_billing_history,
+        get_hardship_flag,
+    ],
 )
 
 
