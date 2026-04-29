@@ -153,6 +153,25 @@ def handler(event: dict, context) -> dict:
         logger.info("Customer not found customer_id=%s body=%s", customer_id, body)
         return _error(404, f"Customer {customer_id} not found.")
 
+    # D-13.1-13 (Phase 13.1): defence-in-depth sentinel against LLM
+    # synthesising UNKNOWN placeholder tracks when the prompt STOP rule
+    # (D-13.1-12, _BASE_SYSTEM_PROMPT) drifts. The "UNKNOWN" string was
+    # empirically observed from Sonnet 4.6 live emission in
+    # 13-08-CEREMONY-LOG.md §Post-freeze Live Sanity (lines 112-121).
+    # Symmetric across tracks — the LLM emits UNKNOWN on both at once,
+    # but we check either-track to guard against a future model drift
+    # that only emits placeholder on one side. This branch SHOULD never
+    # fire in production after Phase 13.1 ships; it exists to fail
+    # loudly (404) rather than silently (200 with UNKNOWN tracks) if
+    # the prompt-side contract regresses.
+    if (body.get("green", {}).get("plan_id") == "UNKNOWN"
+            or body.get("cheapest", {}).get("plan_id") == "UNKNOWN"):
+        logger.info(
+            "Customer not found (UNKNOWN-plan_id sentinel) customer_id=%s",
+            customer_id,
+        )
+        return _error(404, f"Customer {customer_id} not found.")
+
     # D-02: pass-through verbatim — no envelope, no meta. One contract
     # agent -> API -> UI.
     return {
