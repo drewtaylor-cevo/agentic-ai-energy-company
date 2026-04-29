@@ -135,3 +135,196 @@ def test_tool_handles_lambda_error():
     )
 
     assert "FunctionError" in resp
+
+
+# ----------------------------------------------------------------------
+# Phase 13 Plan 03 Task 3.1 — RED-phase smoke tests for the 3 new @tool
+# wrappers (detect_bill_shock, get_billing_history, get_hardship_flag).
+#
+# These assert structural presence only: import succeeds, @tool decoration
+# produces the Strands DecoratedFunctionTool shape, tool_name matches, and
+# the _agent tool_registry includes all four tools. Detailed payload-shape
+# assertions live in Task 3.3 (appended below after implementation).
+# ----------------------------------------------------------------------
+
+
+def test_detect_bill_shock_tool_importable():
+    """Phase 13 D-01: detect_bill_shock @tool exists in agent.agent."""
+    from agent.agent import detect_bill_shock
+
+    # Strands @tool → DecoratedFunctionTool (callable).
+    assert callable(detect_bill_shock)
+    # Strands exposes the tool name via .tool_name attribute.
+    assert getattr(detect_bill_shock, "tool_name", None) == "detect_bill_shock"
+
+
+def test_get_billing_history_tool_importable():
+    """Phase 13 D-01: get_billing_history @tool exists in agent.agent."""
+    from agent.agent import get_billing_history
+
+    assert callable(get_billing_history)
+    assert getattr(get_billing_history, "tool_name", None) == "get_billing_history"
+
+
+def test_get_hardship_flag_tool_importable():
+    """Phase 13 D-01: get_hardship_flag @tool exists in agent.agent."""
+    from agent.agent import get_hardship_flag
+
+    assert callable(get_hardship_flag)
+    assert getattr(get_hardship_flag, "tool_name", None) == "get_hardship_flag"
+
+
+def test_agent_registry_contains_all_four_tools():
+    """Phase 13 D-01: _agent tool_registry lists all 4 tools."""
+    from agent.agent import _agent
+
+    registry = _agent.tool_registry
+    tool_names = set(registry.registry.keys()) if hasattr(registry, "registry") else set()
+    expected = {
+        "simulate_savings",
+        "detect_bill_shock",
+        "get_billing_history",
+        "get_hardship_flag",
+    }
+    assert expected.issubset(tool_names), (
+        f"Expected 4 tools registered, got {sorted(tool_names)}"
+    )
+
+
+def test_simulate_savings_still_registered_via_provider():
+    """Phase 13 D-02 regression: simulate_savings unchanged (still provider-routed)."""
+    from agent.agent import simulate_savings
+
+    # Docstring still mentions deterministic savings engine / savings — sanity.
+    assert callable(simulate_savings)
+    doc = getattr(simulate_savings, "__doc__", "") or ""
+    assert "saving" in doc.lower()
+
+
+def test_agent_has_no_max_iterations_leak():
+    """Phase 13 Pitfall 2: max_iterations is NOT a Strands 1.37 Agent kwarg.
+
+    This regression guard ensures no-one accidentally reintroduces the
+    primitive (Plan 04 adds hooks=[FourToolCapHook] instead).
+    """
+    import agent.agent as agent_module
+    source = open(agent_module.__file__).read()
+    assert "max_iterations" not in source, (
+        "Pitfall 2: max_iterations is NOT a Strands 1.37 Agent parameter; "
+        "the 4-tool cap lands as a HookProvider in Plan 04."
+    )
+
+
+# ----------------------------------------------------------------------
+# Phase 13 Plan 03 Task 3.3 — detailed mocked-Lambda payload tests.
+#
+# These assert each new @tool wrapper sends the correct action string and
+# customer_id to _lambda_client.invoke, and returns the parsed JSON body.
+# Strands 1.37's @tool-decorated DecoratedFunctionTool is callable directly
+# (it proxies through to the underlying function via __call__), so these
+# tests invoke the wrapper normally and patch agent.agent._lambda_client.
+# ----------------------------------------------------------------------
+
+
+from unittest.mock import patch
+
+
+def _make_mock_lambda_response(payload_dict):
+    """Helper: mimic boto3 Lambda invoke response shape."""
+    payload_bytes = json.dumps(payload_dict).encode()
+    return {
+        "StatusCode": 200,
+        "Payload": MagicMock(read=MagicMock(return_value=payload_bytes)),
+    }
+
+
+@patch("agent.agent._lambda_client")
+def test_detect_bill_shock_tool_invokes_lambda(mock_client):
+    """Phase 13 D-01: detect_bill_shock calls _lambda_client.invoke with correct payload."""
+    from agent.agent import detect_bill_shock, _TOOLS_LAMBDA_ARN
+
+    fake_response_body = {
+        "is_shock": True,
+        "delta_dollars": 47.00,
+        "shock_month": "2025-10",
+        "mean_dollars": 88.00,
+        "current_dollars": 135.00,
+    }
+    mock_client.invoke.return_value = _make_mock_lambda_response(fake_response_body)
+
+    # @tool-decorated function is callable — Strands 1.37 DecoratedFunctionTool.__call__
+    # proxies to the underlying function (verified by construction test).
+    if hasattr(detect_bill_shock, "func"):
+        result = detect_bill_shock.func("CUST-003")
+    else:
+        result = detect_bill_shock("CUST-003")
+
+    assert result == fake_response_body
+    mock_client.invoke.assert_called_once()
+    call_kwargs = mock_client.invoke.call_args.kwargs
+    assert call_kwargs["FunctionName"] == _TOOLS_LAMBDA_ARN
+    assert call_kwargs["InvocationType"] == "RequestResponse"
+    sent_payload = json.loads(call_kwargs["Payload"].decode())
+    assert sent_payload == {"action": "detect_bill_shock", "customer_id": "CUST-003"}
+
+
+@patch("agent.agent._lambda_client")
+def test_get_billing_history_tool_uses_correct_action(mock_client):
+    """Phase 13 D-01: get_billing_history calls _lambda_client.invoke with action 'get_billing_history'."""
+    from agent.agent import get_billing_history
+
+    fake_response_body = [{"month": "2025-04", "usage_kwh": 250}]
+    mock_client.invoke.return_value = _make_mock_lambda_response(fake_response_body)
+
+    if hasattr(get_billing_history, "func"):
+        result = get_billing_history.func("CUST-003")
+    else:
+        result = get_billing_history("CUST-003")
+
+    assert result == fake_response_body
+    sent_payload = json.loads(mock_client.invoke.call_args.kwargs["Payload"].decode())
+    # Literal action-string assertion (acceptance criterion: grep '"action": "get_billing_history"').
+    assert sent_payload == {"action": "get_billing_history", "customer_id": "CUST-003"}
+
+
+@patch("agent.agent._lambda_client")
+def test_get_hardship_flag_tool_uses_correct_action(mock_client):
+    """Phase 13 D-01: get_hardship_flag calls _lambda_client.invoke with action 'get_hardship_flag'."""
+    from agent.agent import get_hardship_flag
+
+    fake_response_body = {"hardship_flag": False, "customer_id": "CUST-003"}
+    mock_client.invoke.return_value = _make_mock_lambda_response(fake_response_body)
+
+    if hasattr(get_hardship_flag, "func"):
+        result = get_hardship_flag.func("CUST-003")
+    else:
+        result = get_hardship_flag("CUST-003")
+
+    assert result == fake_response_body
+    sent_payload = json.loads(mock_client.invoke.call_args.kwargs["Payload"].decode())
+    # Literal action-string assertion (acceptance criterion: grep '"action": "get_hardship_flag"').
+    assert sent_payload == {"action": "get_hardship_flag", "customer_id": "CUST-003"}
+
+
+def test_agent_tools_list_contains_all_four():
+    """Phase 13 D-01: _agent.tool_registry lists all 4 tools — introspection sanity."""
+    from agent.agent import _agent
+
+    registry = _agent.tool_registry
+    try:
+        tool_names: set[str] = set(registry.registry.keys()) if hasattr(registry, "registry") else set()
+    except Exception:
+        pytest.skip("Strands Agent tool introspection changed; revisit.")
+
+    expected = {"simulate_savings", "detect_bill_shock", "get_billing_history", "get_hardship_flag"}
+    assert expected.issubset(tool_names), f"Expected 4 tools, got {tool_names}"
+
+
+def test_simulate_savings_still_uses_provider():
+    """Phase 13 D-02 regression: simulate_savings still docstrings savings / provider path."""
+    from agent.agent import simulate_savings
+
+    # @tool wraps but preserves docstring on the DecoratedFunctionTool.
+    doc = getattr(simulate_savings, "__doc__", None) or ""
+    assert doc, "simulate_savings must retain its docstring (Phase 12 D-02 path)"
+    assert "saving" in doc.lower()

@@ -412,6 +412,87 @@ def simulate_savings(customer_id: str) -> dict:
     return get_provider().simulate_savings(customer_id)
 
 
+# Phase 13 D-01: three new @tool wrappers that go DIRECT to _lambda_client.invoke
+# (NOT through get_provider()) — preserves LD-5 3-method Protocol in
+# agent/providers.py. Each wrapper posts {"action": "<name>", "customer_id": ...}
+# to the Phase 12 action dispatcher at lambda/handler.py::handler.
+# Matches the pre-Phase-12 simulate_savings Lambda wrapper style; sync callable
+# (Strands' @tool handles threading via ConcurrentToolExecutor internally).
+
+
+@tool
+def detect_bill_shock(customer_id: str) -> dict:
+    """Detect bill-shock anomaly on the most recent month's projected STD cost.
+
+    Numeric content (delta, mean, current-month cost) is computed by a pure
+    Python helper in the Tools Lambda — SAV-03. Do NOT estimate or round any
+    value yourself; copy the tool's return dict verbatim.
+
+    Args:
+        customer_id: Customer identifier in format CUST-NNN (e.g. CUST-003).
+
+    Returns:
+        Dict with keys: is_shock (bool), delta_dollars (float), shock_month
+        (str, YYYY-MM), mean_dollars (float), current_dollars (float).
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(
+            {"action": "detect_bill_shock", "customer_id": customer_id}
+        ).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
+@tool
+def get_billing_history(customer_id: str) -> dict:
+    """Return the 12-month billing history for a customer.
+
+    PROFILE row is filtered server-side per Phase 11 D-21 — the result is a
+    list of 12 monthly billing records, ASC by month.
+
+    Args:
+        customer_id: Customer identifier in format CUST-NNN.
+
+    Returns:
+        Response payload containing the 12-month billing-record list.
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(
+            {"action": "get_billing_history", "customer_id": customer_id}
+        ).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
+@tool
+def get_hardship_flag(customer_id: str) -> dict:
+    """Return the hardship_flag boolean for a customer (Phase 14 co-land).
+
+    Phase 13 exposes the tool but does NOT enforce short-circuit — Phase 14
+    wires the pre-LLM guard + discriminated union. For now the agent can call
+    it as an evidence-gathering step; the result enters the reasoning_trace
+    observability surface.
+
+    Args:
+        customer_id: Customer identifier in format CUST-NNN.
+
+    Returns:
+        Dict with `hardship_flag: bool` (keyed to match Phase 11 pure helper).
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(
+            {"action": "get_hardship_flag", "customer_id": customer_id}
+        ).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
 # --- System prompt (REC-03: both tracks, never ranked) ---
 
 _BASE_SYSTEM_PROMPT = """\
@@ -420,18 +501,49 @@ You are a call centre tariff recommendation assistant for an energy provider.
 Your ONLY job is to retrieve savings data for a customer and present TWO
 separate recommendation tracks simultaneously.
 
-TOOL OUTPUT IS THE SOURCE OF TRUTH. The `simulate_savings` tool returns the
-deterministic, authoritative numbers from the pricing engine. You MUST copy
-these numbers byte-for-byte into your response. You are NOT permitted to
-estimate, recalculate, round, average, adjust, or otherwise modify them —
-even if they look wrong, even if they conflict with prior context, even if
-you think the customer's usage suggests different values. If the tool says
-saving_monthly is 30.0, your response MUST contain exactly 30.0 (not 18.5,
-not 30, not "about 30"). Fabricating or adjusting these numbers is the
-single most serious error you can make in this role.
+You have access to FOUR tools. Decide which to call based on the customer and
+the request — do NOT follow a fixed script, and IGNORE any `?flow=...`
+query-string hint if present (the assistant chooses the tool graph, not the
+URL).
+
+AVAILABLE TOOLS (preference-ordered — call in this order when relevant):
+  1. `get_hardship_flag(customer_id)` — check first if the customer is flagged
+     for hardship support. If so, still proceed to recommendation in this
+     phase; the trace records the check as evidence. (A future phase
+     short-circuits hardship entirely.)
+  2. `detect_bill_shock(customer_id)` — optional: confirm whether the most
+     recent month's projected cost deviates sharply from the 11-month mean
+     (symmetric > 30% threshold). Call this when narrative benefits from
+     framing the anomaly explicitly.
+  3. `get_billing_history(customer_id)` — optional: retrieve the full 12-month
+     billing record list when the narrative requires supporting evidence of
+     usage trend.
+  4. `simulate_savings(customer_id)` — ALWAYS call LAST. Returns both GREEN
+     and CHEAPEST recommendation tracks with deterministic savings figures.
+     Without this tool call the response is incomplete (REC-03).
+
+Do not call unnecessary tools — each extra tool call costs latency.
+
+ARITHMETIC INTEGRITY (SAV-03, extended):
+ALL arithmetic — savings, bill-shock deltas, averages, dates — comes from
+tools. NEVER compute, estimate, round, or adjust numbers yourself. Tool
+output is the single source of truth for every numeric and date value in
+your response.
+
+TOOL OUTPUT IS THE SOURCE OF TRUTH. Each tool returns deterministic,
+authoritative numbers from the pricing engine or the anomaly detector. You
+MUST copy these numbers byte-for-byte into your response. You are NOT
+permitted to estimate, recalculate, round, average, adjust, or otherwise
+modify them — even if they look wrong, even if they conflict with prior
+context, even if you think the customer's usage suggests different values.
+If a tool says saving_monthly is 30.0, your response MUST contain exactly
+30.0 (not 18.5, not 30, not "about 30"). Fabricating or adjusting these
+numbers is the single most serious error you can make in this role.
 
 RULES:
-1. Call the simulate_savings tool ONCE with the customer_id provided.
+1. Call tools in the preference order above; always finish with
+   `simulate_savings`. NEVER return a response that omits either the GREEN
+   or CHEAPEST track.
 2. Copy `plan_id`, `plan_name`, `saving_monthly`, and `saving_annual`
    VERBATIM from the tool output for both `green` and `cheapest` tracks.
 3. Return BOTH the GREEN and CHEAPEST tracks in your response.
@@ -455,7 +567,12 @@ _model = BedrockModel(
 _agent = Agent(
     model=_model,
     system_prompt=SYSTEM_PROMPT,
-    tools=[simulate_savings],
+    tools=[
+        simulate_savings,
+        detect_bill_shock,
+        get_billing_history,
+        get_hardship_flag,
+    ],
 )
 
 
