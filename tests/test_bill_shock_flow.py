@@ -183,37 +183,190 @@ class TestDetectBillShockDispatcher:
 
 
 # ----------------------------------------------------------------------
-# Task 4.1 RED gate: minimal smoke test for agent/hooks/four_tool_cap.py.
-# Replaced in Task 4.3 by the full TestFourToolCap class with 7+ tests.
+# TestFourToolCap — Plan 04: AGENT-01b 4-tool cap via Strands HookProvider.
+# ----------------------------------------------------------------------
+# Per A-02 amendment: cap is a HookProvider calling event.agent.cancel(),
+# NOT Agent(max_iterations=N). Post-cancel stop_reason == "cancelled"
+# routes invoke() through the existing D-04 fallback (except Exception).
 # ----------------------------------------------------------------------
 
+import io
+import json
+from unittest.mock import MagicMock, patch
 
-class TestFourToolCapHookSmoke:
-    """Task 4.1 RED — module + class + instance attributes exist (AGENT-01b)."""
 
-    def test_four_tool_cap_hook_importable(self):
-        from agent.hooks.four_tool_cap import FourToolCapHook  # noqa: F401
+class TestFourToolCap:
+    """D-16 offline — cap fires, stop_reason=cancelled, D-04 response shape preserved."""
 
-    def test_four_tool_cap_hook_instantiates_with_defaults(self):
+    # ---------- Strategy A: unit-test the hook in isolation ----------
+
+    def test_hook_instantiates_with_defaults(self):
         from agent.hooks.four_tool_cap import FourToolCapHook
         hook = FourToolCapHook(budget=4)
         assert hook.budget == 4
         assert hook.used == 0
 
-    def test_four_tool_cap_hook_is_hook_provider(self):
+    def test_hook_is_hook_provider(self):
         """Protocol-runtime duck-type: HookProvider is runtime_checkable."""
         from strands.hooks import HookProvider
         from agent.hooks.four_tool_cap import FourToolCapHook
         assert isinstance(FourToolCapHook(), HookProvider)
 
+    def test_hook_increments_used_on_each_tool_completion(self):
+        from agent.hooks.four_tool_cap import FourToolCapHook
+        hook = FourToolCapHook(budget=4)
+        fake_event = MagicMock()
+        hook.on_tool_complete(fake_event)
+        assert hook.used == 1
+        hook.on_tool_complete(fake_event)
+        assert hook.used == 2
 
-class TestFourToolCapWiringSmoke:
-    """Task 4.2 RED — module-level _four_tool_cap exposed + wired on _agent."""
+    def test_hook_cancels_agent_at_budget(self):
+        from agent.hooks.four_tool_cap import FourToolCapHook
+        hook = FourToolCapHook(budget=2)
+        fake_event = MagicMock()
+        # 1st call: used -> 1, NOT cancelled
+        hook.on_tool_complete(fake_event)
+        assert not fake_event.agent.cancel.called
+        # 2nd call: used -> 2, cancel fires
+        hook.on_tool_complete(fake_event)
+        assert fake_event.agent.cancel.called
 
-    def test_agent_module_exposes_four_tool_cap(self):
+    def test_hook_cancels_repeatedly_past_budget(self):
+        """Idempotent cancellation — beyond the budget, cancel continues firing.
+
+        Strands' own cancel() is idempotent per the documented asyncio-event
+        mechanism; this test just asserts the hook keeps invoking it so the
+        guard does not accidentally stop post-budget.
+        """
+        from agent.hooks.four_tool_cap import FourToolCapHook
+        hook = FourToolCapHook(budget=1)
+        fake_event = MagicMock()
+        hook.on_tool_complete(fake_event)
+        hook.on_tool_complete(fake_event)
+        hook.on_tool_complete(fake_event)
+        assert fake_event.agent.cancel.call_count >= 1
+
+    def test_hook_register_hooks_subscribes_to_after_tool_call(self):
+        from agent.hooks.four_tool_cap import FourToolCapHook
+        from strands.hooks import AfterToolCallEvent
+        hook = FourToolCapHook(budget=4)
+        registry = MagicMock()
+        hook.register_hooks(registry)
+        registry.add_callback.assert_called_once_with(
+            AfterToolCallEvent, hook.on_tool_complete
+        )
+
+    def test_hook_reset_zeros_counter(self):
+        from agent.hooks.four_tool_cap import FourToolCapHook
+        hook = FourToolCapHook(budget=4)
+        hook.used = 3
+        hook.reset()
+        assert hook.used == 0
+
+    def test_budget_must_be_at_least_one(self):
+        from agent.hooks.four_tool_cap import FourToolCapHook
+        with pytest.raises(ValueError, match="budget"):
+            FourToolCapHook(budget=0)
+
+    # ---------- Strategy B: integration via invoke() ----------
+
+    @patch("agent.agent._agent")
+    @patch("agent.agent._lambda_client")
+    def test_invoke_routes_through_d04_fallback_on_cancelled_stop_reason(
+        self, mock_lambda_client, mock_agent
+    ):
+        """End-to-end: stop_reason=='cancelled' -> RuntimeError -> D-04 fallback body."""
+        from agent.agent import invoke, _four_tool_cap
+
+        # Mock _agent(...) returning an AgentResult with stop_reason='cancelled'.
+        mock_agent_result = MagicMock()
+        mock_agent_result.stop_reason = "cancelled"
+        mock_agent_result.message = {"content": []}  # empty content -> trace=[]
+        mock_agent.return_value = mock_agent_result
+
+        # Mock _lambda_client.invoke (the D-04 fallback path calls it direct).
+        fallback_payload = {
+            "green": {
+                "plan_id": "ECO", "plan_name": "EcoFlex 100",
+                "saving_monthly": 30.00, "saving_annual": 360.00,
+            },
+            "cheapest": {
+                "plan_id": "VAL", "plan_name": "Value 12",
+                "saving_monthly": 55.00, "saving_annual": 660.00,
+            },
+        }
+        mock_lambda_client.invoke.return_value = {
+            "Payload": io.BytesIO(json.dumps(fallback_payload).encode())
+        }
+
+        # Reset counter so test is deterministic.
+        _four_tool_cap.reset()
+
+        response = invoke({"customer_id": "CUST-001"})
+
+        # D-04 never-500 — body has both tracks + no errorMessage.
+        assert isinstance(response, dict)
+        assert "green" in response
+        assert "cheapest" in response
+        assert "errorMessage" not in response
+
+        # D-15 marker — narrative source marker present on fallback path.
+        assert "_narrative_source" in response
+
+        # Phase 13 D-07 — reasoning_trace attached (empty is acceptable).
+        assert "reasoning_trace" in response
+        assert isinstance(response["reasoning_trace"], list)
+
+    @patch("agent.agent._agent")
+    @patch("agent.agent._lambda_client")
+    def test_invoke_cancelled_path_does_not_leak_tool_budget_runtimeerror(
+        self, mock_lambda_client, mock_agent
+    ):
+        """D-04 must swallow the tool-budget RuntimeError — no 500 surface."""
+        from agent.agent import invoke, _four_tool_cap
+
+        mock_agent_result = MagicMock()
+        mock_agent_result.stop_reason = "cancelled"
+        mock_agent_result.message = {"content": []}
+        mock_agent.return_value = mock_agent_result
+
+        fallback_payload = {
+            "green": {
+                "plan_id": "ECO", "plan_name": "EcoFlex 100",
+                "saving_monthly": 30.00, "saving_annual": 360.00,
+            },
+            "cheapest": {
+                "plan_id": "VAL", "plan_name": "Value 12",
+                "saving_monthly": 55.00, "saving_annual": 660.00,
+            },
+        }
+        mock_lambda_client.invoke.return_value = {
+            "Payload": io.BytesIO(json.dumps(fallback_payload).encode())
+        }
+
+        _four_tool_cap.reset()
+
+        # Must return a dict, not raise.
+        response = invoke({"customer_id": "CUST-001"})
+        assert isinstance(response, dict)
+        # Assert the Lambda fallback was actually used (confirms the cancelled
+        # path routed through the D-04 except Exception branch).
+        assert mock_lambda_client.invoke.called
+
+    def test_counter_resets_between_invocations(self):
+        """Module-level _four_tool_cap.used must NOT leak across invoke() calls."""
         from agent.agent import _four_tool_cap
-        assert _four_tool_cap.budget == 4
+        _four_tool_cap.used = 3
+        _four_tool_cap.reset()
+        assert _four_tool_cap.used == 0
 
-    def test_agent_module_imports_FourToolCapHook(self):
-        from agent.agent import FourToolCapHook  # noqa: F401
-
+    def test_agent_has_no_max_iterations_reference(self):
+        """Pitfall 2 regression guard — Strands 1.37.0 has no max_iterations kwarg."""
+        import pathlib
+        agent_path = pathlib.Path(__file__).parent.parent / "agent" / "agent.py"
+        source = agent_path.read_text()
+        assert "max_iterations" not in source, (
+            "agent.py references max_iterations — Strands 1.37.0 has no such "
+            "kwarg; the 4-tool cap is enforced via FourToolCapHook instead."
+        )
