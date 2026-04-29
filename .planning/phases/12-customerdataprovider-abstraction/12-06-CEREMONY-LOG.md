@@ -61,9 +61,29 @@ Mirrors DEMO-RUNBOOK §7 Phase 11 amendment pattern.
 
 **Decision: proceed to Task 4 (post-capture + byte-equality gate).** Both CustomerTariff and CustomerTariffAgent stack policies remain Allow-all until Task 5.
 
-## Task 4 — Post-Capture + Byte-Equality Gate
+## Task 4 — POST-CAPTURE + BYTE-EQUALITY GATE (PASS 2026-04-29)
 
-(pending)
+This is the load-bearing phase-close gate (D-06, D-08, SAV-03).
+
+| Step | Timestamp (UTC) | Command | Output | Result |
+|------|-----------------|---------|--------|--------|
+| A. Pre-warm | 2026-04-29T00:09:20Z | `python3 scripts/prewarm.py` | 3/3 warmed 204; measurement median 6425-6938ms (cold-start after AgentRuntime v10 rebuild) — FAIL (≥3000ms gate) but **non-blocking per plan** (savings numbers are deterministic regardless of latency) | ⚠️  warn (non-fatal) |
+| B. POST capture | 2026-04-29T00:11:36Z | `python3 scripts/capture_live_recommendations.py --mode post` | All 5 captured to `baseline/post/CUST-00{1..5}.json`; `OK: 5/5 personas captured under baseline/post/` | ✓ 5/5 |
+| C. COMPARE gate | 2026-04-29T00:12:23Z | `python3 scripts/capture_live_recommendations.py --mode compare` | `OK: 40/40 numeric fields byte-equal across 5 personas`; EXIT=0 | ✓ SAV-03 preserved |
+
+### Byte-Equal Post-Baseline Values (confirmed matching pre-baselines)
+
+| Persona  | Green $/mo | Cheapest $/mo | Match pre |
+|----------|------------|---------------|-----------|
+| CUST-001 | $30.00     | $55.00        | ✓ |
+| CUST-002 | $16.90     | $30.98        | ✓ |
+| CUST-003 | $14.00     | $25.67        | ✓ |
+| CUST-004 | $40.02     | $76.03        | ✓ |
+| CUST-005 | $35.00     | $84.00        | ✓ |
+
+**5 personas × 2 tracks × 4 fields (plan_id, plan_name, saving_monthly, saving_annual) = 40 numeric fields, 40/40 byte-equal.**
+
+**Decision: the provider abstraction passed SAV-03. Proceed to Task 5 (re-apply freeze policies + termination protection).**
 
 ## Task 5 — Re-apply Freeze Policies + Termination Protection
 

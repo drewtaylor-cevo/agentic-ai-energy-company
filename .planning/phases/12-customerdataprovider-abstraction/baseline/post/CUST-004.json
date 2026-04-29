@@ -1,0 +1,18 @@
+{
+  "cheapest": {
+    "call_script": "Let's talk about Solar Feed-in \u2014 a cost-effective plan tailored for solar-equipped homes.",
+    "plan_id": "SOL",
+    "plan_name": "Solar Feed-in",
+    "saving_annual": 912.36,
+    "saving_monthly": 76.03,
+    "usage_narrative": "Solar-equipped household well-positioned to benefit from a feed-in tariff arrangement."
+  },
+  "green": {
+    "call_script": "Ask about EcoFlex \u2014 a great fit for an eco-minded home with steady energy use.",
+    "plan_id": "ECO",
+    "plan_name": "EcoFlex 100",
+    "saving_annual": 480.24,
+    "saving_monthly": 40.02,
+    "usage_narrative": "Eco-aligned household with consistent load and a strong renewable energy preference."
+  }
+}

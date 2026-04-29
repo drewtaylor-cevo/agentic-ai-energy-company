@@ -1,0 +1,18 @@
+{
+  "cheapest": {
+    "call_script": "Bring up Value Twelve \u2014 a cost-led fit for a high-demand winter-heavy household.",
+    "plan_id": "VAL",
+    "plan_name": "Value 12",
+    "saving_annual": 660.0,
+    "saving_monthly": 55.0,
+    "usage_narrative": "High-usage winter-heavy home with strong seasonal demand across the billing year."
+  },
+  "green": {
+    "call_script": "Ask about EcoFlex \u2014 an eco-aligned pick for a winter-heavy family home.",
+    "plan_id": "ECO",
+    "plan_name": "EcoFlex 100",
+    "saving_annual": 360.0,
+    "saving_monthly": 30.0,
+    "usage_narrative": "Heavy cool-season household with consistent year-round load across the family."
+  }
+}
