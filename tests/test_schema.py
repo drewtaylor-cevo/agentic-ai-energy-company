@@ -109,3 +109,117 @@ def test_profile_row_present_for_hardship_persona():
     assert profile["customer_id"] == "CUST-006"
     assert profile["month"] == "PROFILE"
     assert profile.get("hardship_flag") is True
+
+
+# ----------------------------------------------------------------------
+# D-11 narrative-exemption counter-pytest (Phase 13 Plan 02)
+# ----------------------------------------------------------------------
+# Locks the design intent: reasoning_trace summaries INTENTIONALLY contain
+# digits, $, dates, and percentages. If a future developer "tidies" the
+# validators and applies D-15 banned-terms to ReasoningTraceEntry.summary,
+# these tests turn red FIRST and warn that the change breaks the AGENT-01
+# observability surface (Pitfall 3 — 13-RESEARCH.md lines 826-830).
+#
+# DO NOT "fix" these tests by adding validators to ReasoningTraceEntry —
+# if these tests fail, the Pydantic model has regressed, not these tests.
+
+import pytest
+
+from agent.agent import ReasoningTraceEntry, RecommendationResponse, TrackInfo
+
+
+class TestReasoningTraceEntryExemption:
+    """D-11: summaries pass validation even when they contain digits/$/dates."""
+
+    def test_summary_with_currency_and_digits_validates(self):
+        entry = ReasoningTraceEntry(
+            tool="detect_bill_shock",
+            summary="Bill shock detected: +$47.00 2025-10 vs 11-month avg ($135.00 vs $88.00)",
+        )
+        assert entry.tool == "detect_bill_shock"
+        assert "$" in entry.summary
+        assert "47.00" in entry.summary
+        assert "2025-10" in entry.summary
+
+    def test_summary_with_percentage_validates(self):
+        entry = ReasoningTraceEntry(
+            tool="detect_bill_shock",
+            summary="Usage 63% above 11-month mean",
+        )
+        assert "%" in entry.summary
+
+    def test_summary_with_plan_ids_validates(self):
+        # simulate_savings summary mentions plan savings amounts.
+        entry = ReasoningTraceEntry(
+            tool="simulate_savings",
+            summary="Green $14.00/mo; Cheapest $25.67/mo",
+        )
+        assert "Green" in entry.summary
+        assert "Cheapest" in entry.summary
+
+    def test_reasoning_trace_round_trip_on_response(self):
+        # Assemble a full RecommendationResponse with a 3-entry trace and
+        # confirm model_dump -> model_validate preserves byte-equality.
+        track = TrackInfo(
+            plan_id="ECO",
+            plan_name="EcoFlex",
+            saving_monthly=14.00,
+            saving_annual=168.00,
+            usage_narrative="Strong cool-season usage pattern.",
+            call_script="Ask about EcoFlex for winter comfort and household savings.",
+        )
+        cheap = TrackInfo(
+            plan_id="VAL",
+            plan_name="Value",
+            saving_monthly=25.67,
+            saving_annual=308.04,
+            usage_narrative="Lowest-cost option for stable usage.",
+            call_script="Frame the Value plan as the budget-safe choice.",
+        )
+        trace = [
+            ReasoningTraceEntry(tool="get_hardship_flag", summary="hardship_flag=False"),
+            ReasoningTraceEntry(
+                tool="detect_bill_shock",
+                summary="Bill shock detected: +$47.00 2025-10 vs 11-month avg ($135.00 vs $88.00)",
+            ),
+            ReasoningTraceEntry(
+                tool="simulate_savings",
+                summary="Green $14.00/mo; Cheapest $25.67/mo",
+            ),
+        ]
+        resp = RecommendationResponse(green=track, cheapest=cheap, reasoning_trace=trace)
+        dumped = resp.model_dump()
+        assert len(dumped["reasoning_trace"]) == 3
+        assert dumped["reasoning_trace"][1]["tool"] == "detect_bill_shock"
+        assert "$47.00" in dumped["reasoning_trace"][1]["summary"]
+
+        # Re-validate round-trip.
+        restored = RecommendationResponse.model_validate(dumped)
+        assert len(restored.reasoning_trace) == 3
+
+    def test_default_reasoning_trace_is_empty_list(self):
+        track = TrackInfo(
+            plan_id="ECO", plan_name="EcoFlex",
+            saving_monthly=30.00, saving_annual=360.00,
+            usage_narrative="Stable household usage across the year.",
+            call_script="Offer EcoFlex as a steady comfort-and-savings pick.",
+        )
+        cheap = TrackInfo(
+            plan_id="VAL", plan_name="Value",
+            saving_monthly=55.00, saving_annual=660.00,
+            usage_narrative="Lowest-cost fit for a budget-conscious household.",
+            call_script="Offer the Value plan as the budget-safe pick today.",
+        )
+        resp = RecommendationResponse(green=track, cheapest=cheap)
+        assert resp.reasoning_trace == []
+
+    def test_narrative_validators_not_applied_to_summary(self):
+        # CLAUDE.md D-15 bans digits / currency / % from usage_narrative + call_script.
+        # This test asserts the same strings (which would FAIL D-15 on TrackInfo)
+        # PASS on ReasoningTraceEntry.summary.
+        banned_string_that_would_fail_d15 = (
+            "Bill shock detected: +$47.00 2025-10 (63% above mean)"
+        )
+        # TrackInfo would reject it; ReasoningTraceEntry accepts it.
+        entry = ReasoningTraceEntry(tool="detect_bill_shock", summary=banned_string_that_would_fail_d15)
+        assert entry.summary == banned_string_that_would_fail_d15
