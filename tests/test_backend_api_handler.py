@@ -374,3 +374,116 @@ def test_prewarm_invalid_customer_id_returns_400(mock_client):
 
     # Invoke was NEVER called — 400 returned before dispatch.
     assert mock_client.invoke_agent_runtime.call_count == 0
+
+
+# ----------------------------------------------------------------------
+# Phase 13 Plan 05 — D-12 reasoning_trace pass-through contract.
+# api_lambda/handler.py MUST NOT strip or mutate `reasoning_trace`. It
+# MUST still 404 when green/cheapest absent regardless of reasoning_trace.
+# ----------------------------------------------------------------------
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_reasoning_trace_passes_through_unchanged(mock_client):
+    """D-12: api_lambda/handler.py is dumb — reasoning_trace arrives byte-equal."""
+    body_with_trace = {
+        "green": {
+            "plan_id": "ECO",
+            "plan_name": "EcoFlex 100",
+            "saving_monthly": 14.00,
+            "saving_annual": 168.00,
+            "usage_narrative": "Strong cool-season usage pattern.",
+            "call_script": "Ask about EcoFlex for winter comfort.",
+        },
+        "cheapest": {
+            "plan_id": "VAL",
+            "plan_name": "Value 12",
+            "saving_monthly": 25.67,
+            "saving_annual": 308.04,
+            "usage_narrative": "Lowest-cost option for stable usage.",
+            "call_script": "Frame Value 12 as the budget-safe choice.",
+        },
+        "reasoning_trace": [
+            {"tool": "get_hardship_flag", "summary": "hardship_flag=False"},
+            {
+                "tool": "detect_bill_shock",
+                "summary": "Bill shock detected: +$47.00 2025-10 vs 11-month avg ($135.00 vs $88.00)",
+            },
+            {"tool": "simulate_savings", "summary": "Green $14.00/mo; Cheapest $25.67/mo"},
+        ],
+    }
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(body_with_trace)
+
+    result = handler(_make_event("CUST-003"), None)
+
+    assert result["statusCode"] == 200
+    parsed_body = json.loads(result["body"])
+    # reasoning_trace arrives byte-identical — no mutation, no stripping.
+    assert parsed_body["reasoning_trace"] == body_with_trace["reasoning_trace"]
+    assert len(parsed_body["reasoning_trace"]) == 3
+    # Currency + digits + dates survive (sanity — D-15 does not apply).
+    assert "$" in parsed_body["reasoning_trace"][1]["summary"]
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_reasoning_trace_not_stripped_like_narrative_source(mock_client):
+    """D-12: ensure api_lambda/handler.py does NOT body.pop('reasoning_trace').
+
+    Parallels the _narrative_source strip (which IS applied at line 121) —
+    reasoning_trace is PUBLIC and must survive to the client.
+    """
+    body = {
+        "green": {
+            "plan_id": "ECO",
+            "plan_name": "EcoFlex 100",
+            "saving_monthly": 30.00,
+            "saving_annual": 360.00,
+            "usage_narrative": "n",
+            "call_script": "c",
+        },
+        "cheapest": {
+            "plan_id": "VAL",
+            "plan_name": "Value 12",
+            "saving_monthly": 55.00,
+            "saving_annual": 660.00,
+            "usage_narrative": "n",
+            "call_script": "c",
+        },
+        "reasoning_trace": [],
+        "_narrative_source": {"green": {}, "cheapest": {}},
+    }
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(body)
+
+    result = handler(_make_event("CUST-001"), None)
+
+    parsed = json.loads(result["body"])
+    # _narrative_source IS stripped (existing behaviour, Plan 06 Phase 7 D-06).
+    assert "_narrative_source" not in parsed
+    # reasoning_trace is NOT stripped (Phase 13 D-12).
+    assert "reasoning_trace" in parsed
+    assert parsed["reasoning_trace"] == []
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_customer_not_found_detection_unchanged_with_reasoning_trace(mock_client):
+    """Regression: api_lambda/handler.py:152 detection is Phase 14 territory.
+
+    Phase 13 MUST NOT regress the current 404 behaviour — missing green/cheapest
+    still returns 404, even if reasoning_trace is present. Phase 14 amends this
+    to condition on body.get('kind') != 'hardship'.
+    """
+    # Simulated agent fallback when customer not found — trace may still be present
+    # (e.g. agent got partway through tool calls before failing).
+    body_without_tracks = {
+        "errorMessage": "Customer CUST-999 not found",
+        "reasoning_trace": [
+            {"tool": "get_hardship_flag", "summary": "hardship_flag=False"},
+        ],
+    }
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(body_without_tracks)
+
+    result = handler(_make_event("CUST-999"), None)
+
+    # Current Phase 13 behaviour: 404 (neither green nor cheapest present).
+    # Phase 14 will amend to condition on kind != hardship — but that's not this phase.
+    assert result["statusCode"] == 404
