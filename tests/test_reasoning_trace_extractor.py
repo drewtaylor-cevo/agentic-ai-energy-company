@@ -26,20 +26,20 @@ import pytest
 
 _TRACK_GREEN_INPUT = dict(
     plan_id="ECO",
-    plan_name="EcoFlex 100",
+    plan_name="EcoFlex",
     saving_monthly=14.00,
     saving_annual=168.00,
     usage_narrative="Cool-season usage with stable monthly pattern.",
-    call_script="Ask about EcoFlex for winter comfort and savings.",
+    call_script="Ask about EcoFlex for winter comfort and household savings.",
 )
 
 _TRACK_CHEAPEST_INPUT = dict(
     plan_id="VAL",
-    plan_name="Value 12",
+    plan_name="Value Plan",
     saving_monthly=25.67,
     saving_annual=308.04,
     usage_narrative="Lowest-cost option for households on a tight budget.",
-    call_script="Frame Value 12 as the budget-safe choice today.",
+    call_script="Frame the Value plan as the budget-safe choice today.",
 )
 
 
