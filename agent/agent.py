@@ -188,6 +188,47 @@ class _RecommendationResponseLenient(BaseModel):
 # --- Narrative prompt + salvage helpers (D-01/D-02/D-03) ---
 
 
+_SAVINGS_TRACK_FIELDS = ("plan_id", "plan_name", "saving_monthly", "saving_annual")
+
+
+def _fetch_deterministic_savings(customer_id: str) -> dict[str, dict[str, Any]]:
+    """Fetch and validate savings from the deterministic Tools Lambda path.
+
+    Fallback paths may salvage model-generated narrative, but tariff identity
+    and savings figures must still come from the pricing engine (SAV-03).
+    """
+    raw = get_provider().simulate_savings(customer_id)
+    if not isinstance(raw, dict):
+        raise RuntimeError("simulate_savings returned non-object payload")
+
+    validated: dict[str, dict[str, Any]] = {}
+    for track in ("green", "cheapest"):
+        raw_track = raw.get(track)
+        if not isinstance(raw_track, dict):
+            raise RuntimeError(f"simulate_savings missing {track} track")
+
+        missing = [field for field in _SAVINGS_TRACK_FIELDS if field not in raw_track]
+        if missing:
+            raise RuntimeError(
+                f"simulate_savings {track} track missing fields: {', '.join(missing)}"
+            )
+
+        for field in ("plan_id", "plan_name"):
+            if not isinstance(raw_track[field], str) or not raw_track[field].strip():
+                raise RuntimeError(f"simulate_savings {track}.{field} must be a non-empty string")
+
+        for field in ("saving_monthly", "saving_annual"):
+            value = raw_track[field]
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise RuntimeError(f"simulate_savings {track}.{field} must be numeric")
+
+        validated[track] = {
+            field: raw_track[field] for field in _SAVINGS_TRACK_FIELDS
+        }
+
+    return validated
+
+
 def _build_narrative_prompt(customer_id: str, shape_tokens: dict | None = None) -> str:
     """Compose the per-invocation user prompt.
 
@@ -217,6 +258,7 @@ def _narrative_fallback_salvage(
     Returns (response, narrative_source_marker).
     """
     fallback_bank = FALLBACKS.get(customer_id)
+    deterministic_savings = _fetch_deterministic_savings(customer_id)
     narrative_source = {
         "green":    {"usage_narrative": "model", "call_script": "model"},
         "cheapest": {"usage_narrative": "model", "call_script": "model"},
@@ -259,11 +301,12 @@ def _narrative_fallback_salvage(
 
     def _build_track(track: str) -> "TrackInfo":
         model_track = getattr(lenient_response, track, None) if lenient_response else None
+        savings_track = deterministic_savings[track]
         return TrackInfo(
-            plan_id=getattr(model_track, "plan_id", "ECO") if model_track else "ECO",
-            plan_name=getattr(model_track, "plan_name", "EcoFlex") if model_track else "EcoFlex",
-            saving_monthly=getattr(model_track, "saving_monthly", 0.0) if model_track else 0.0,
-            saving_annual=getattr(model_track, "saving_annual", 0.0) if model_track else 0.0,
+            plan_id=savings_track["plan_id"],
+            plan_name=savings_track["plan_name"],
+            saving_monthly=savings_track["saving_monthly"],
+            saving_annual=savings_track["saving_annual"],
             usage_narrative=_resolve(
                 track, "usage_narrative",
                 getattr(model_track, "usage_narrative", None) if model_track else None,
@@ -667,26 +710,49 @@ def invoke(payload: dict) -> dict:
                 "lenient salvage parse failed — using full fallback bank",
                 exc_info=False,
             )
-        result, narrative_source = _narrative_fallback_salvage(
-            customer_id, lenient_response, terminal_err,
-        )
+        try:
+            result, narrative_source = _narrative_fallback_salvage(
+                customer_id, lenient_response, terminal_err,
+            )
+        except Exception as fallback_err:  # noqa: BLE001 - preserve D-04 contract
+            logger.warning(
+                "deterministic savings fallback failed during narrative salvage",
+                extra={"customer_id": customer_id, "reason": str(fallback_err)},
+                exc_info=True,
+            )
+            return {
+                "errorMessage": str(fallback_err),
+                "_narrative_source": narrative_source,
+                "reasoning_trace": [
+                    entry.model_dump() for entry in _extract_reasoning_trace(agent_result)
+                ],
+            }
         body = result.model_dump()
         body["_narrative_source"] = narrative_source
         return body
     except Exception:
-        # v1.0 tool-failure fallback: direct Lambda call. Narrative fields are
-        # attached from FALLBACKS so the extended-schema contract holds.
+        # v1.0 tool-failure fallback: deterministic savings fetch. Narrative
+        # fields are attached from FALLBACKS so the extended-schema contract holds.
         # D-04 never-500 guarantee — UNCHANGED from pre-migration shape.
         logger.warning(
-            "agent invocation failed — falling back to direct Lambda call",
+            "agent invocation failed — falling back to deterministic savings helper",
             exc_info=True,
         )
-        resp = _lambda_client.invoke(
-            FunctionName=_TOOLS_LAMBDA_ARN,
-            InvocationType="RequestResponse",
-            Payload=json.dumps({"customer_id": customer_id}).encode(),
-        )
-        raw = json.loads(resp["Payload"].read())
+        try:
+            raw = _fetch_deterministic_savings(customer_id)
+        except Exception as fallback_err:  # noqa: BLE001 - preserve D-04 contract
+            logger.warning(
+                "deterministic savings fallback failed",
+                extra={"customer_id": customer_id, "reason": str(fallback_err)},
+                exc_info=True,
+            )
+            return {
+                "errorMessage": str(fallback_err),
+                "_narrative_source": narrative_source,
+                "reasoning_trace": [
+                    entry.model_dump() for entry in _extract_reasoning_trace(agent_result)
+                ],
+            }
         fb = FALLBACKS.get(customer_id, {})
         for track in ("green", "cheapest"):
             track_fb = fb.get(track, {})

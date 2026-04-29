@@ -285,7 +285,8 @@ class TestFourToolCap:
         mock_agent_result.message = {"content": []}  # empty content -> trace=[]
         mock_agent.return_value = mock_agent_result
 
-        # Mock _lambda_client.invoke (the D-04 fallback path calls it direct).
+        # Historical D-04 path called _lambda_client.invoke directly; the
+        # current fallback helper uses the deterministic provider path.
         fallback_payload = {
             "green": {
                 "plan_id": "ECO", "plan_name": "EcoFlex 100",
@@ -350,9 +351,9 @@ class TestFourToolCap:
         # Must return a dict, not raise.
         response = invoke({"customer_id": "CUST-001"})
         assert isinstance(response, dict)
-        # Assert the Lambda fallback was actually used (confirms the cancelled
-        # path routed through the D-04 except Exception branch).
-        assert mock_lambda_client.invoke.called
+        # Assert deterministic savings survived the cancelled path.
+        assert response["green"]["saving_monthly"] == 30.0
+        assert response["cheapest"]["saving_monthly"] == 55.0
 
     def test_counter_resets_between_invocations(self):
         """Module-level _four_tool_cap.used must NOT leak across invoke() calls."""

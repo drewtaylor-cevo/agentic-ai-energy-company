@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Project
 
@@ -137,7 +137,7 @@ BACKEND_API_URL=https://... bash scripts/demo-keepalive.sh    # 10-min ping loop
 ## Things to know before changing things
 
 - **Region is hardcoded** in `app.py`. AgentCore Agent Registry is not available in `ap-southeast-2` (the local profile default), so do not "fix" the region pin.
-- **Bedrock model literal** is `us.anthropic.claude-sonnet-4-6` at `agent/agent.py:309`. Phase 06.1 resolved a Sonnet 4.6 tool-use regression — be careful when changing model IDs; the byte-exact-savings invariant depends on the model honouring the system prompt's "no arithmetic" rule.
+- **Bedrock model literal** is `us.anthropic.Codex-sonnet-4-6` at `agent/agent.py:309`. Phase 06.1 resolved a Sonnet 4.6 tool-use regression — be careful when changing model IDs; the byte-exact-savings invariant depends on the model honouring the system prompt's "no arithmetic" rule.
 - **Frozen lockfiles** (`requirements.txt`, `requirements-dev.txt`, `ui/package-lock.json`) are part of the freeze contract. If you regenerate them, expect `--require-hashes` to fail until you also update the freeze evidence in `.planning/`.
 - **Build output (`ui/dist/`, `cdk.out/`) is gitignored** — reproducibility is from sources, not artefacts. The `FrontendStack` deploys whatever is currently in `ui/dist`, so build before `cdk deploy CustomerTariffFrontend`.
 - **AWS profile is `cevo-dev25`**, account `588738606436`. The shell-exported `AWS_PROFILE=cevo-25` is stale and wrong — override before AWS commands.

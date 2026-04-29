@@ -175,13 +175,13 @@ def test_retry_once_then_fallback_per_field(mocker, caplog):
     poisoned_input = {
         "green": {
             "plan_id": "ECO", "plan_name": "EcoFlex",
-            "saving_monthly": 30.0, "saving_annual": 360.0,
+            "saving_monthly": 999.0, "saving_annual": 9999.0,
             "usage_narrative": "Saves $30 a month",  # poisoned — $ + digits
             "call_script": "Ask about EcoFlex — it suits a strong winter-heating profile like yours",  # clean
         },
         "cheapest": {
             "plan_id": "VAL", "plan_name": "Value Twelve",
-            "saving_monthly": 55.0, "saving_annual": 660.0,
+            "saving_monthly": 888.0, "saving_annual": 8888.0,
             "usage_narrative": "Winter-heavy household with consistent mid-range usage across the year",  # clean
             "call_script": "Ask about EcoFlex — it suits a strong winter-heating profile like yours",  # clean
         },
@@ -203,6 +203,12 @@ def test_retry_once_then_fallback_per_field(mocker, caplog):
     marker = body["_narrative_source"]["green"]
     assert marker["usage_narrative"] == "fallback"
     assert marker["call_script"] == "model"
+    # SAV-03: fallback paths may salvage narrative only. Dollars still come
+    # from the deterministic pricing engine, never lenient model output.
+    assert body["green"]["saving_monthly"] == 30.0
+    assert body["green"]["saving_annual"] == 360.0
+    assert body["cheapest"]["saving_monthly"] == 55.0
+    assert body["cheapest"]["saving_annual"] == 660.0
 
     # PITFALLS M7 — raw poisoned value MUST NOT appear in logs
     fallback_records = [
@@ -230,6 +236,12 @@ def test_full_fallback_when_lenient_parse_fails(mocker):
     body = invoke({"customer_id": "CUST-001"})
 
     assert mock_agent.call_count == 1
+    # SAV-03: no lenient model track exists, but fallback still preserves the
+    # deterministic Sarah savings instead of manufacturing zero-dollar tracks.
+    assert body["green"]["saving_monthly"] == 30.0
+    assert body["green"]["saving_annual"] == 360.0
+    assert body["cheapest"]["saving_monthly"] == 55.0
+    assert body["cheapest"]["saving_annual"] == 660.0
     # Every field falls back:
     for track in ("green", "cheapest"):
         for field in ("usage_narrative", "call_script"):
@@ -256,6 +268,10 @@ def test_invoke_never_returns_empty_narrative_on_validation_storm(mocker):
     body = invoke({"customer_id": "CUST-001"})
 
     assert mock_agent.call_count == 1
+    assert body["green"]["saving_monthly"] == 30.0
+    assert body["green"]["saving_annual"] == 360.0
+    assert body["cheapest"]["saving_monthly"] == 55.0
+    assert body["cheapest"]["saving_annual"] == 660.0
     for track in ("green", "cheapest"):
         for field in ("usage_narrative", "call_script"):
             value = body[track][field]

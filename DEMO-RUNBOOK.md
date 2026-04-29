@@ -4,6 +4,8 @@ Presenter-facing guide for the **v2.0 demo** (frozen at `demo-v2.0`). Top-to-bot
 
 > **Prior runbook:** The v1.0 runbook lives at `.planning/milestones/v1.0-phases/05-demo-hardening/DEMO-RUNBOOK.md` and was extended in-place with Phase 10 sections §7–§10. This document supersedes it for v2.0 presentations, consolidates everything a presenter needs into one file at the project root, and adds the v2.0-specific surfaces (narrative layer, `?narrative=off` kill switch, version indicator, pre-warm tooling, keep-alive, rollback drill).
 
+> **v3.0 Phase 11 amendment (2026-04-28):** The data layer has been extended on top of `demo-v2.0` — DynamoDB now carries **6 personas (CUST-001…006) and 6 tariff archetypes** (STD/ECO/VAL/TOU + new SOL/EV-TOU). The UI, API, and agent code are unchanged and still pinned to `demo-v2.0`. The CustomerTariff stack was lifted/redeployed/re-frozen on 2026-04-28 via the documented break-glass sequence; sibling stacks (Agent, Api) never moved. See §4 for the extended persona set, §5 for the mock-fallback caveat this introduces, and §7 for the live-deploy amendment record.
+
 ---
 
 ## 0. What you are demoing
@@ -40,6 +42,9 @@ Demo git tags:        demo-v1.0 (rollback target) · demo-v2.0 (freeze target) �
 Python interpreter:   /opt/homebrew/bin/python3.13     # /usr/bin/python3 is 3.9.6 and cannot install iniconfig==2.3.0
 Freeze DynamoDB backup ARN:
   arn:aws:dynamodb:us-east-1:588738606436:table/tariff-billing/backup/01777208516554-e1bee933
+  # ↑ 36-row v2.0 baseline. Live table is now 73 rows after Phase 11 (36 v2.0 +
+  #   36 new billing + 1 PROFILE sentinel). Restoring from this backup rolls the
+  #   data layer BACK to v2.0 — use only for a v1.0/v2.0 fallback demo.
 ```
 
 **Quick sanity before any command:**
@@ -90,6 +95,8 @@ aws sts get-caller-identity --query Account --output text   # expect 58873860643
    # Expect: Deny · Deny · Deny
    ```
 
+   > **Note (Phase 11, 2026-04-28):** CustomerTariff was lifted, redeployed (extended Tools Lambda + 6-plan catalog + 73-row seed), and re-frozen byte-equal to `foundation-freeze.json` on 2026-04-28. Sibling stacks (CustomerTariffAgent, CustomerTariffApi) never moved. Deny·Deny·Deny still holds — this is the expected state, not drift.
+
 5. **Build both dists on the presenter laptop:**
    ```bash
    # Primary bundle (baked against live endpoint)
@@ -118,6 +125,13 @@ aws sts get-caller-identity --query Account --output text   # expect 58873860643
     --profile cevo-dev25 --query 'BackupDescription.BackupDetails.BackupStatus' --output text
   # Expect: AVAILABLE
   ```
+- [ ] **Live table is at the post-Phase-11 row count** (73, not the 36-row v2.0 baseline):
+  ```bash
+  aws dynamodb scan --table-name tariff-billing --select COUNT --profile cevo-dev25 \
+    --query 'Count' --output text
+  # Expect: 73 (36 v2.0 + 36 CUST-004/005/006 billing + 1 PROFILE sentinel)
+  # If this returns 36, Phase 11 seed backfill has been rolled back — see §7 amendment.
+  ```
 
 ### T-24h — Visual rehearsal + gap closure
 
@@ -137,6 +151,12 @@ aws sts get-caller-identity --query Account --output text   # expect 58873860643
   ```
 - [ ] Customer-specific branding / slides updated (if any)
 - [ ] Scan this runbook end-to-end
+- [ ] **Phase 13 AGENT-01 rehearsal (CUST-003 Elena — bill-shock multi-tool flow):**
+  - Run the per-flow prewarm gate: `BACKEND_API_URL="$BACKEND_API_URL" python3 scripts/prewarm.py` — exit 0 required. CUST-003 Elena warm median must be under 2500ms (AGENT-01a). CUST-001 Sarah under 3000ms (single-tool baseline). Per amendment A-01, Marcus (CUST-002) is the non-shock foil — used for cross-persona canary assertions only, not the multi-tool demo beat.
+  - Verify CUST-003 returns a `reasoning_trace` array with 2–3 entries (depending on A-03 sighting-shot outcome — see Plan 07 summary). CUST-001 and CUST-002 should return `reasoning_trace: []` (single-tool flow).
+  - At 1280×800 viewport, confirm the collapsed `ReasoningTrace` row renders above the card grid for CUST-003 and both cards remain above the fold.
+  - `?narrative=off` collapses the `ReasoningTrace` component entirely (returns null) — verify no layout shift.
+  - Phase 13 ceremony log: `.planning/phases/13-bill-shock-multi-tool-flow-agent-01/13-08-CEREMONY-LOG.md` (stack-policy lift + byte-equivalence gate + re-freeze evidence).
 
 ### T-2h — Launch rehearsal
 
@@ -184,8 +204,8 @@ Force-warm all 3 personas through the full Bedrock path and assert all warm medi
 cd ui
 BACKEND_API_URL="$BACKEND_API_URL" npm run prewarm
 cd -
-# Expect exit 0; 3 warm lines + (wait 30s) + 9 measurement lines +
-# 3 "median CUST-00X: Nms PASS (<3000ms)" lines + final summary.
+# Expect exit 0; CUST-001 (single-tool, <3000ms) + CUST-003 Elena (multi-tool, <2500ms per A-01 amendment)
+# 3 warm passes per persona + 30s settle + 6 measurement GETs + per-flow median summary.
 ```
 
 - [ ] Exit code 0 on first attempt
@@ -236,6 +256,18 @@ BACKEND_API_URL="$BACKEND_API_URL" \
 
 All dollar values are byte-exact across freeze. If the live API returns something different for a persona, **something is wrong** — switch to the mock fallback (§5) before continuing.
 
+### Extended persona set (v3.0 Phase 11 — seeded on the live stack, NOT in mock fallback)
+
+These three personas ship in the live DynamoDB table (73-row seed) and round-trip through the deployed Tools Lambda with byte-exact savings. Use them if the CX story calls for tariff archetypes beyond flat-rate — solar feed-in, EV time-of-use, or hardship flagging. If you demo these, **do not fall back to `build:mock` mid-demo** — the mock dist only covers CUST-001/002/003 (see §5).
+
+| ID | Persona | Expected Green | Expected Cheapest | Tariff archetype | Narrative angle |
+|----|---------|----------------|-------------------|------------------|-----------------|
+| CUST-004 | Solar PV household | **$40.02/mo · $480.24/yr · EcoFlex 100** | **$76.03/mo · $912.36/yr · Solar Feed-in (SOL)** | `plan_type: solar_fit` — rate 0.23, fit_rate 0.08, green_score 80 | Export credits move the needle; Cheapest is also the Greenest-adjacent track |
+| CUST-005 | EV household | **$35.00/mo · $420.00/yr · EcoFlex 100** | **$84.00/mo · $1008.00/yr · EV Time-of-Use (EV-TOU)** | `plan_type: time_of_use` — peak 0.40, offpeak 0.08, 30/70 split | Off-peak charging behaviour unlocks the biggest delta in the portfolio |
+| CUST-006 | Hardship persona | **$12.00/mo · $144.00/yr · EcoFlex 100** | **$22.00/mo · $264.00/yr · Value 12** | Flat-rate + `hardship_flag: true` PROFILE row | Data is seeded; hardship routing is Phase 14 scope — agent today still returns both tracks. Don't claim autonomy it doesn't have yet. |
+
+**SAV-03 still holds end-to-end** — live `aws lambda invoke` on CUST-001 on the re-frozen stack returns $30/$55 byte-exact (per 11-06-SUMMARY). The dispatcher refactor (flat-rate / TOU / solar_fit branches) did not regress v2.0 numbers.
+
 ### Talking points
 
 **Equal-cards framing (early, once, deliberately):**
@@ -283,7 +315,12 @@ npm run preview:mock --prefix ui
 What to say while you swap (keep talking, keep eye contact):
 > "We're running on a live AWS deployment today, which occasionally has a cold-start moment. Let me swap to our pre-built local mode so we can keep moving — the data and recommendations are identical; this is just a network-path substitution."
 
-The mock dist serves the same 3 personas with byte-identical dollar values AND narrative / call-script strings (Phase 8 mirrored Phase 6 fallbacks into the fixture byte-exact). Demo story unchanged.
+The mock dist serves the same 3 personas with byte-identical dollar values AND narrative / call-script strings (Phase 8 mirrored Phase 6 fallbacks into the fixture byte-exact). Demo story unchanged **for CUST-001/002/003**.
+
+> **Phase 11 caveat — mock dist does NOT cover CUST-004/005/006.** `ui/src/lib/mock/recommendations.ts` and `ui/src/personas.ts` still ship only the three flagship personas. If your demo story was built around the extended set (solar / EV / hardship) and the live stack fails, your recovery path is:
+> 1. Finish the current persona on live if it rendered — don't panic-swap mid-card.
+> 2. Swap to `build:mock`, but **pivot the narrative back to the flagship three**. Say something like: "Let me pull up a cleaner account to keep moving" — the audience won't notice the pivot; they will notice a blank card.
+> 3. Alternative: `?narrative=off` keeps the extended personas working from live but collapses the LLM layer. Good if the narrative layer is the thing broken, not the stack.
 
 **Do NOT attempt live debugging during the presentation.** If a fallback fires, the diagnosis happens post-demo.
 
@@ -367,6 +404,27 @@ All 15 rows of `10-VALIDATION.md` (`10-03-01` through `10-03-15`) re-run post-ce
 ### Reconciliation deploy done during ceremony
 
 Phase 7-02 (`c033836 feat(07-02): add live alias + conditional PC`) had landed in git but was never `cdk deploy`'d, so `cdk diff` failed at Task 3. Resolution: `cdk deploy CustomerTariff CustomerTariffApi -c demo_pc=0` to reconcile code ↔ deployed state, then re-gate. `demo_pc=0` keeps provisioned-concurrency billing at $0.
+
+### Phase 11 amendment — live-deploy of extended data layer (2026-04-28)
+
+After the v2.0 freeze held for two days, v3.0 Phase 11 required extending the CustomerTariff stack to add 3 personas, 2 tariff archetypes, a dispatcher refactor in `simulate_savings_pure`, and a PROFILE sentinel-SK row. Executed via the break-glass sequence above — **scoped to CustomerTariff only**; sibling stacks (CustomerTariffAgent, CustomerTariffApi) were not touched.
+
+| Step | What happened | Result |
+|------|--------------|--------|
+| 1. LIFT | `set-stack-policy foundation-allow-all.json` + `update-termination-protection --no-enable` on CustomerTariff only. Sibling stacks verified still byte-equal to their freeze JSONs. | Scoped lift; no sibling disturbance |
+| 2. DEPLOY | `cdk deploy CustomerTariff --require-approval never` with extended Tools Lambda (6-plan dispatcher + `get_hardship_flag_pure`), 6-plan `tariff_plans.json`, and `BillingSeeder-*-v2` phys-id bump for 73-row re-chunk | Stack UPDATE_COMPLETE |
+| 3. Post-deploy anomaly | `aws dynamodb scan --select COUNT` returned **59**, not 73. Seeder1 Update didn't re-fire its `batchWriteItem` call despite payload change (CDK `AwsCustomResource` phys-id-change semantics are subtler than the construct docstring implied). | 14-row deficit |
+| 4. Mitigation | Direct `aws dynamodb batch-write-item` backfill of the 14 missing rows (CUST-004 + CUST-005 months 2025-04/2025-05), payload byte-identical to what BillingSeeder1 would have written. `UnprocessedItems = {}`. | Scan Count = 73 |
+| 5. Live SAV-03 gate | `aws lambda invoke --function-name tariff-tools {"customer_id":"CUST-001"}` → Green ECO $30.00/$360.00, Cheapest VAL $55.00/$660.00 | Byte-exact preserved through dispatcher |
+| 6. REAPPLY | `set-stack-policy foundation-freeze.json` + `update-termination-protection --enable` on CustomerTariff. Policy diff against freeze JSON silent. | Byte-equal re-freeze; termination protection back on |
+| 7. VERIFY | `pytest tests/test_seeder_smoke.py -v` (AWS env) twice — once pre-REAPPLY, once post-REAPPLY | 12/12 PASS both times |
+
+**What this means for a presenter reading this post-Phase-11:**
+- The §3 T-48h verification block (Deny·Deny·Deny, termination protection true) still passes — this is the correct expected state.
+- The `demo-v2.0` git tag is unchanged. UI, API, and agent code are still frozen at that tag. Only the data layer + the Tools Lambda's pure-math dispatcher have evolved.
+- The original freeze DynamoDB backup (`01777208516554-e1bee933`) is a **36-row snapshot** and does NOT match live state. Restoring from it rolls the data layer back to v2.0.
+- **Future re-seed risk:** if the seed grows past another 25-item chunk boundary (75, 100, …) the same Seeder1-Update-doesn't-fire bug is likely to recur. Pattern to reuse: bump phys-id, deploy, scan count, and `batch-write-item` backfill any deficit rather than relying on CDK's phys-id-change machinery alone. Warning captured in `.planning/phases/11-new-personas-tariff-archetypes/11-REVIEW.md`.
+- **Not yet wired to the agent:** `get_hardship_flag_pure` exists as a pure helper in the Lambda, and the `hardship_flag: true` row for CUST-006 is in DynamoDB, but the API response is unchanged — hardship short-circuit routing is Phase 14 scope. Don't claim a hardship workflow in the demo until Phase 14 lands.
 
 ### Break-glass (if you ever need to unlock)
 
@@ -545,7 +603,9 @@ After teardown:
 |---------|-------------|-----------|--------|
 | First persona lookup spins >10s | AgentCore cold start; keepalive missed a window | Check keepalive pane for recent `ok` ticks | Fallback to `?narrative=off` or mock dist; don't wait |
 | Narrative text has a digit or `$` | Validator bypass or regex miss | Run §10 live eval gate | `?narrative=off` for demo; capture bodies post-demo |
-| Dollar values wrong for a persona | DynamoDB table content drift from v1.0 baseline | `aws dynamodb scan --table-name tariff-billing --profile cevo-dev25 --select COUNT` (expect 36) | Restore from freeze backup (§7 table), or hard rollback to `demo-v1.0` |
+| Dollar values wrong for a persona | DynamoDB table content drift from post-Phase-11 baseline | `aws dynamodb scan --table-name tariff-billing --profile cevo-dev25 --select COUNT` (expect **73** post-Phase 11; 36 is the pre-Phase-11 v2.0 shape) | If ≠73 but ≥36: seed re-chunk deficit — see §7 amendment step 4 (`batch-write-item` backfill). If ≤36: restore from freeze backup rolls to v2.0 data, hard rollback to `demo-v1.0` for tag parity |
+| Extended-persona lookup (CUST-004/005/006) returns 404 in mock mode | `build:mock` dist only covers the flagship 3 personas | `git describe --tags --exact-match` + check browser URL (`localhost:4174/?...`) | Pivot demo narrative back to CUST-001/002/003 (§5 caveat), or swap back to live preview if the live stack is healthy |
+| Live DynamoDB count is 59 (or any number between 36 and 73) | Seed re-chunk deficit — Seeder1 Update didn't re-fire its batchWriteItem after phys-id bump | `aws dynamodb scan --table-name tariff-billing --select COUNT --profile cevo-dev25` | `aws dynamodb batch-write-item` with the missing persona-month rows pulled from `DYNAMO_RECORDS` — documented pattern in §7 amendment |
 | Version indicator missing / shows wrong SHA | Wrong dist in `ui/dist/` | `grep 'v2.0 · ' ui/dist/assets/*.js` | Rebuild: `VITE_API_URL="$BACKEND_API_URL" npm run build --prefix ui` |
 | `?narrative=off` doesn't collapse the cards | Not on demo-v2.0; on demo-v1.0 (no narrative layer) | `git describe --tags --exact-match` | `git checkout demo-v2.0 && npm ci --prefix ui && rebuild` |
 | `cdk diff` no longer `== 0` | Something touched the stack post-freeze (D-13 violation) | Run §3 T-48h verification block | Decision: revert the change + redeploy, or accept drift for the demo |
@@ -674,4 +734,4 @@ If the email channel is more urgent (e.g., retention campaign pressure):
 
 ---
 
-*Last updated: 2026-04-27 after v2.0 milestone close. Pinned to `demo-v2.0` (freeze target) + `v2.0` (milestone close). If you are reading this past demo day and see drift between what the runbook describes and what actually exists, trust `git describe --tags` and the live `aws cloudformation describe-stacks` state first, this document second.*
+*Last updated: 2026-04-28 after v3.0 Phase 11 (New Personas + Tariff Archetypes) completed and re-froze the CustomerTariff stack. Code pinned to `demo-v2.0` (freeze target) + `v2.0` (milestone close); data layer extended to 73 rows / 6 personas / 6 tariff archetypes on top. If you are reading this past demo day and see drift between what the runbook describes and what actually exists, trust `git describe --tags` and the live `aws cloudformation describe-stacks` state first, this document second.*
