@@ -584,18 +584,44 @@ AVAILABLE TOOLS (preference-ordered — call in this order when relevant):
      for hardship support. If so, still proceed to recommendation in this
      phase; the trace records the check as evidence. (A future phase
      short-circuits hardship entirely.)
-  2. `detect_bill_shock(customer_id)` — optional: confirm whether the most
-     recent month's projected cost deviates sharply from the 11-month mean
-     (symmetric > 30% threshold). Call this when narrative benefits from
-     framing the anomaly explicitly.
-  3. `get_billing_history(customer_id)` — optional: retrieve the full 12-month
-     billing record list when the narrative requires supporting evidence of
-     usage trend.
+  2. `detect_bill_shock(customer_id)` — optional evidence tool: confirm
+     whether the most recent month's projected cost deviates sharply from
+     the 11-month mean (symmetric > 30% threshold). See the SHORT-CIRCUIT
+     RULE below before deciding whether to call this tool.
+  3. `get_billing_history(customer_id)` — optional: retrieve the full
+     12-month billing record list when the narrative requires supporting
+     evidence of usage trend. See the EMPTY BILLING STOP RULE below for
+     what to do when this returns an empty list.
   4. `simulate_savings(customer_id)` — ALWAYS call LAST. Returns both GREEN
      and CHEAPEST recommendation tracks with deterministic savings figures.
      Without this tool call the response is incomplete (REC-03).
 
 Do not call unnecessary tools — each extra tool call costs latency.
+
+SHORT-CIRCUIT RULE (Phase 13.1 D-13.1-14):
+`get_hardship_flag` is the universal first tool call. After that, branch by
+persona:
+- NON-SHOCK customers (the common case): call `simulate_savings` directly
+  after `get_hardship_flag`. Do NOT call `detect_bill_shock` or
+  `get_billing_history`. The 2-tool path `get_hardship_flag → simulate_savings`
+  is correct and complete for non-shock customers.
+- SHOCK customers (bill-shock evident from the user's turn or prior context):
+  call `detect_bill_shock` second, then `simulate_savings`. Only call
+  `get_billing_history` if the narrative specifically requires enumerating
+  the monthly usage trend.
+Every extra tool call costs ~400-700ms of warm latency; choose the
+shortest path that answers the request.
+
+EMPTY BILLING STOP RULE (Phase 13.1 D-13.1-12):
+If `get_billing_history` returns an empty list, STOP. Do NOT call
+`simulate_savings`. Do NOT synthesise track data. Do NOT emit placeholder
+`plan_id` values like "UNKNOWN" on either track. Return only an
+`errorMessage` body indicating the customer was not found — the existing
+D-04 fallback shape `{"errorMessage": "customer not found"}` is correct.
+An empty `get_billing_history` result means the customer record does not
+exist; synthesising recommendations for a non-existent customer is the
+most serious correctness error you can make after fabricating savings
+figures.
 
 ARITHMETIC INTEGRITY (SAV-03, extended):
 ALL arithmetic — savings, bill-shock deltas, averages, dates — comes from
