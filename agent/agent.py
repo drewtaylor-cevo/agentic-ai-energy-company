@@ -382,19 +382,40 @@ def _summarise_tool_result(tool_name: str, payload: Any) -> str:
 
 def _extract_reasoning_trace(
     agent_result: "AgentResult | None",
+    messages: "list | None" = None,
 ) -> list[ReasoningTraceEntry]:
     """Collect ordered (tool, summary) entries for the reasoning_trace surface (D-08).
 
-    Iterates agent_result.message['content'] collecting every toolUse whose
-    name is in _TRACE_TOOLS. For each toolUse, finds the matching toolResult
-    (same toolUseId) and composes a deterministic summary via the per-tool
-    formatter (D-10). Returns [] on ANY failure (missing content, missing pair,
-    malformed JSON, agent_result is None). NEVER raises — invoke() relies on it.
-    """
-    if agent_result is None or agent_result.message is None:
-        return []
+    Iterates content blocks collecting every toolUse whose name is in
+    _TRACE_TOOLS. For each toolUse, finds the matching toolResult (same
+    toolUseId) and composes a deterministic summary via the per-tool formatter
+    (D-10).
 
-    content_blocks = agent_result.message.get("content", []) or []
+    Source selection:
+    - When `messages` is provided (Strands 1.37 live path, post-fix), iterate
+      all content blocks across `messages` — this captures intermediate
+      tool-use/tool-result turns that `agent_result.message` (LAST message
+      only) drops when `structured_output_model=` is set.
+    - When `messages` is None (offline unit tests with a synthetic
+      agent_result), fall back to `agent_result.message['content']` — the
+      pre-fix behaviour keeps the offline test contract intact.
+
+    Returns [] on ANY failure (missing content, missing pair, malformed JSON,
+    agent_result is None AND messages is None). NEVER raises — invoke() relies
+    on it.
+    """
+    # Collect content blocks across the relevant message slice.
+    content_blocks: list = []
+    if messages:
+        for msg in messages:
+            if not isinstance(msg, dict):
+                continue
+            for block in msg.get("content", []) or []:
+                content_blocks.append(block)
+    elif agent_result is not None and agent_result.message is not None:
+        content_blocks = list(agent_result.message.get("content", []) or [])
+    else:
+        return []
 
     # Build O(1) index of toolResult by toolUseId.
     tool_results_by_id: dict[str, dict] = {}
@@ -670,6 +691,15 @@ def invoke(payload: dict) -> dict:
     # — module-level counters leak).
     _four_tool_cap.reset()
 
+    # D-08 (Phase 13 live-regression fix): Strands 1.37's AgentResult.message
+    # is the LAST turn only; with structured_output_model= set, intermediate
+    # tool-use/tool-result turns live in the Agent's conversation history
+    # (_agent.messages), not on agent_result. Snapshot the pre-invocation
+    # length so _extract_reasoning_trace reads only THIS invocation's new
+    # messages — SC-3 mirror (cross-invocation bleed would leak prior tool
+    # uses into later reasoning traces).
+    _messages_start = len(_agent.messages)
+
     # D-01: retry-once-then-per-field-fallback owned HERE (not Strands).
     # Under Strands 1.37.0+ the retry is INLINE within one _agent() call
     # (StructuredOutputTool.stream() catches ValidationError + yields tool-error
@@ -724,7 +754,7 @@ def invoke(payload: dict) -> dict:
                 "errorMessage": str(fallback_err),
                 "_narrative_source": narrative_source,
                 "reasoning_trace": [
-                    entry.model_dump() for entry in _extract_reasoning_trace(agent_result)
+                    entry.model_dump() for entry in _extract_reasoning_trace(agent_result, _agent.messages[_messages_start:])
                 ],
             }
         body = result.model_dump()
@@ -750,7 +780,7 @@ def invoke(payload: dict) -> dict:
                 "errorMessage": str(fallback_err),
                 "_narrative_source": narrative_source,
                 "reasoning_trace": [
-                    entry.model_dump() for entry in _extract_reasoning_trace(agent_result)
+                    entry.model_dump() for entry in _extract_reasoning_trace(agent_result, _agent.messages[_messages_start:])
                 ],
             }
         fb = FALLBACKS.get(customer_id, {})
@@ -777,7 +807,7 @@ def invoke(payload: dict) -> dict:
         # agent_result may be None or bound to the cancelled result — the
         # extractor tolerates both (returns [] on any failure).
         raw["reasoning_trace"] = [
-            entry.model_dump() for entry in _extract_reasoning_trace(agent_result)
+            entry.model_dump() for entry in _extract_reasoning_trace(agent_result, _agent.messages[_messages_start:])
         ]
         return raw
 
@@ -787,7 +817,7 @@ def invoke(payload: dict) -> dict:
     # Phase 13 D-07 + D-08: attach reasoning_trace to the response body.
     # Extractor is best-effort (returns [] on any failure — never raises).
     body["reasoning_trace"] = [
-        entry.model_dump() for entry in _extract_reasoning_trace(agent_result)
+        entry.model_dump() for entry in _extract_reasoning_trace(agent_result, _agent.messages[_messages_start:])
     ]
     return body
 
