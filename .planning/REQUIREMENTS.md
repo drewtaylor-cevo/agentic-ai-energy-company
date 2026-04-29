@@ -38,10 +38,10 @@ Continues numbering from v1.0 and v2.0. All validated requirements from v1.0/v2.
 
 ### Production Shape (PROD)
 
-- [ ] **PROD-01**: `CustomerDataProvider` Protocol defined at `agent/providers.py` with methods `get_customer`, `get_billing_history`, `get_hardship_flag` (three methods only — no consent/audit/circuit-breaker in v3.0)
-- [ ] **PROD-01a**: DynamoDB implementation of the Protocol replaces direct table access in the agent-side call path (tool-side Tools Lambda stays DynamoDB-direct — bi-mode import pattern preserved)
-- [ ] **PROD-01b**: InMemory test-double implementation of the Protocol exists and is used by offline tests; existing byte-exact persona savings fixtures in `tests/conftest.py` continue to pass unchanged
-- [ ] **PROD-01c**: `NotImplementedError` Salesforce-shaped stub implementation committed as presenter artefact (referenced by DOC-03)
+- [x] **PROD-01**: `CustomerDataProvider` Protocol defined at `agent/providers.py` with methods `get_customer`, `get_billing_history`, `get_hardship_flag` (three methods only — no consent/audit/circuit-breaker in v3.0)
+- [x] **PROD-01a**: DynamoDB implementation of the Protocol replaces direct table access in the agent-side call path (tool-side Tools Lambda stays DynamoDB-direct — bi-mode import pattern preserved)
+- [x] **PROD-01b**: InMemory test-double implementation of the Protocol exists and is used by offline tests; existing byte-exact persona savings fixtures in `tests/conftest.py` continue to pass unchanged
+- [x] **PROD-01c**: `NotImplementedError` Salesforce-shaped stub implementation committed as presenter artefact (referenced by DOC-03)
 
 ### Presenter Artefacts (DOC)
 
@@ -129,10 +129,10 @@ Which phases cover which requirements. Filled by gsd-roadmapper on 2026-04-28.
 | DATA-07 | Phase 11 | Complete |
 | REC-04 | Phase 11 | Complete |
 | REC-05 | Phase 11 | Complete |
-| PROD-01 | Phase 12 | Pending |
-| PROD-01a | Phase 12 | Pending |
-| PROD-01b | Phase 12 | Pending |
-| PROD-01c | Phase 12 | Pending |
+| PROD-01 | Phase 12 | Complete |
+| PROD-01a | Phase 12 | Complete |
+| PROD-01b | Phase 12 | Complete |
+| PROD-01c | Phase 12 | Complete |
 | AGENT-01 | Phase 13 | Pending |
 | AGENT-01a | Phase 13 | Pending |
 | AGENT-01b | Phase 13 | Pending |
