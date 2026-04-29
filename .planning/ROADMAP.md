@@ -112,12 +112,12 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 **Goal:** Close the two P0 regressions surfaced in 13-VERIFICATION.md — (Gap 1) non-shock personas drop to a 2-tool flow via a prompt SHORT-CIRCUIT RULE in `_BASE_SYSTEM_PROMPT` so warm-p95 for CUST-001/002 lands under the 3000ms per-flow gate (mechanism fix only per D-13.1-02; 2500ms Elena multi-tool gate may remain a verification finding); and (Gap 2) customer-not-found detection restored via a prompt EMPTY BILLING STOP RULE plus a defence-in-depth `plan_id == "UNKNOWN"` sentinel at `api_lambda/handler.py:152`. Ceremony is a scoped 2-stack lift (`CustomerTariffAgent` + `CustomerTariffApi`); `CustomerTariff` foundation untouched per D-13.1-11.
 **Requirements**: AGENT-01a, LD-4, D-12 (per CONTEXT.md; ROADMAP entry originally marked TBD)
 **Depends on:** Phase 13
-**Plans:** 5 plans
+**Plans:** 2/5 plans executed
 
 Plans:
-- [ ] 13.1-01-PLAN.md — Amend `_BASE_SYSTEM_PROMPT` with SHORT-CIRCUIT + EMPTY BILLING STOP clauses (D-13.1-12, D-13.1-14)
+- [x] 13.1-01-PLAN.md — Amend `_BASE_SYSTEM_PROMPT` with SHORT-CIRCUIT + EMPTY BILLING STOP clauses (D-13.1-12, D-13.1-14)
 - [ ] 13.1-02-PLAN.md — Offline regression guards: `MockedModelProvider(Model)` + `TestShortCircuit` + `TestEmptyBillingStop` + `TestCrossPersonaCanary` shape extension (D-13.1-03/04/09/15)
-- [ ] 13.1-03-PLAN.md — `api_lambda/handler.py:152` UNKNOWN sentinel + offline handler tests + live 2-tool smoke canary (D-13.1-06/08/13/16)
+- [x] 13.1-03-PLAN.md — `api_lambda/handler.py:152` UNKNOWN sentinel + offline handler tests + live 2-tool smoke canary (D-13.1-06/08/13/16)
 - [ ] 13.1-04-PLAN.md — 2-stack lift-deploy-refreeze ceremony + byte-equivalence gate + close-gate smokes + prewarm (D-13.1-05/11/17/18/19; autonomous: false)
 - [ ] 13.1-05-PLAN.md — CLAUDE.md + DEMO-RUNBOOK.md addenda with post-ceremony latency numbers (D-13.1-20/21)
 
