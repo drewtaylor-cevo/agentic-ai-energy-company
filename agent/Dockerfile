@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY agent.py .
 COPY providers.py .
 COPY narrative/ ./narrative/
+COPY reasoning/ ./reasoning/
 
 EXPOSE 8080
 

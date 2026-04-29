@@ -10,6 +10,7 @@ It NEVER performs arithmetic — all numbers come from the tool (SAV-03).
 import json
 import os
 import logging
+from typing import Any
 
 import boto3
 from pydantic import BaseModel, Field, ValidationError
@@ -70,6 +71,25 @@ except ImportError:  # pragma: no cover - hit only in offline test repo layout
         get_provider,
     )
 
+# Phase 13 D-10: deterministic tool-result summary formatters for reasoning_trace.
+# Bi-mode import: in the AgentCore container `/app/reasoning/` is a top-level
+# package (agent/Dockerfile COPYs it there); in the repo layout it is
+# `agent/reasoning/`. Matches the narrative/ + providers.py precedent.
+try:
+    from reasoning.summaries import (
+        summary_detect_bill_shock,
+        summary_get_billing_history,
+        summary_get_hardship_flag,
+        summary_simulate_savings,
+    )
+except ImportError:  # pragma: no cover - hit only in offline test repo layout
+    from agent.reasoning.summaries import (
+        summary_detect_bill_shock,
+        summary_get_billing_history,
+        summary_get_hardship_flag,
+        summary_simulate_savings,
+    )
+
 logger = logging.getLogger(__name__)
 
 # --- Environment (injected by CDK) ---
@@ -113,10 +133,29 @@ class TrackInfo(BaseModel):
     _validate_call_script = validate_call_script
 
 
+class ReasoningTraceEntry(BaseModel):
+    """Phase 13 D-07: one entry in the reasoning_trace surface.
+
+    D-11 EXEMPTION: `summary` intentionally contains digits, currency ($),
+    dates, and percentages — it is code-composed by agent/reasoning/summaries.py
+    from deterministic tool outputs. DO NOT apply `_reject_forbidden`,
+    `validate_usage_narrative`, `validate_call_script`, or any D-15-family
+    narrative validator to `summary`. Counter-pytest in tests/test_schema.py
+    locks this exemption — delete that test only if removing the field.
+    """
+    tool: str = Field(description="Tool name (e.g. 'detect_bill_shock')")
+    summary: str = Field(description="Code-composed summary of the tool result")
+    # No field validators on summary — D-11 exemption locked.
+
+
 class RecommendationResponse(BaseModel):
     """Dual-track tariff recommendation — both tracks always present."""
     green: TrackInfo = Field(description="Most energy-efficient (green) plan recommendation")
     cheapest: TrackInfo = Field(description="Lowest projected cost plan recommendation")
+    # Phase 13 D-07 — PUBLIC field; NOT stripped by api_lambda/handler.py.
+    # Default empty list: single-tool turns (CUST-001/004/005) return [];
+    # multi-tool turns (CUST-003) return 2-3 entries.
+    reasoning_trace: list[ReasoningTraceEntry] = Field(default_factory=list)
 
 
 # --- Lenient salvage schema (retry path only — per-field fallback per D-02) ---
@@ -258,6 +297,99 @@ def _extract_lenient_from_agent_result(
             except Exception:  # noqa: BLE001 — best-effort salvage
                 return None
     return None
+
+
+# --- Reasoning-trace extractor (Phase 13 D-08) ---
+#
+# Mirrors _extract_lenient_from_agent_result structurally, but iterates
+# content[] forward (order-preserving) and pairs toolUse with toolResult by
+# toolUseId. Returns [] on ANY failure (missing content, missing pair,
+# malformed JSON, agent_result is None). Never raises — the @app.entrypoint
+# invoke() depends on this discipline.
+_TRACE_TOOLS = {
+    "detect_bill_shock",
+    "get_billing_history",
+    "get_hardship_flag",
+    "simulate_savings",
+}
+
+
+def _summarise_tool_result(tool_name: str, payload: Any) -> str:
+    """Dispatch to the deterministic per-tool formatter (D-10, SAV-03)."""
+    if tool_name == "detect_bill_shock":
+        return summary_detect_bill_shock(payload)
+    if tool_name == "get_billing_history":
+        return summary_get_billing_history(payload)
+    if tool_name == "get_hardship_flag":
+        return summary_get_hardship_flag(payload)
+    if tool_name == "simulate_savings":
+        return summary_simulate_savings(payload)
+    # Unknown tool: produce a generic one-liner rather than raising.
+    return f"{tool_name} called"
+
+
+def _extract_reasoning_trace(
+    agent_result: "AgentResult | None",
+) -> list[ReasoningTraceEntry]:
+    """Collect ordered (tool, summary) entries for the reasoning_trace surface (D-08).
+
+    Iterates agent_result.message['content'] collecting every toolUse whose
+    name is in _TRACE_TOOLS. For each toolUse, finds the matching toolResult
+    (same toolUseId) and composes a deterministic summary via the per-tool
+    formatter (D-10). Returns [] on ANY failure (missing content, missing pair,
+    malformed JSON, agent_result is None). NEVER raises — invoke() relies on it.
+    """
+    if agent_result is None or agent_result.message is None:
+        return []
+
+    content_blocks = agent_result.message.get("content", []) or []
+
+    # Build O(1) index of toolResult by toolUseId.
+    tool_results_by_id: dict[str, dict] = {}
+    for block in content_blocks:
+        if not isinstance(block, dict):
+            continue
+        tool_result = block.get("toolResult")
+        if tool_result and isinstance(tool_result, dict):
+            tool_use_id = tool_result.get("toolUseId")
+            if isinstance(tool_use_id, str):
+                tool_results_by_id[tool_use_id] = tool_result
+
+    entries: list[ReasoningTraceEntry] = []
+    for block in content_blocks:
+        if not isinstance(block, dict):
+            continue
+        tool_use = block.get("toolUse") or block.get("tool_use")
+        if not tool_use:
+            continue
+        name = tool_use.get("name")
+        if name not in _TRACE_TOOLS:
+            continue
+        tool_use_id = tool_use.get("toolUseId")
+        result_block = tool_results_by_id.get(tool_use_id)
+        if result_block is None:
+            continue
+        try:
+            # Prefer structured json content; fall back to json.loads(text).
+            result_payload = None
+            for rc in result_block.get("content", []) or []:
+                if "json" in rc:
+                    result_payload = rc["json"]
+                    break
+                if "text" in rc:
+                    try:
+                        result_payload = json.loads(rc["text"])
+                        break
+                    except (TypeError, ValueError):
+                        continue
+            if result_payload is None:
+                continue
+            summary = _summarise_tool_result(name, result_payload)
+            entries.append(ReasoningTraceEntry(tool=name, summary=summary))
+        except Exception:  # noqa: BLE001 — best-effort extraction
+            continue
+
+    return entries
 
 
 # --- Tool definition ---
