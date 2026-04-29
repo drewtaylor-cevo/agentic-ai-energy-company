@@ -96,13 +96,13 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
   4. Code-enforced 4-tool cap (e.g. `Agent(max_iterations=4)` or equivalent Strands configuration) short-circuits runaway tool loops — pytest asserts the cap triggers on a crafted "infinite delegator" prompt and returns a graceful fallback, never a 500 (D-04 preserved).
   5. UI `ReasoningTrace` component renders the trace collapsed by default; at 1280×800 viewport both recommendation cards remain above the fold (UI-01 preserved, measurable via vitest snapshot or operator rehearsal).
 **Plans**: 9 plans
-  - [ ] 13-01-PLAN.md — Tools Lambda: detect_bill_shock_pure + dispatcher branch + offline unit tests
-  - [ ] 13-02-PLAN.md — Agent schema: ReasoningTraceEntry + reasoning_trace field + _extract_reasoning_trace + agent/reasoning/summaries.py + Dockerfile COPY + D-11 counter-pytest
-  - [ ] 13-03-PLAN.md — 3 new @tool wrappers (detect_bill_shock, get_billing_history, get_hardship_flag) + extended _BASE_SYSTEM_PROMPT (D-23 preference-ordered graph)
-  - [ ] 13-04-PLAN.md — FourToolCapHook (Strands HookProvider, A-02 amendment — NOT max_iterations) + stop_reason=cancelled branch + reasoning_trace happy-path + partial-trace on D-04 fallback
-  - [ ] 13-05-PLAN.md — Cross-persona canary (D-20: Elena shock vs Marcus non-shock foil per A-01) + api_lambda pass-through tests (D-12)
-  - [ ] 13-06-PLAN.md — UI ReasoningTrace.tsx + 6 vitest D-30 cases + App.tsx insertion + mock byte-sync with Python formatters
-  - [ ] 13-07-PLAN.md — scripts/prewarm.py per-flow gate map + 3-pass warming (A-03) + D-19 latency floor + D-21 CloudWatch counter + A-03 sighting-shot operator gate
+  - [x] 13-01-PLAN.md — Tools Lambda: detect_bill_shock_pure + dispatcher branch + offline unit tests
+  - [x] 13-02-PLAN.md — Agent schema: ReasoningTraceEntry + reasoning_trace field + _extract_reasoning_trace + agent/reasoning/summaries.py + Dockerfile COPY + D-11 counter-pytest
+  - [x] 13-03-PLAN.md — 3 new @tool wrappers (detect_bill_shock, get_billing_history, get_hardship_flag) + extended _BASE_SYSTEM_PROMPT (D-23 preference-ordered graph)
+  - [x] 13-04-PLAN.md — FourToolCapHook (Strands HookProvider, A-02 amendment — NOT max_iterations) + stop_reason=cancelled branch + reasoning_trace happy-path + partial-trace on D-04 fallback
+  - [x] 13-05-PLAN.md — Cross-persona canary (D-20: Elena shock vs Marcus non-shock foil per A-01) + api_lambda pass-through tests (D-12)
+  - [x] 13-06-PLAN.md — UI ReasoningTrace.tsx + 6 vitest D-30 cases + App.tsx insertion + mock byte-sync with Python formatters
+  - [x] 13-07-PLAN.md — scripts/prewarm.py per-flow gate map + 3-pass warming (A-03) + D-19 latency floor + D-21 CloudWatch counter + A-03 sighting-shot operator gate
   - [ ] 13-08-PLAN.md — Stack-policy lift ceremony (2-3 stacks per cdk diff) + baseline/pre+post capture + byte-equivalence gate + re-apply freeze (autonomous: false)
   - [ ] 13-09-PLAN.md — CLAUDE.md addendum (D-11 exemption, D-15 cap routing, D-22 Strands pin) + DEMO-RUNBOOK.md Marcus→Elena swap
 **Invariant ownership**: SAV-03 (extended — every new arithmetic tool stays pure Python in Tools Lambda), UI-01 (collapsed trace = zero vertical cost), UI-02 (per-flow prewarm gate replaces v2.0 global 3000ms gate), D-04 (4-tool-cap fallback path), `_narrative_source` pattern extension (`_reasoning_trace` or public `reasoning_trace` — API Lambda pass-through contract must be explicit).
@@ -176,7 +176,7 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 | 10. Freeze + Rollback Drill | v2.0 | 3/3 | ✓ Complete | 2026-04-26 |
 | 11. New Personas + Tariff Archetypes | v3.0 | 6/6 | Complete    | 2026-04-28 |
 | 12. CustomerDataProvider Abstraction | v3.0 | 6/6 | Complete    | 2026-04-29 |
-| 13. Bill-Shock Multi-Tool Flow (AGENT-01) | v3.0 | 0/9 | Planned | — |
+| 13. Bill-Shock Multi-Tool Flow (AGENT-01) | v3.0 | 7/9 | In Progress|  |
 | 14. Hardship Short-Circuit (AGENT-02) | v3.0 | 0/? | Not started | — |
 | 15. Draft Follow-Up Email via AgentCore Memory (WF-01) | v3.0 | 0/? | Not started | — |
 | 16. Presenter Artefacts + Operational Consolidation | v3.0 | 0/? | Not started | — |
