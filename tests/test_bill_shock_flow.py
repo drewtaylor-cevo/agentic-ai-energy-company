@@ -80,3 +80,103 @@ class TestDetectBillShockPure:
         result_rev = detect_bill_shock_pure(reversed_billing)
         assert result_asc == result_rev
         assert result_rev["shock_month"] == "2025-10"
+
+
+class TestDetectBillShockDispatcher:
+    """Phase 12 dispatcher extension — D-04 action routing for detect_bill_shock.
+
+    Option C pattern (per 13-PATTERNS.md recommendation): monkey-patch
+    handler.get_billing_history to return the fixture list directly. Keeps the
+    dispatcher test free of DynamoDB / moto setup and focused on action-branch
+    routing + input validation.
+    """
+
+    def test_action_routes_to_helper(self, monkeypatch, elena_billing):
+        """Happy path: detect_bill_shock branch reuses get_billing_history +
+        detect_bill_shock_pure; Elena trips with shock_month=2025-10."""
+        monkeypatch.setattr(handler, "get_billing_history", lambda ev, ctx: elena_billing)
+        # handler.table is consulted for a non-None guard before the helper runs.
+        monkeypatch.setattr(handler, "table", object())
+        result = dispatcher(
+            {"action": "detect_bill_shock", "customer_id": "CUST-003"}, None
+        )
+        assert result["is_shock"] is True
+        assert result["shock_month"] == "2025-10"
+        assert set(result.keys()) == {
+            "is_shock", "delta_dollars", "shock_month",
+            "mean_dollars", "current_dollars",
+        }
+
+    def test_marcus_routed_returns_no_shock(self, monkeypatch, marcus_billing):
+        """Non-shock persona routed through dispatcher returns is_shock=False."""
+        monkeypatch.setattr(handler, "get_billing_history", lambda ev, ctx: marcus_billing)
+        monkeypatch.setattr(handler, "table", object())
+        result = dispatcher(
+            {"action": "detect_bill_shock", "customer_id": "CUST-002"}, None
+        )
+        assert result["is_shock"] is False
+
+    def test_invalid_customer_id_raises(self, monkeypatch):
+        monkeypatch.setattr(handler, "table", object())
+        with pytest.raises(ValueError):
+            dispatcher({"action": "detect_bill_shock", "customer_id": "not-a-cust"}, None)
+
+    def test_missing_customer_id_raises(self, monkeypatch):
+        monkeypatch.setattr(handler, "table", object())
+        with pytest.raises(ValueError):
+            dispatcher({"action": "detect_bill_shock"}, None)
+
+    def test_non_string_customer_id_raises(self, monkeypatch):
+        monkeypatch.setattr(handler, "table", object())
+        with pytest.raises(ValueError):
+            dispatcher({"action": "detect_bill_shock", "customer_id": 123}, None)
+
+    def test_table_not_configured_raises_runtime_error(self, monkeypatch):
+        """SAV-03 / D-04 companion: Tools Lambda must fail fast when TABLE_NAME
+        is not configured — no silent fallback to an empty billing list."""
+        monkeypatch.setattr(handler, "table", None)
+        with pytest.raises(RuntimeError, match="TABLE_NAME"):
+            dispatcher(
+                {"action": "detect_bill_shock", "customer_id": "CUST-003"}, None
+            )
+
+    def test_existing_simulate_savings_branch_still_routes(self, monkeypatch):
+        """Regression: Plan 01 must not break Phase 12 D-02 dispatch."""
+        called = {}
+
+        def fake_simulate_savings(ev, ctx):
+            called["hit"] = True
+            return {"green": {}, "cheapest": {}}
+
+        monkeypatch.setattr(handler, "simulate_savings", fake_simulate_savings)
+        dispatcher({"action": "simulate_savings", "customer_id": "CUST-001"}, None)
+        assert called["hit"] is True
+
+    def test_existing_get_billing_history_branch_still_routes(
+        self, monkeypatch, marcus_billing
+    ):
+        """Regression: Phase 11 D-21 get_billing_history branch unchanged."""
+        called = {}
+
+        def fake_get_billing_history(ev, ctx):
+            called["hit"] = True
+            return marcus_billing
+
+        monkeypatch.setattr(handler, "get_billing_history", fake_get_billing_history)
+        result = dispatcher(
+            {"action": "get_billing_history", "customer_id": "CUST-002"}, None
+        )
+        assert called["hit"] is True
+        assert result == marcus_billing
+
+    def test_action_less_back_compat_still_routes_to_simulate_savings(self, monkeypatch):
+        """Phase 12 D-05 back-compat: action-less event → simulate_savings."""
+        called = {}
+
+        def fake_simulate_savings(ev, ctx):
+            called["hit"] = True
+            return {"green": {}, "cheapest": {}}
+
+        monkeypatch.setattr(handler, "simulate_savings", fake_simulate_savings)
+        dispatcher({"customer_id": "CUST-001"}, None)  # no "action" key
+        assert called["hit"] is True
