@@ -1,0 +1,18 @@
+{
+  "cheapest": {
+    "call_script": "Bring up Value Twelve \u2014 a cost-led plan that fits well with your established usage profile.",
+    "plan_id": "VAL",
+    "plan_name": "Value 12",
+    "saving_annual": 660.0,
+    "saving_monthly": 55.0,
+    "usage_narrative": "Established high-use household with consistent seasonal demand and a cost-conscious usage pattern."
+  },
+  "green": {
+    "call_script": "Ask about EcoFlex \u2014 an eco-aligned plan well suited to your winter-heavy family home.",
+    "plan_id": "ECO",
+    "plan_name": "EcoFlex 100",
+    "saving_annual": 360.0,
+    "saving_monthly": 30.0,
+    "usage_narrative": "Established high-use household with a strong winter-heavy and eco-aligned energy profile."
+  }
+}
