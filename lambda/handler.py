@@ -286,6 +286,15 @@ def handler(event: Dict[str, Any], context) -> Any:
             raise RuntimeError("TABLE_NAME env var not set — Lambda misconfigured")
         return get_hardship_flag_pure(customer_id, table)
 
+    if action == "detect_bill_shock":
+        # Phase 13 D-04: validate customer_id, reuse get_billing_history's
+        # PROFILE-filter + ASC sort (D-21), then hand off to the pure helper.
+        customer_id = _validate_customer_id(event.get("customer_id"))
+        if table is None:
+            raise RuntimeError("TABLE_NAME env var not set — Lambda misconfigured")
+        billing = get_billing_history({"customer_id": customer_id}, context)
+        return detect_bill_shock_pure(billing)
+
     if action == "get_customer":
         # Phase 12 stub — Phase 13/14 may extend the shape (CONTEXT §Claude's Discretion).
         customer_id = _validate_customer_id(event.get("customer_id"))
