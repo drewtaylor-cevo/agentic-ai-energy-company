@@ -44,9 +44,22 @@ Mirrors DEMO-RUNBOOK §7 Phase 11 amendment pattern.
 
 **Decision: proceed to Task 3 (lift + deploy CustomerTariffAgent).** `CustomerTariff` stack policy stays Allow-all until Task 5.
 
-## Task 3 — LIFT + DEPLOY CustomerTariffAgent
+## Task 3 — LIFT + DEPLOY CustomerTariffAgent (PASS 2026-04-28)
 
-(pending)
+| Step | Timestamp (UTC) | Command | Output | Result |
+|------|-----------------|---------|--------|--------|
+| A. LIFT | 2026-04-28T23:56:37Z | `aws cloudformation set-stack-policy --stack-name CustomerTariffAgent --stack-policy-body file://infrastructure/stack-policies/agentcore-allow-all.json` + `update-termination-protection --no-enable-termination-protection` | Policy `Effect: Allow`; `EnableTerminationProtection: False` | ✓ Lifted |
+| B. DEPLOY | 2026-04-28T23:57:27Z | `cdk deploy CustomerTariffAgent --require-approval never` | Docker build 7-step (CACHED for pip install; fresh `COPY providers.py .` at step 6/7). Image sha256:1e91715a8ee6141635d06cc34922c0ff667476266a449c2ca16f063925f3ad4b pushed to `cdk-hnb659fds-container-assets-...us-east-1`. Stack UPDATE_COMPLETE at 9:58:24am. AgentRuntime version 10. | ✓ UPDATE_COMPLETE, container rebuilt |
+| C. Container bi-mode primary branch | 2026-04-29T00:06Z | `docker run --entrypoint python --platform linux/arm64 <image> -c "from providers import CustomerDataProvider, ..."` | `OK: container /app/providers.py importable` | ✓ ROADMAP SC #5 |
+| C. Container layout sanity | 2026-04-29T00:07Z | `docker run --entrypoint sh <image> -c "ls -la /app/ && python -c 'import providers; print(providers.__file__)'"` | `/app/` contains `agent.py` (17.9KB), `providers.py` (9.2KB), `narrative/`, `requirements.txt`. `providers.__file__` = `/app/providers.py` | ✓ Layout correct |
+| C. Repo bi-mode except-branch | 2026-04-29T00:07Z | `python3 -c "from agent.providers import ..."` | `OK: repo agent/providers.py importable` | ✓ Both branches green |
+
+**Image URI (for traceability):**
+```
+588738606436.dkr.ecr.us-east-1.amazonaws.com/cdk-hnb659fds-container-assets-588738606436-us-east-1:6ab35767fdf1b72c7b7b6252dbd96e44b4232276966ec2834eb26df1a1b1ecff
+```
+
+**Decision: proceed to Task 4 (post-capture + byte-equality gate).** Both CustomerTariff and CustomerTariffAgent stack policies remain Allow-all until Task 5.
 
 ## Task 4 — Post-Capture + Byte-Equality Gate
 
