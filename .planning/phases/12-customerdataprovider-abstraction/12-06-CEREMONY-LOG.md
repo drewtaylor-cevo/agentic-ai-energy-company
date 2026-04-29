@@ -2,7 +2,8 @@
 phase: 12-customerdataprovider-abstraction
 plan: 06
 artifact: ceremony-log
-status: in-progress
+status: complete
+completed: 2026-04-29T00:24:27Z
 ---
 
 # Phase 12 Plan 06 — Stack-Policy Lift → Deploy → Re-apply Ceremony
@@ -107,6 +108,48 @@ This is the load-bearing phase-close gate (D-06, D-08, SAV-03).
 
 **Decision: proceed to Task 6 (ceremony close — public API smoke test).**
 
-## Task 6 — Ceremony Close
+## Task 6 — Ceremony Close (PASS 2026-04-29)
 
-(pending)
+End-to-end public API smoke + final freeze state verification.
+
+| Step | Timestamp (UTC) | Command | Output | Result |
+|------|-----------------|---------|--------|--------|
+| A. CUST-001 via public API | 2026-04-29T00:22:42Z | `curl -s $BACKEND_API_URL/recommendations/CUST-001` | `green: {plan_id: ECO, plan_name: EcoFlex 100, saving_monthly: 30.0, saving_annual: 360.0, usage_narrative: "...", call_script: "..."}`; `cheapest: {plan_id: VAL, plan_name: Value 12, saving_monthly: 55.0, saving_annual: 660.0, usage_narrative: "...", call_script: "..."}` | ✓ Byte-exact + D-15 narrative dual-gate intact end-to-end |
+| B. CUST-006 via public API | 2026-04-29T00:23:47Z | `curl -s $BACKEND_API_URL/recommendations/CUST-006` | `green: saving_monthly=12.0`; `cheapest: saving_monthly=22.0`; both tracks returned with narrative | ✓ Phase 14 hardship short-circuit correctly NOT yet shipped |
+| C. Final Deny·Deny·Deny | 2026-04-29T00:24:27Z | `get-stack-policy` + `describe-stacks` × 3 | `CustomerTariff: Deny TP=True`, `CustomerTariffAgent: Deny TP=True`, `CustomerTariffApi: Deny TP=True` | ✓ Frozen state fully restored |
+
+### Narratives captured (for traceability)
+
+CUST-001:
+- green: `"Established household with a strong eco-aligned profile and consistent year-round energy demand."`
+- cheapest: `"Cost-focused household with steady consumption and a preference for value-driven energy plans."`
+
+CUST-006:
+- green: `"Eco-aligned household with moderate steady consumption across all seasons."`
+- cheapest: `"Cost-conscious household with moderate and even energy use throughout the year."`
+
+---
+
+## Ceremony Summary
+
+**Phase 12 deploy ceremony COMPLETE.** All four Phase-12-required proofs green:
+
+1. **Task 2C — Direct Lambda invoke (provider → dispatcher):** CUST-001 byte-exact ($30/$55); CUST-006 `get_hardship_flag` dispatches correctly.
+2. **Task 3C — Container bi-mode (ROADMAP SC #5):** `/app/providers.py` importable in AgentCore container (primary branch); `agent.providers` importable from repo (except branch).
+3. **Task 4C — `--mode compare` byte-equality gate (D-06/D-08):** 40/40 numeric fields byte-equal across 5 personas × 2 tracks × 4 fields.
+4. **Task 6A — End-to-end public API (D-15 dual-gate):** CUST-001 byte-exact via full UI→API→AgentCore→Lambda path with narrative + call_script intact.
+
+**Frozen state restored:** CustomerTariff + CustomerTariffAgent re-frozen byte-equal to `*-freeze.json` sources with termination protection True. CustomerTariffApi untouched per D-07.
+
+**Timeline:**
+- Pre-lift checks (Task 1): 2026-04-28 23:43Z
+- CustomerTariff lifted: 23:47Z
+- CustomerTariff deployed: 23:51Z (UPDATE_COMPLETE)
+- CustomerTariffAgent lifted: 23:56Z
+- CustomerTariffAgent deployed: 23:58Z (UPDATE_COMPLETE, AgentRuntime v10)
+- Container bi-mode verified: 2026-04-29 00:06Z-00:07Z
+- Post-capture + compare: 00:11Z-00:12Z (40/40 byte-equal)
+- Freeze re-applied: 00:16Z-00:18Z
+- Ceremony close smoke: 00:22Z-00:24Z
+
+**Total lift-to-refreeze window: ~31 minutes.**
