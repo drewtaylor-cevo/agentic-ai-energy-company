@@ -59,3 +59,26 @@ constants into sibling `*.variants.ts` files and extend the test-file eslint
 config with `argsIgnorePattern: "^_"`, or (b) relax the rules for
 `src/components/ui/**` and `**/*.test.ts`. Tooling task for a future phase
 (not a Plan 13-06 regression).
+
+---
+
+## Pre-existing drift: `tests/test_agent_narrative_corpus.py::test_corpus_10x_no_numerics`
+
+**Discovered by:** Phase 13 Wave 2 post-merge test gate
+**Introduced by:** Phase 06.1 Strands 1.37.0 migration (commit 727ad9f predates Phase 13)
+**Status:** Not a Phase 13 regression
+
+**Symptom:** Test fails with `RuntimeError: tool budget exhausted` (FourToolCapHook).
+
+**Root cause:** Test mocks `_agent.structured_output` (old Phase 06 interface), but
+`invoke()` now calls `_agent(prompt, structured_output_model=X)` (Strands 1.37.0 interface).
+The mock never intercepts, so the real agent runs, calls real tools, and hits the Phase 13
+4-tool cap. Pre-Phase-13, this same test hangs on Bedrock calls (confirmed on 8086699 tree —
+pytest was killed after 30s of no output).
+
+**Effect of Phase 13:** Phase 13's FourToolCapHook converted a silent hang into a fast
+failure. This is an improvement, not a regression.
+
+**Fix owner:** Not Phase 13 scope. Deferred to a future cleanup phase — the test's mock
+surface needs to be retargeted from `_agent.structured_output` to `_agent.__call__` with
+`structured_output_model=`, OR the test needs to be marked `smoke` so it only runs live.
