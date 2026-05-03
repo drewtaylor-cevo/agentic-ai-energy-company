@@ -6,8 +6,8 @@ import { CUSTOMER_ID_PATTERN } from './lib/validate';
 // keeps the persona constant locked to the 3 Phase 1 seed customers and
 // guards against accidental regex drift between personas.ts and validate.ts.
 describe('PERSONAS', () => {
-  it('has exactly 3 entries (matches Phase 1 seed data)', () => {
-    expect(PERSONAS).toHaveLength(3);
+  it('has exactly 4 entries (3 recommendation + 1 hardship persona)', () => {
+    expect(PERSONAS).toHaveLength(4);
   });
 
   it('all IDs satisfy CUSTOMER_ID_PATTERN', () => {
@@ -16,8 +16,8 @@ describe('PERSONAS', () => {
     }
   });
 
-  it('IDs match the 3 seeded customers in order', () => {
-    expect(PERSONAS.map((p) => p.id)).toEqual(['CUST-001', 'CUST-002', 'CUST-003']);
+  it('IDs match the seeded customers in order', () => {
+    expect(PERSONAS.map((p) => p.id)).toEqual(['CUST-001', 'CUST-002', 'CUST-003', 'CUST-006']);
   });
 
   it('every persona has a non-empty label', () => {

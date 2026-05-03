@@ -149,7 +149,19 @@ def handler(event: dict, context) -> dict:
     # D-12: customer-not-found detection — agent fallback path returns
     # {"errorMessage": "..."} with no green/cheapest keys (RESEARCH.md Pitfall 5).
     # Checking for absent tracks is the most robust detection signal.
+    # Phase 14 AGENT-02a: hardship responses legitimately lack green/cheapest
+    # (kind: "hardship"). Only trigger 404 when the response is NOT hardship.
     if "green" not in body or "cheapest" not in body:
+        if body.get("kind") == "hardship":
+            # Hardship is a valid 200 response — pass through verbatim.
+            # No _narrative_source stripping needed (hardship marker is
+            # already structured differently from recommendation markers).
+            body.pop("_narrative_source", None)
+            return {
+                "statusCode": 200,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps(body),
+            }
         logger.info("Customer not found customer_id=%s body=%s", customer_id, body)
         return _error(404, f"Customer {customer_id} not found.")
 

@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
-import type { RecommendationResponse } from '@/lib/types';
+import type { ApiResponse, RecommendationResponse, HardshipResponse } from '@/lib/types';
+import { isHardshipResponse } from '@/lib/types';
 import { CUSTOMER_ID_PATTERN, normalizeCustomerId } from '@/lib/validate';
-import { MOCK_RECOMMENDATIONS } from '@/lib/mock/recommendations';
+import { MOCK_RECOMMENDATIONS, MOCK_HARDSHIP_RESPONSES } from '@/lib/mock/recommendations';
 
 /**
  * Discriminated-union state machine for the single `GET /recommendations/{id}`
@@ -19,6 +20,7 @@ export type RecommendationState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'success'; data: RecommendationResponse; customerId: string }
+  | { status: 'hardship'; data: HardshipResponse; customerId: string }
   | { status: 'error'; httpStatus: number; customerId: string };
 
 /**
@@ -67,6 +69,12 @@ export function useRecommendations() {
     const apiUrl = import.meta.env.VITE_API_URL;
 
     if (!apiUrl) {
+      // Phase 14: check hardship mocks first.
+      const hardshipData = MOCK_HARDSHIP_RESPONSES[customerId];
+      if (hardshipData) {
+        setState({ status: 'hardship', data: hardshipData, customerId });
+        return;
+      }
       const mockData = MOCK_RECOMMENDATIONS[customerId];
       if (!mockData) {
         // Unknown persona in mock mode — mirror the backend 404 so the UI's
@@ -96,8 +104,12 @@ export function useRecommendations() {
         return;
       }
 
-      const data = (await response.json()) as RecommendationResponse;
-      setState({ status: 'success', data, customerId });
+      const data = (await response.json()) as ApiResponse;
+      if (isHardshipResponse(data)) {
+        setState({ status: 'hardship', data, customerId });
+      } else {
+        setState({ status: 'success', data: data as RecommendationResponse, customerId });
+      }
     } catch (err: unknown) {
       // Superseded requests resolve via AbortError — silently ignored so the
       // newer lookup's state is never overwritten by an older rejection.

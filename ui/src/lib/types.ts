@@ -20,11 +20,31 @@ export interface ReasoningTraceEntry {
 }
 
 export interface RecommendationResponse {
+  kind?: 'recommendation';
   green: TrackInfo;
   cheapest: TrackInfo;
   // Phase 13 D-07 — optional: empty/omitted on single-tool turns (CUST-001/004/005).
   // PUBLIC field; NOT stripped by api_lambda/handler.py (D-12).
   reasoning_trace?: ReasoningTraceEntry[];
+}
+
+// Phase 14 AGENT-02: hardship short-circuit response.
+// Returned when hardship_flag is true — no green/cheapest tracks, no plan IDs.
+// D-15 validated: reason + call_script contain no digits, currency, or banned terms.
+export interface HardshipResponse {
+  kind: 'hardship';
+  customer_id: string;
+  reason: string;
+  routing_target: string;
+  call_script: string;
+}
+
+// Discriminated union for the API response — either a recommendation or hardship.
+export type ApiResponse = RecommendationResponse | HardshipResponse;
+
+// Type guard for hardship responses.
+export function isHardshipResponse(data: ApiResponse): data is HardshipResponse {
+  return (data as HardshipResponse).kind === 'hardship';
 }
 
 // Matches api_lambda/handler.py::_error body shape (lines 46-52).

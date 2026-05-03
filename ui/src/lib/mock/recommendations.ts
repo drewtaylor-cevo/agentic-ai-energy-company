@@ -1,4 +1,4 @@
-import type { ReasoningTraceEntry, RecommendationResponse } from '../types';
+import type { ReasoningTraceEntry, RecommendationResponse, HardshipResponse } from '../types';
 
 // Values ported from tests/conftest.py:47-100 (mock_savings_response,
 // mock_marcus_response, mock_elena_response). These MUST stay in sync with the
@@ -109,5 +109,19 @@ export const MOCK_RECOMMENDATIONS: Record<string, RecommendationResponse> = {
       call_script: 'Bring up Value Twelve — a cost-led option for a warm-season household.',
     },
     reasoning_trace: MOCK_REASONING_TRACE_CUST003,
+  },
+};
+
+
+// Phase 14 AGENT-02: hardship mock responses.
+// CUST-006 is the hardship persona — hardship_flag: true in DynamoDB PROFILE row.
+// Strings MUST match agent/narrative/fallbacks.py CUST-006 hardship track byte-exact.
+export const MOCK_HARDSHIP_RESPONSES: Record<string, HardshipResponse> = {
+  'CUST-006': {
+    kind: 'hardship',
+    customer_id: 'CUST-006',
+    reason: 'This customer account is flagged for dedicated support from our specialist team.',
+    routing_target: 'hardship_team',
+    call_script: 'Let me connect you with our specialist support team who can best help with your account.',
   },
 };

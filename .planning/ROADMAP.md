@@ -131,7 +131,12 @@ Plans:
   3. Adversarial 10-seed test on the hardship branch asserts zero plan-ID leak, zero recommend/suggest/best-for verbs, and zero banned-term violations in the call_script — D-15 validators apply equally to the hardship narrative surface.
   4. REC-03 contract is preserved on the recommendation branch: pytest asserts `kind: "recommendation"` responses always carry both `green` and `cheapest` tracks; the hardship branch is exempt by schema, not by runtime omission.
   5. Hardship enforcement is code-side: removing the relevant system-prompt hardship instructions and re-running the 10-seed adversarial test still produces zero plan-ID leaks because the pre-LLM guard fires before the model sees tariff context.
-**Plans**: TBD
+**Plans**: 5 plans
+  - [ ] 14-01-PLAN.md — HardshipResponse model + pre-LLM guard in invoke() + CUST-006 fallback strings
+  - [ ] 14-02-PLAN.md — Offline agent tests: adversarial 10-seed + code-side enforcement + REC-03 regression guard
+  - [ ] 14-03-PLAN.md — API Lambda surgical update (D-12 hardship branch) + both-branch handler tests
+  - [ ] 14-04-PLAN.md — UI HardshipBanner component + mock fixture + ?narrative=off collapse + vitest
+  - [ ] 14-05-PLAN.md — Stack-policy lift ceremony (2-3 stacks) + close-gates + re-freeze (autonomous: false)
 **Invariant ownership**: D-04 never-500 (hardship path returns 200, fallback path still returns 404 via updated detection), REC-03 (amended to condition on `kind == "recommendation"`; non-negotiable on that branch), D-15 banned-terms extended for hardship, `api_lambda/handler.py:152` customer-not-found detection (surgical update, both-branch pytest coverage mandatory).
 
 ### Phase 15: Draft Follow-Up Email via AgentCore Memory (WF-01)
@@ -191,7 +196,8 @@ Plans:
 | 11. New Personas + Tariff Archetypes | v3.0 | 6/6 | Complete    | 2026-04-28 |
 | 12. CustomerDataProvider Abstraction | v3.0 | 6/6 | Complete    | 2026-04-29 |
 | 13. Bill-Shock Multi-Tool Flow (AGENT-01) | v3.0 | 9/9 | Complete   | 2026-04-29 |
-| 14. Hardship Short-Circuit (AGENT-02) | v3.0 | 0/? | Not started | — |
+| 13.1. AGENT-01 Gap Closure | v3.0 | 5/5 | Complete   | 2026-04-30 |
+| 14. Hardship Short-Circuit (AGENT-02) | v3.0 | 0/5 | Planned | — |
 | 15. Draft Follow-Up Email via AgentCore Memory (WF-01) | v3.0 | 0/? | Not started | — |
 | 16. Presenter Artefacts + Operational Consolidation | v3.0 | 0/? | Not started | — |
 | 17. v3.0 Freeze Ceremony | v3.0 | 0/? | Not started | — |

@@ -1,18 +1,28 @@
 {
   "cheapest": {
-    "call_script": "Let's talk about Solar Feed-in \u2014 a cost-effective plan tailored for solar-equipped homes.",
+    "call_script": "Explore Solar Feed-in \u2014 a cost-leading plan designed for homes with solar generation.",
     "plan_id": "SOL",
     "plan_name": "Solar Feed-in",
     "saving_annual": 912.36,
     "saving_monthly": 76.03,
-    "usage_narrative": "Solar-equipped household well-positioned to benefit from a feed-in tariff arrangement."
+    "usage_narrative": "A household with solar generation capacity benefiting from feed-in credit opportunities."
   },
   "green": {
-    "call_script": "Ask about EcoFlex \u2014 a great fit for an eco-minded home with steady energy use.",
+    "call_script": "Ask about EcoFlex \u2014 a renewable-aligned plan well suited to your home's energy profile.",
     "plan_id": "ECO",
     "plan_name": "EcoFlex 100",
     "saving_annual": 480.24,
     "saving_monthly": 40.02,
-    "usage_narrative": "Eco-aligned household with consistent load and a strong renewable energy preference."
-  }
+    "usage_narrative": "A household with moderate consumption and an eco-aligned energy profile year-round."
+  },
+  "reasoning_trace": [
+    {
+      "summary": "hardship_flag=False",
+      "tool": "get_hardship_flag"
+    },
+    {
+      "summary": "Green $40.02/mo; Cheapest $76.03/mo",
+      "tool": "simulate_savings"
+    }
+  ]
 }

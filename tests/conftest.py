@@ -237,6 +237,22 @@ def mock_cust006_hardship():
     }
 
 
+@pytest.fixture
+def mock_hardship_response():
+    """Phase 14 AGENT-02: full hardship response shape (what invoke() returns).
+
+    Matches HardshipResponse.model_dump() output. No green/cheapest keys,
+    no plan IDs, no savings figures. D-15 validated strings.
+    """
+    return {
+        "kind": "hardship",
+        "customer_id": "CUST-006",
+        "reason": "This customer account is flagged for dedicated support from our specialist team.",
+        "routing_target": "hardship_team",
+        "call_script": "Let me connect you with our specialist support team who can best help with your account.",
+    }
+
+
 # --- Phase 3 API Lambda fixtures ---
 
 

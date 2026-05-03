@@ -46,14 +46,38 @@ FALLBACKS: Dict[str, Dict[str, Dict[str, str]]] = {
             "call_script": "Bring up Value Twelve — a cost-led option for a warm-season household.",
         },
     },
+    # CUST-006 — hardship persona (Phase 14 AGENT-02).
+    # D-15 validated: no digits, no currency, no banned terms, no plan IDs.
+    # The "hardship" key is a third track alongside green/cheapest — used by
+    # _build_hardship_response when the pre-LLM guard fires.
+    "CUST-006": {
+        "green": {
+            "usage_narrative": "Low-usage household with a steady, modest consumption pattern.",
+            "call_script": "Ask about EcoFlex — a gentle, eco-aligned option for a modest home.",
+        },
+        "cheapest": {
+            "usage_narrative": "Modest household consumption with a flat, low-demand profile.",
+            "call_script": "Bring up Value Twelve — a budget-friendly pick for a low-usage home.",
+        },
+        "hardship": {
+            "reason": "This customer account is flagged for dedicated support from our specialist team.",
+            "call_script": "Let me connect you with our specialist support team who can best help with your account.",
+        },
+    },
 }
 
 # --- Import-time sanity assertions (billing_records.py pattern) ---
 
-assert len(FALLBACKS) == 3, "FALLBACKS must contain 3 personas"
+assert len(FALLBACKS) == 4, "FALLBACKS must contain 4 personas"
 for _cust, _tracks in FALLBACKS.items():
-    assert set(_tracks.keys()) == {"green", "cheapest"}, f"{_cust}: must have green and cheapest"
-    for _track, _fields in _tracks.items():
-        assert set(_fields.keys()) == {"usage_narrative", "call_script"}, (
-            f"{_cust}/{_track}: must have usage_narrative and call_script"
-        )
+    # Recommendation personas have green + cheapest; CUST-006 also has hardship.
+    assert "green" in _tracks and "cheapest" in _tracks, f"{_cust}: must have green and cheapest"
+    for _track_name, _fields in _tracks.items():
+        if _track_name == "hardship":
+            assert set(_fields.keys()) == {"reason", "call_script"}, (
+                f"{_cust}/hardship: must have reason and call_script"
+            )
+        else:
+            assert set(_fields.keys()) == {"usage_narrative", "call_script"}, (
+                f"{_cust}/{_track_name}: must have usage_narrative and call_script"
+            )

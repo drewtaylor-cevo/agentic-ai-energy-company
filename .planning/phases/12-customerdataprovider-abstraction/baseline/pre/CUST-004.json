@@ -1,18 +1,32 @@
 {
   "cheapest": {
-    "call_script": "Bring up Solar Feed-in \u2014 a cost-leading option designed to reward your home's solar capacity.",
+    "call_script": "Bring up Solar Feed-in \u2014 a cost-led plan designed to reward your household's energy habits.",
     "plan_id": "SOL",
     "plan_name": "Solar Feed-in",
     "saving_annual": 912.36,
     "saving_monthly": 76.03,
-    "usage_narrative": "Solar-capable household with generation potential that aligns well with feed-in reward plans."
+    "usage_narrative": "A cost-focused household with usage patterns well suited to solar feed-in benefit."
   },
   "green": {
-    "call_script": "Ask about EcoFlex \u2014 a renewable-backed plan well-suited to your home's eco-aligned profile.",
+    "call_script": "Ask about EcoFlex \u2014 a renewable-aligned plan well suited to your household's usage pattern.",
     "plan_id": "ECO",
     "plan_name": "EcoFlex 100",
     "saving_annual": 480.24,
     "saving_monthly": 40.02,
-    "usage_narrative": "Eco-aligned household with moderate steady consumption suited to renewable energy plans."
-  }
+    "usage_narrative": "A steady household with consistent consumption and an eco-aligned energy profile."
+  },
+  "reasoning_trace": [
+    {
+      "summary": "hardship_flag=False",
+      "tool": "get_hardship_flag"
+    },
+    {
+      "summary": "No bill shock: monthly usage within 11-month envelope",
+      "tool": "detect_bill_shock"
+    },
+    {
+      "summary": "Green $40.02/mo; Cheapest $76.03/mo",
+      "tool": "simulate_savings"
+    }
+  ]
 }

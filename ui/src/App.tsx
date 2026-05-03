@@ -27,6 +27,7 @@ import { ReasoningTrace } from '@/components/ReasoningTrace';
 import { RecommendationSkeletons } from '@/components/RecommendationSkeletons';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { EmptyState } from '@/components/EmptyState';
+import { HardshipBanner } from '@/components/HardshipBanner';
 import { VersionIndicator } from '@/components/VersionIndicator';
 
 function App() {
@@ -59,6 +60,10 @@ function App() {
 
           {state.status === 'error' && (
             <ErrorAlert httpStatus={state.httpStatus} customerId={state.customerId} />
+          )}
+
+          {state.status === 'hardship' && (
+            <HardshipBanner data={state.data} />
           )}
 
           {state.status === 'success' && (

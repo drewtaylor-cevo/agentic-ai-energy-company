@@ -16,4 +16,5 @@ export const PERSONAS: readonly Persona[] = [
   { id: 'CUST-001', label: 'CUST-001 · High usage' },
   { id: 'CUST-002', label: 'CUST-002 · Mid usage' },
   { id: 'CUST-003', label: 'CUST-003 · Low usage' },
+  { id: 'CUST-006', label: 'CUST-006 · Hardship' },
 ] as const;

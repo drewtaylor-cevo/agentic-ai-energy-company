@@ -1,18 +1,28 @@
 {
   "cheapest": {
-    "call_script": "Let's explore EV Drive TOU \u2014 a cost-focused plan well matched to your flexible usage habits.",
+    "call_script": "Ask about EV Drive TOU \u2014 a cost-focused plan designed for flexible, time-varied energy use.",
     "plan_id": "EV-TOU",
     "plan_name": "EV Drive TOU",
     "saving_annual": 1008.0,
     "saving_monthly": 84.0,
-    "usage_narrative": "Customer shows a time-of-use-friendly pattern, likely with an electric vehicle or flexible load."
+    "usage_narrative": "A household with time-variable consumption patterns well-suited to off-peak and flexible rate structures."
   },
   "green": {
-    "call_script": "We'd love to tell you about EcoFlex \u2014 a great eco-aligned plan for your home energy profile.",
+    "call_script": "Let's talk about EcoFlex \u2014 a renewable-aligned plan that could be a great fit for your home.",
     "plan_id": "ECO",
     "plan_name": "EcoFlex 100",
     "saving_annual": 420.0,
     "saving_monthly": 35.0,
-    "usage_narrative": "Eco-aligned household with a steady load profile suited to renewable-backed tariff options."
-  }
+    "usage_narrative": "A household with consistent energy demand and a preference for renewable-aligned tariff options."
+  },
+  "reasoning_trace": [
+    {
+      "summary": "hardship_flag=False",
+      "tool": "get_hardship_flag"
+    },
+    {
+      "summary": "Green $35.00/mo; Cheapest $84.00/mo",
+      "tool": "simulate_savings"
+    }
+  ]
 }

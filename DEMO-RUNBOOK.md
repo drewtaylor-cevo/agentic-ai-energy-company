@@ -158,6 +158,31 @@ aws sts get-caller-identity --query Account --output text   # expect 58873860643
   - `?narrative=off` collapses the `ReasoningTrace` component entirely (returns null) — verify no layout shift.
   - Phase 13 ceremony log: `.planning/phases/13-bill-shock-multi-tool-flow-agent-01/13-08-CEREMONY-LOG.md` (stack-policy lift + byte-equivalence gate + re-freeze evidence).
 
+- [ ] **Phase 13.1 post-ceremony verification (2026-04-30):**
+
+  #### Post-Phase-13.1 warm-p95 expectations (measured 2026-04-30)
+
+  Per-flow prewarm gate rotation (`BACKEND_API_URL=<api> python3 scripts/prewarm.py`); numbers measured at end of Phase 13.1 ceremony (see `.planning/phases/13.1-agent-01-gap-closure-latency-short-circuit-404-detection/ceremony-log.md §Gate 5`):
+
+  | Persona | Tool count | Warm median measured | Per-flow gate | Outcome |
+  |---------|-----------|----------------------|---------------|---------|
+  | CUST-001 Sarah (non-shock) | 2 tools (hardship + simulate) | 13840ms | 3000ms (non-shock) | FINDING — 4.6× over gate |
+  | CUST-003 Elena (shock) | 2 tools (observed; expected 3) | 10990ms | 2500ms (multi-tool AGENT-01a) | FINDING — 4.4× over gate |
+
+  **Context:** Phase 13.1 reduced tool count from 3→2 on non-shock personas (mechanism fix). Pre-fix warm latency was 17.2s (CUST-001) / 19.7s (CUST-003). Post-fix: 13.8s / 11.0s — a ~25-40% reduction, but the inherent AgentCore round-trip dominates. The latency gates (3000ms / 2500ms) were set as aspirational targets per LD-4; meeting them likely requires infrastructure-level changes (Provisioned Concurrency, model selection) outside Phase 13.1's scope.
+
+  **Elena trace-shape finding:** CUST-003 returned a 2-entry reasoning trace instead of the expected 3-entry (bill-shock) trace. The SHORT-CIRCUIT RULE is being applied more broadly than intended by the LLM. Savings are byte-exact (SAV-03 preserved), so the mechanism is correct — the "visible 3-tool reasoning" demo story for Elena may need prompt tuning in a follow-up phase.
+
+  #### Phase 13.1 reasoning-trace visuals (what the presenter should expect)
+
+  - **CUST-001 (Sarah, non-shock) and CUST-002 (Marcus, non-shock):** ReasoningTrace renders a collapsed row reading "▶ 2 steps: get_hardship_flag → simulate_savings". No `detect_bill_shock` or `get_billing_history` entries.
+  - **CUST-003 (Elena, shock):** ReasoningTrace renders "▶ 3 steps: get_hardship_flag → detect_bill_shock → simulate_savings". This is the visible AGENT-01a short-circuit signal — non-shock personas have a shorter trace by design, and that difference is intentional (Phase 13.1 D-13.1-14). If the presenter sees a 3-step trace on CUST-001 or CUST-002, treat it as a Gap 1 regression and halt the demo.
+  - **Post-ceremony finding (2026-04-30):** Elena was observed returning a 2-step trace instead of 3-step. If this persists at T-24h rehearsal, the presenter should note that the bill-shock demo beat (visible 3-tool reasoning on Elena) is not reliably triggered. The savings and recommendations are still correct; only the reasoning-trace visual is affected.
+
+  The `?narrative=off` kill switch still collapses reasoning traces entirely (v2.0 shape) regardless of tool count per the D-10 single-flag contract.
+
+  Phase 13.1 ceremony log: `.planning/phases/13.1-agent-01-gap-closure-latency-short-circuit-404-detection/ceremony-log.md`.
+
 ### T-2h — Launch rehearsal
 
 - [ ] Version indicator present in primary dist:
@@ -734,4 +759,4 @@ If the email channel is more urgent (e.g., retention campaign pressure):
 
 ---
 
-*Last updated: 2026-04-28 after v3.0 Phase 11 (New Personas + Tariff Archetypes) completed and re-froze the CustomerTariff stack. Code pinned to `demo-v2.0` (freeze target) + `v2.0` (milestone close); data layer extended to 73 rows / 6 personas / 6 tariff archetypes on top. If you are reading this past demo day and see drift between what the runbook describes and what actually exists, trust `git describe --tags` and the live `aws cloudformation describe-stacks` state first, this document second.*
+*Last updated: 2026-04-30 after v3.0 Phase 13.1 (AGENT-01 Gap Closure — Latency Short-Circuit + 404 Detection) ceremony completed and re-froze CustomerTariffAgent + CustomerTariffApi stacks. Code pinned to `demo-v2.0` (freeze target) + `v2.0` (milestone close); data layer extended to 73 rows / 6 personas / 6 tariff archetypes on top. Phase 13.1 deployed prompt short-circuit (2-tool non-shock path) + UNKNOWN sentinel (404 detection defence-in-depth). Verification findings: Elena trace length 2 (expected 3), warm latency 11-14s (gates 2.5-3s). If you are reading this past demo day and see drift between what the runbook describes and what actually exists, trust `git describe --tags` and the live `aws cloudformation describe-stacks` state first, this document second.*

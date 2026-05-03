@@ -573,3 +573,114 @@ def test_customer_not_found_detection_unchanged_with_reasoning_trace(mock_client
     # Current Phase 13 behaviour: 404 (neither green nor cheapest present).
     # Phase 14 will amend to condition on kind != hardship — but that's not this phase.
     assert result["statusCode"] == 404
+
+
+# --- Phase 14 AGENT-02a: Hardship response routing ---
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_hardship_response_returns_200(mock_client):
+    """AGENT-02a: kind: 'hardship' body without green/cheapest → HTTP 200, not 404."""
+    hardship_body = {
+        "kind": "hardship",
+        "customer_id": "CUST-006",
+        "reason": "This customer account is flagged for dedicated support.",
+        "routing_target": "hardship_team",
+        "call_script": "Let me connect you with our specialist support team.",
+        "_narrative_source": {"hardship": {"reason": "fallback", "call_script": "fallback"}},
+    }
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(hardship_body)
+
+    result = handler(_make_event("CUST-006"), None)
+
+    assert result["statusCode"] == 200, (
+        f"Hardship response should be HTTP 200, got {result['statusCode']}"
+    )
+    body = json.loads(result["body"])
+    assert body["kind"] == "hardship"
+    assert body["customer_id"] == "CUST-006"
+    assert body["routing_target"] == "hardship_team"
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_hardship_response_has_no_green_cheapest(mock_client):
+    """AGENT-02a: hardship body passes through without green/cheapest keys."""
+    hardship_body = {
+        "kind": "hardship",
+        "customer_id": "CUST-006",
+        "reason": "Account flagged for specialist support.",
+        "routing_target": "hardship_team",
+        "call_script": "Let me connect you with our specialist team.",
+        "_narrative_source": {"hardship": {"reason": "fallback", "call_script": "fallback"}},
+    }
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(hardship_body)
+
+    result = handler(_make_event("CUST-006"), None)
+    body = json.loads(result["body"])
+
+    assert "green" not in body, "Hardship response must not contain green track"
+    assert "cheapest" not in body, "Hardship response must not contain cheapest track"
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_hardship_response_strips_narrative_source(mock_client):
+    """Phase 7 contract: _narrative_source stripped from hardship responses too."""
+    hardship_body = {
+        "kind": "hardship",
+        "customer_id": "CUST-006",
+        "reason": "Account flagged for specialist support.",
+        "routing_target": "hardship_team",
+        "call_script": "Let me connect you with our specialist team.",
+        "_narrative_source": {"hardship": {"reason": "fallback", "call_script": "fallback"}},
+    }
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(hardship_body)
+
+    result = handler(_make_event("CUST-006"), None)
+    body = json.loads(result["body"])
+
+    assert "_narrative_source" not in body, (
+        "_narrative_source marker must be stripped from hardship responses"
+    )
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_recommendation_still_returns_200_after_hardship_update(mock_client, mock_savings_response):
+    """REC-03 regression: recommendation path unchanged after Phase 14 surgical update."""
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(
+        mock_savings_response
+    )
+    result = handler(_make_event("CUST-001"), None)
+
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert "green" in body
+    assert "cheapest" in body
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_unknown_customer_still_returns_404_after_hardship_update(mock_client):
+    """D-12 regression: missing tracks WITHOUT kind: 'hardship' still → 404."""
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(
+        {"errorMessage": "No billing history for 'CUST-999'"}
+    )
+    result = handler(_make_event("CUST-999"), None)
+
+    assert result["statusCode"] == 404, (
+        f"Missing tracks without kind: hardship should still be 404, got {result['statusCode']}"
+    )
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_unknown_sentinel_still_returns_404_after_hardship_update(mock_client):
+    """D-13.1-13 regression: UNKNOWN sentinel still fires after Phase 14 update."""
+    unknown_body = {
+        "green": {"plan_id": "UNKNOWN", "plan_name": "UNKNOWN", "saving_monthly": 0.0, "saving_annual": 0.0},
+        "cheapest": {"plan_id": "UNKNOWN", "plan_name": "UNKNOWN", "saving_monthly": 0.0, "saving_annual": 0.0},
+    }
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(unknown_body)
+
+    result = handler(_make_event("CUST-999"), None)
+
+    assert result["statusCode"] == 404, (
+        f"UNKNOWN sentinel should still fire after Phase 14 update, got {result['statusCode']}"
+    )

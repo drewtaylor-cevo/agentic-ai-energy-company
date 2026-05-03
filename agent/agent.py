@@ -13,7 +13,7 @@ import logging
 from typing import Any
 
 import boto3
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from strands import Agent, tool
 from strands.models import BedrockModel
 from strands.types.exceptions import StructuredOutputException
@@ -159,12 +159,84 @@ class ReasoningTraceEntry(BaseModel):
 
 class RecommendationResponse(BaseModel):
     """Dual-track tariff recommendation — both tracks always present."""
+    kind: str = Field(default="recommendation", description="Response type discriminator")
     green: TrackInfo = Field(description="Most energy-efficient (green) plan recommendation")
     cheapest: TrackInfo = Field(description="Lowest projected cost plan recommendation")
     # Phase 13 D-07 — PUBLIC field; NOT stripped by api_lambda/handler.py.
     # Default empty list: single-tool turns (CUST-001/004/005) return [];
     # multi-tool turns (CUST-003) return 2-3 entries.
     reasoning_trace: list[ReasoningTraceEntry] = Field(default_factory=list)
+
+
+class HardshipResponse(BaseModel):
+    """Phase 14 AGENT-02: dignity-preserving hardship routing response.
+
+    Returned when `hardship_flag: true` — the pre-LLM guard in invoke()
+    fires BEFORE the agent sees any tariff context. No green/cheapest tracks,
+    no plan IDs, no savings figures. D-15 validators apply to `reason` and
+    `call_script` (no digits, no currency, no banned terms).
+    """
+    kind: str = Field(default="hardship", description="Response type discriminator")
+    customer_id: str = Field(description="Customer identifier")
+    reason: str = Field(
+        max_length=USAGE_NARRATIVE_MAX_CHARS,
+        description=(
+            "Dignity-preserving explanation of why recommendations are unavailable. "
+            "Maximum 20 words. NEVER contains digits, $/£/€/%, competitor names, "
+            "switch verbs, or environmental superlatives."
+        ),
+    )
+    routing_target: str = Field(
+        default="hardship_team",
+        description="Internal routing destination for the call",
+    )
+    call_script: str = Field(
+        max_length=CALL_SCRIPT_MAX_CHARS,
+        description=(
+            "Second-person one-liner the call-centre agent reads verbatim. "
+            "Maximum 22 words. Same forbidden-content rules as usage_narrative."
+        ),
+    )
+
+    # D-15 validators for hardship narrative surfaces. Cannot reuse
+    # validate_usage_narrative directly (it's @field_validator("usage_narrative")).
+    # Call _reject_forbidden with the same caps instead.
+    @field_validator("reason", mode="after")
+    @classmethod
+    def validate_reason(cls, value: str) -> str:
+        return _reject_forbidden(value, max_words=USAGE_NARRATIVE_MAX_WORDS, field_label="reason")
+
+    @field_validator("call_script", mode="after")
+    @classmethod
+    def validate_hardship_call_script(cls, value: str) -> str:
+        return _reject_forbidden(value, max_words=CALL_SCRIPT_MAX_WORDS, field_label="call_script")
+
+
+# Hardship fallback strings — used when the pre-LLM guard fires.
+# Loaded from FALLBACKS if available; otherwise inline defaults.
+_HARDSHIP_DEFAULTS = {
+    "reason": "This customer account is flagged for dedicated support from our specialist team.",
+    "call_script": "Let me connect you with our specialist support team who can best help with your account.",
+}
+
+
+def _build_hardship_response(customer_id: str) -> dict:
+    """Build a HardshipResponse dict for a hardship-flagged customer.
+
+    Code-side only — the LLM never sees tariff context for this customer.
+    Uses FALLBACKS[customer_id]["hardship"] if available, else _HARDSHIP_DEFAULTS.
+    Validates through HardshipResponse Pydantic model to enforce D-15.
+    """
+    fb = FALLBACKS.get(customer_id, {}).get("hardship", {})
+    reason = fb.get("reason", _HARDSHIP_DEFAULTS["reason"])
+    call_script = fb.get("call_script", _HARDSHIP_DEFAULTS["call_script"])
+
+    response = HardshipResponse(
+        customer_id=customer_id,
+        reason=reason,
+        call_script=call_script,
+    )
+    return response.model_dump()
 
 
 # --- Lenient salvage schema (retry path only — per-field fallback per D-02) ---
@@ -706,6 +778,30 @@ def invoke(payload: dict) -> dict:
 
     logger.info("Processing recommendation for %s", customer_id)
 
+    # Phase 14 AGENT-02: pre-LLM hardship guard. Fires BEFORE the agent
+    # sees any tariff context — code-side enforcement, not prompt-side.
+    # get_provider().get_hardship_flag() goes direct to the data layer
+    # (InMemoryProvider offline, ToolsLambdaProvider in production).
+    try:
+        hardship_result = get_provider().get_hardship_flag(customer_id)
+        if hardship_result.get("hardship") is True:
+            logger.info("Hardship flag detected for %s — short-circuiting", customer_id)
+            hardship_body = _build_hardship_response(customer_id)
+            # Attach _narrative_source marker for observability (Phase 7 contract).
+            # API Lambda strips this before returning to the client.
+            hardship_body["_narrative_source"] = {
+                "hardship": {"reason": "fallback", "call_script": "fallback"},
+            }
+            return hardship_body
+    except Exception as hardship_err:  # noqa: BLE001 — D-04 never-500
+        # If the hardship check itself fails, log and continue to the normal
+        # recommendation path. The customer gets a recommendation rather than
+        # a 500. This preserves D-04.
+        logger.warning(
+            "Hardship flag check failed for %s — proceeding to recommendation: %s",
+            customer_id, hardship_err,
+        )
+
     narrative_source = {
         "green":    {"usage_narrative": "model", "call_script": "model"},
         "cheapest": {"usage_narrative": "model", "call_script": "model"},
@@ -827,6 +923,8 @@ def invoke(payload: dict) -> dict:
                 narrative_source[track]["call_script"] = "fallback"
             raw[track] = raw_track
         raw["_narrative_source"] = narrative_source
+        # Phase 14: add kind discriminator for API Lambda routing.
+        raw["kind"] = "recommendation"
         # Phase 13 D-15 (amended A-02): stitch whatever partial trace we
         # captured before the cap fired (or empty list if the agent never
         # started, or the cap cancelled before any tool completed).

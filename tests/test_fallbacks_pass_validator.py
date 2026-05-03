@@ -29,7 +29,7 @@ def _fails_rules(value: str, max_words: int, max_chars: int):
     return None
 
 
-@pytest.mark.parametrize("customer_id", ["CUST-001", "CUST-002", "CUST-003"])
+@pytest.mark.parametrize("customer_id", ["CUST-001", "CUST-002", "CUST-003", "CUST-006"])
 @pytest.mark.parametrize("track", ["green", "cheapest"])
 def test_usage_narrative_fallback_passes(customer_id, track):
     value = FALLBACKS[customer_id][track]["usage_narrative"]
@@ -37,7 +37,7 @@ def test_usage_narrative_fallback_passes(customer_id, track):
     assert reason is None, f"{customer_id}/{track}/usage_narrative: {reason}"
 
 
-@pytest.mark.parametrize("customer_id", ["CUST-001", "CUST-002", "CUST-003"])
+@pytest.mark.parametrize("customer_id", ["CUST-001", "CUST-002", "CUST-003", "CUST-006"])
 @pytest.mark.parametrize("track", ["green", "cheapest"])
 def test_call_script_fallback_passes(customer_id, track):
     value = FALLBACKS[customer_id][track]["call_script"]
@@ -46,12 +46,29 @@ def test_call_script_fallback_passes(customer_id, track):
 
 
 def test_fallbacks_contains_all_personas():
-    assert set(FALLBACKS.keys()) == {"CUST-001", "CUST-002", "CUST-003"}
+    assert set(FALLBACKS.keys()) == {"CUST-001", "CUST-002", "CUST-003", "CUST-006"}
 
 
 def test_fallbacks_contains_all_tracks_and_fields():
     for customer_id, tracks in FALLBACKS.items():
-        assert set(tracks.keys()) == {"green", "cheapest"}, f"{customer_id}: missing track"
+        assert "green" in tracks and "cheapest" in tracks, f"{customer_id}: missing green or cheapest"
         for track_name, fields in tracks.items():
-            assert set(fields.keys()) == {"usage_narrative", "call_script"}, \
-                f"{customer_id}/{track_name}: missing field"
+            if track_name == "hardship":
+                assert set(fields.keys()) == {"reason", "call_script"}, \
+                    f"{customer_id}/{track_name}: hardship must have reason and call_script"
+            else:
+                assert set(fields.keys()) == {"usage_narrative", "call_script"}, \
+                    f"{customer_id}/{track_name}: missing field"
+
+
+# Phase 14: validate CUST-006 hardship fallback strings pass D-15 rules.
+def test_hardship_fallback_reason_passes():
+    value = FALLBACKS["CUST-006"]["hardship"]["reason"]
+    reason = _fails_rules(value, _USAGE_NARRATIVE_MAX_WORDS, _USAGE_NARRATIVE_MAX_CHARS)
+    assert reason is None, f"CUST-006/hardship/reason: {reason}"
+
+
+def test_hardship_fallback_call_script_passes():
+    value = FALLBACKS["CUST-006"]["hardship"]["call_script"]
+    reason = _fails_rules(value, _CALL_SCRIPT_MAX_WORDS, _CALL_SCRIPT_MAX_CHARS)
+    assert reason is None, f"CUST-006/hardship/call_script: {reason}"
