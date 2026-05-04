@@ -125,7 +125,7 @@ export function FollowUpDrawer({ state, onDraft, narrativeOff }: FollowUpDrawerP
                 id="follow-up-body"
                 className="mt-1 min-h-[120px]"
                 defaultValue={state.data.body}
-                onChange={(e) => setEditedBody(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditedBody(e.target.value)}
                 aria-label="Email body — edit before sending"
               />
             </div>

@@ -29,7 +29,7 @@ relocking, re-run DEMO-RUNBOOK.md section 7 steps 2-7 and cut `demo-v3.0.1`.
 
 ```yaml
 git:
-  freeze_commit_sha: "d9b5865b671b68e672b242a1ab470422aae96a1d"  # Task 7.3 two-commit pattern per WN-2: this commit is tag^ (one parent of demo-v3.0)
+  freeze_commit_sha: "05aad2835823350cd498f37b983775b89abed2b2"  # Task 7.3 two-commit pattern per WN-2: this commit is tag^ (one parent of demo-v3.0)
   freeze_timestamp_utc: "2026-05-04T02:42:06Z"
   tag: demo-v3.0
 
@@ -46,8 +46,8 @@ lockfiles:
 # require-hashes install), (b) synth_asset hashes (Lambda bundles), and
 # (c) cdk diff == 0.
 dist_bundles:
-  ui_dist: "sha256:3956547cad29c3f904749abfac874ed9f3fd8d393b82758a5af1568b094299f4"
-  ui_dist_mock: "sha256:7b210403c418c6ed0e5ca415cb2872fd638e6d5dd8a0c42254ee740dae6fd725"
+  ui_dist: "sha256:202428a7f7870a380bc99bce718891ce459af83b17acc766013886c6862a688a"
+  ui_dist_mock: "sha256:23b0dc23a5368ef9155f5146e2c3b326b4b9237a5482a3203be6b9f1705be54a"
 
 # Populated by task 7.2 — one entry per cdk.out/asset.*/ directory.
 # logical = asset logical ID from cdk.out/manifest.json (rename-immune).
