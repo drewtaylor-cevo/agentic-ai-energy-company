@@ -1,0 +1,29 @@
+{
+    "kind": "recommendation",
+    "green": {
+        "plan_id": "ECO",
+        "plan_name": "EcoFlex 100",
+        "saving_monthly": 30.0,
+        "saving_annual": 360.0,
+        "usage_narrative": "High-consumption winter-heavy household with an eco-aligned renewable energy profile and established tenure.",
+        "call_script": "Ask about EcoFlex \u2014 an eco-aligned pick designed for a high-use, winter-heavy family home."
+    },
+    "cheapest": {
+        "plan_id": "VAL",
+        "plan_name": "Value 12",
+        "saving_monthly": 55.0,
+        "saving_annual": 660.0,
+        "usage_narrative": "High-consumption winter-heavy household seeking cost-effective coverage across all seasons.",
+        "call_script": "Bring up Value Twelve \u2014 a cost-led fit for a high-use, winter-heavy household looking for value."
+    },
+    "reasoning_trace": [
+        {
+            "tool": "get_hardship_flag",
+            "summary": "hardship_flag=False"
+        },
+        {
+            "tool": "simulate_savings",
+            "summary": "Green $30.00/mo; Cheapest $55.00/mo"
+        }
+    ]
+}

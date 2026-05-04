@@ -65,10 +65,6 @@ FALLBACKS: Dict[str, Dict[str, Dict[str, str]]] = {
         },
     },
 }
-
-# --- Import-time sanity assertions (billing_records.py pattern) ---
-
-assert len(FALLBACKS) == 4, "FALLBACKS must contain 4 personas"
 for _cust, _tracks in FALLBACKS.items():
     # Recommendation personas have green + cheapest; CUST-006 also has hardship.
     assert "green" in _tracks and "cheapest" in _tracks, f"{_cust}: must have green and cheapest"
@@ -81,3 +77,99 @@ for _cust, _tracks in FALLBACKS.items():
             assert set(_fields.keys()) == {"usage_narrative", "call_script"}, (
                 f"{_cust}/{_track_name}: must have usage_narrative and call_script"
             )
+
+
+# --- Phase 15 WF-01: Follow-up email fallback templates ---
+# Per-persona follow-up email templates used when Memory is unavailable or
+# the agent turn fails. All templates MUST pass D-15 validators (no digits,
+# no currency, no banned terms). plan_reference is the GREEN plan name.
+
+FOLLOW_UP_FALLBACKS: Dict[str, Dict[str, str]] = {
+    # Sarah Chen (CUST-001) — high-usage family household.
+    "CUST-001": {
+        "subject": "Your tariff options from our recent conversation",
+        "body": (
+            "Thank you for speaking with us about your energy plan options. "
+            "As discussed, we identified plans that could better suit your household "
+            "usage pattern. Please review the options at your convenience and contact "
+            "us if you would like to proceed with the plan that works for your family."
+        ),
+        "plan_reference": "EcoFlex Green",
+    },
+    # Marcus Webb (CUST-002) — mid-usage apartment dweller.
+    "CUST-002": {
+        "subject": "Your tariff options from our recent conversation",
+        "body": (
+            "Thank you for speaking with us about your energy plan options. "
+            "We discussed plans that align well with your apartment usage profile. "
+            "Please review the options at your convenience and reach out if you "
+            "would like to proceed with the plan that suits your home."
+        ),
+        "plan_reference": "EcoFlex Green",
+    },
+    # Elena Vasquez (CUST-003) — seasonal, summer-peak.
+    "CUST-003": {
+        "subject": "Your tariff options from our recent conversation",
+        "body": (
+            "Thank you for speaking with us about your energy plan options. "
+            "We identified plans that could complement your seasonal usage pattern. "
+            "Please review the options at your convenience and let us know if you "
+            "would like to proceed with the plan that fits your household."
+        ),
+        "plan_reference": "EcoFlex Green",
+    },
+    # CUST-004 — Solar PV persona.
+    "CUST-004": {
+        "subject": "Your tariff options from our recent conversation",
+        "body": (
+            "Thank you for speaking with us about your energy plan options. "
+            "We discussed plans that work well with your solar generation profile. "
+            "Please review the options at your convenience and contact us if you "
+            "would like to proceed with the plan that complements your setup."
+        ),
+        "plan_reference": "Solar Feed-in",
+    },
+    # CUST-005 — EV persona.
+    "CUST-005": {
+        "subject": "Your tariff options from our recent conversation",
+        "body": (
+            "Thank you for speaking with us about your energy plan options. "
+            "We identified plans that align with your household charging pattern. "
+            "Please review the options at your convenience and reach out if you "
+            "would like to proceed with the plan that suits your needs."
+        ),
+        "plan_reference": "EV Time-of-Use",
+    },
+}
+
+# Wire follow-up templates into the main FALLBACKS dict so they're accessible
+# via FALLBACKS[customer_id]["follow_up"] — same pattern as "hardship" key.
+for _cust_id, _follow_up in FOLLOW_UP_FALLBACKS.items():
+    if _cust_id in FALLBACKS:
+        FALLBACKS[_cust_id]["follow_up"] = _follow_up
+
+# --- Import-time sanity assertions (billing_records.py pattern) ---
+
+assert len(FALLBACKS) == 4, "FALLBACKS must contain 4 personas"
+for _cust, _tracks in FALLBACKS.items():
+    # Recommendation personas have green + cheapest; CUST-006 also has hardship.
+    assert "green" in _tracks and "cheapest" in _tracks, f"{_cust}: must have green and cheapest"
+    for _track_name, _fields in _tracks.items():
+        if _track_name == "hardship":
+            assert set(_fields.keys()) == {"reason", "call_script"}, (
+                f"{_cust}/hardship: must have reason and call_script"
+            )
+        elif _track_name == "follow_up":
+            assert set(_fields.keys()) == {"subject", "body", "plan_reference"}, (
+                f"{_cust}/follow_up: must have subject, body, and plan_reference"
+            )
+        else:
+            assert set(_fields.keys()) == {"usage_narrative", "call_script"}, (
+                f"{_cust}/{_track_name}: must have usage_narrative and call_script"
+            )
+
+# Verify follow-up templates exist for all recommendation personas.
+for _cust_id in ("CUST-001", "CUST-002", "CUST-003"):
+    assert "follow_up" in FALLBACKS[_cust_id], (
+        f"{_cust_id}: must have follow_up fallback template"
+    )

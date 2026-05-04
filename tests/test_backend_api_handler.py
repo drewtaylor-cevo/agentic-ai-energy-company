@@ -684,3 +684,96 @@ def test_unknown_sentinel_still_returns_404_after_hardship_update(mock_client):
     assert result["statusCode"] == 404, (
         f"UNKNOWN sentinel should still fire after Phase 14 update, got {result['statusCode']}"
     )
+
+
+# --- Phase 15 WF-01: Follow-up route tests ---
+
+
+def _make_follow_up_event(customer_id: str) -> dict:
+    """Build a minimal HTTP API v2 event for the follow-up route."""
+    return {
+        "pathParameters": {"customer_id": customer_id},
+        "rawPath": f"/recommendations/{customer_id}/follow-up",
+    }
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_follow_up_returns_200(mock_client, mock_follow_up_response):
+    """Follow-up route returns 200 with kind=follow_up body."""
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(
+        mock_follow_up_response
+    )
+    result = handler(_make_follow_up_event("CUST-001"), None)
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["kind"] == "follow_up"
+    assert body["customer_id"] == "CUST-001"
+    assert "subject" in body
+    assert "body" in body
+    assert "plan_reference" in body
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_follow_up_strips_workflow_source(mock_client, mock_follow_up_response):
+    """_workflow_source marker is stripped from follow-up response."""
+    response_with_marker = {**mock_follow_up_response, "_workflow_source": {"subject": "model"}}
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(
+        response_with_marker
+    )
+    result = handler(_make_follow_up_event("CUST-001"), None)
+    body = json.loads(result["body"])
+    assert "_workflow_source" not in body
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_follow_up_bad_customer_id_returns_400(mock_client):
+    """Follow-up route with invalid customer_id returns 400."""
+    result = handler(_make_follow_up_event("INVALID"), None)
+    assert result["statusCode"] == 400
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_follow_up_timeout_returns_504(mock_client):
+    """Follow-up route timeout returns 504."""
+    from botocore.exceptions import ReadTimeoutError
+    mock_client.invoke_agent_runtime.side_effect = ReadTimeoutError(
+        endpoint_url="https://test"
+    )
+    result = handler(_make_follow_up_event("CUST-001"), None)
+    assert result["statusCode"] == 504
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_follow_up_client_error_returns_502(mock_client):
+    """Follow-up route ClientError returns 502."""
+    from botocore.exceptions import ClientError
+    mock_client.invoke_agent_runtime.side_effect = ClientError(
+        {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}},
+        "InvokeAgentRuntime",
+    )
+    result = handler(_make_follow_up_event("CUST-001"), None)
+    assert result["statusCode"] == 502
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_follow_up_unexpected_shape_returns_502(mock_client):
+    """Follow-up route with unexpected response shape returns 502."""
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(
+        {"kind": "recommendation", "green": {}, "cheapest": {}}
+    )
+    result = handler(_make_follow_up_event("CUST-001"), None)
+    assert result["statusCode"] == 502
+
+
+@patch("api_lambda.handler._agentcore_client")
+def test_existing_recommendation_route_unchanged_after_follow_up(mock_client, mock_savings_response):
+    """Existing recommendation route still works after follow-up addition."""
+    mock_client.invoke_agent_runtime.return_value = _make_agent_response(
+        mock_savings_response
+    )
+    # Regular recommendation event (no rawPath ending in /follow-up)
+    result = handler(_make_event("CUST-001"), None)
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert "green" in body
+    assert "cheapest" in body

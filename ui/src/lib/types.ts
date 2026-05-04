@@ -39,6 +39,17 @@ export interface HardshipResponse {
   call_script: string;
 }
 
+// Phase 15 WF-01: follow-up email response.
+// Returned when the rep clicks "Draft follow-up email" after a recommendation.
+// D-15 extended: subject + body contain no digits, currency, or banned terms.
+export interface FollowUpEmailResponse {
+  kind: 'follow_up';
+  customer_id: string;
+  subject: string;
+  body: string;
+  plan_reference: string;
+}
+
 // Discriminated union for the API response — either a recommendation or hardship.
 export type ApiResponse = RecommendationResponse | HardshipResponse;
 

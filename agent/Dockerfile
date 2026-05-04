@@ -10,6 +10,7 @@ COPY providers.py .
 COPY narrative/ ./narrative/
 COPY reasoning/ ./reasoning/
 COPY hooks/ ./hooks/
+COPY memory/ ./memory/
 
 EXPOSE 8080
 

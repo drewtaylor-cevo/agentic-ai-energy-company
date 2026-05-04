@@ -2,6 +2,9 @@
 // (data layer, 04-03) to the 6 presentation components (04-04) behind a
 // state-driven result region.
 //
+// Phase 15 WF-01: adds FollowUpDrawer below the card grid in the success
+// state. The drawer is reset when a new lookup is triggered.
+//
 // UI-SPEC contracts observed here:
 //   - §Interaction States lines 144-152: idle → EmptyState; loading →
 //     RecommendationSkeletons; success → two RecommendationCards;
@@ -19,7 +22,9 @@
 //   - D-12: LookupForm.onLookup flows raw input to the hook, which performs
 //     normalization + regex gating. No double-validation at the App layer.
 //   - isLoading / disabled both derive from `state.status === 'loading'`.
+import { useCallback } from 'react';
 import { useRecommendations } from '@/hooks/useRecommendations';
+import { useFollowUp } from '@/hooks/useFollowUp';
 import { LookupForm } from '@/components/LookupForm';
 import { PersonaChips } from '@/components/PersonaChips';
 import { RecommendationCard } from '@/components/RecommendationCard';
@@ -28,11 +33,22 @@ import { RecommendationSkeletons } from '@/components/RecommendationSkeletons';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { EmptyState } from '@/components/EmptyState';
 import { HardshipBanner } from '@/components/HardshipBanner';
+import { FollowUpDrawer } from '@/components/FollowUpDrawer';
 import { VersionIndicator } from '@/components/VersionIndicator';
 
 function App() {
   const { state, lookup } = useRecommendations();
+  const { state: followUpState, fetchFollowUp, reset: resetFollowUp } = useFollowUp();
   const isLoading = state.status === 'loading';
+
+  // LD-7: ?narrative=off collapses v3.0 surfaces to v2.0 shape.
+  const narrativeOff = new URLSearchParams(window.location.search).get('narrative') === 'off';
+
+  // Wrap lookup to reset follow-up state on new lookup.
+  const handleLookup = useCallback((rawId: string) => {
+    resetFollowUp();
+    lookup(rawId);
+  }, [lookup, resetFollowUp]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -44,12 +60,12 @@ function App() {
 
         {/* Form — Customer ID input + "Look up customer" CTA (D-12 submit). */}
         <section className="mb-8">
-          <LookupForm onLookup={lookup} isLoading={isLoading} />
+          <LookupForm onLookup={handleLookup} isLoading={isLoading} />
         </section>
 
         {/* Persona quick-pick chips (D-08) — one click fires lookup. */}
         <section className="mb-8">
-          <PersonaChips onSelect={lookup} disabled={isLoading} />
+          <PersonaChips onSelect={handleLookup} disabled={isLoading} />
         </section>
 
         {/* Result region — state-driven. Error replaces cards, never alongside. */}
@@ -77,6 +93,14 @@ function App() {
                 <RecommendationCard track="green" data={state.data.green} />
                 <RecommendationCard track="cheapest" data={state.data.cheapest} />
               </div>
+
+              {/* Phase 15 WF-01: Follow-up email drawer below the cards.
+                  ?narrative=off → drawer renders null (LD-7). */}
+              <FollowUpDrawer
+                state={followUpState}
+                onDraft={() => fetchFollowUp(state.customerId)}
+                narrativeOff={narrativeOff}
+              />
             </>
           )}
         </section>

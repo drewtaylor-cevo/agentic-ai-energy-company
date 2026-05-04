@@ -1,0 +1,7 @@
+{
+    "kind": "hardship",
+    "customer_id": "CUST-006",
+    "reason": "This customer account is flagged for dedicated support from our specialist team.",
+    "routing_target": "hardship_team",
+    "call_script": "Let me connect you with our specialist support team who can best help with your account."
+}

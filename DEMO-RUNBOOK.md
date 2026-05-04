@@ -1,31 +1,42 @@
 # Demo Runbook — Customer Tariff & Billing Optimisation Agent
 
-Presenter-facing guide for the **v2.0 demo** (frozen at `demo-v2.0`). Top-to-bottom read on the day before; on demo day follow the **T-48h → T-24h → T-10m → T-0** checklist.
+Presenter-facing guide for the **v3.0 demo** (Agentic Depth & Workflow Assist). Top-to-bottom read on the day before; on demo day follow the **T-48h → T-24h → T-10m → T-0** checklist.
 
-> **Prior runbook:** The v1.0 runbook lives at `.planning/milestones/v1.0-phases/05-demo-hardening/DEMO-RUNBOOK.md` and was extended in-place with Phase 10 sections §7–§10. This document supersedes it for v2.0 presentations, consolidates everything a presenter needs into one file at the project root, and adds the v2.0-specific surfaces (narrative layer, `?narrative=off` kill switch, version indicator, pre-warm tooling, keep-alive, rollback drill).
+> **Prior runbooks:** v1.0 at `.planning/milestones/v1.0-phases/05-demo-hardening/DEMO-RUNBOOK.md`; v2.0 was the previous version of this file. This document supersedes both for v3.0 presentations.
 
-> **v3.0 Phase 11 amendment (2026-04-28):** The data layer has been extended on top of `demo-v2.0` — DynamoDB now carries **6 personas (CUST-001…006) and 6 tariff archetypes** (STD/ECO/VAL/TOU + new SOL/EV-TOU). The UI, API, and agent code are unchanged and still pinned to `demo-v2.0`. The CustomerTariff stack was lifted/redeployed/re-frozen on 2026-04-28 via the documented break-glass sequence; sibling stacks (Agent, Api) never moved. See §4 for the extended persona set, §5 for the mock-fallback caveat this introduces, and §7 for the live-deploy amendment record.
+> **Presenter artefacts (Phase 16):** Three documents under `.planning/docs/presenter/` support the demo narrative:
+> - `TRUST-ARCHITECTURE.md` (DOC-01) — regulatory-aware architecture one-pager
+> - `NARRATIVE-TRADEOFFS.md` (DOC-02) — honest cost-vs-value of LLM narrative
+> - `DEFERRED-ROADMAP.md` (DOC-03) — architecture-with-stubs view + what comes next
 
 ---
 
 ## 0. What you are demoing
 
-**The product:** a call-centre agent-assist tool. The agent at the phone enters a customer ID; the tool returns two personalised tariff recommendations (Green and Cheapest) with:
+**The product:** a call-centre agent-assist tool. The agent at the phone enters a customer ID; the tool returns:
 
-- Projected **monthly and annual savings** (byte-exact, deterministic from usage data)
-- A **one-sentence usage narrative** (LLM-generated, validator-gated, no digits or currency symbols)
-- A **one-sentence call script** (LLM-generated, second-person, ≤22 words, operator reads verbatim)
-- A methodology line explaining how the number was computed
+- Two personalised **tariff recommendations** (Green and Cheapest) with projected monthly and annual savings (byte-exact, deterministic)
+- A **one-sentence usage narrative** and **call script** (LLM-generated, validator-gated)
+- A **reasoning trace** showing the agent's tool-call chain (collapsed by default)
+- A **hardship routing banner** when the customer is flagged for specialist support (no tariff recommendations shown)
+- A **follow-up email draft** the operator can edit and send, referencing the prior recommendation via AgentCore Memory
 
-Both cards are visible above the fold at 1280×800. The system never picks between Green and Cheapest — the agent does, based on what the customer cares about.
+Both recommendation cards are visible above the fold at 1280×800. The system never picks between Green and Cheapest — the agent does, based on what the customer cares about.
+
+**v3.0 surfaces (new since v2.0):**
+- Multi-tool reasoning trace (Phase 13) — visible on bill-shock personas
+- Hardship short-circuit (Phase 14) — code-side pre-LLM guard, dignity-preserving routing
+- Follow-up email draft (Phase 15) — AgentCore Memory-backed second turn
+- CustomerDataProvider Protocol (Phase 12) — production-shaped CRM adapter seam
 
 **Stack:**
 - React + Vite UI served by `vite preview` on the presenter laptop
 - API Gateway HTTP v2 → Lambda (named alias `live`) → Bedrock AgentCore Runtime (Strands + Claude Sonnet 4.6)
-- DynamoDB `tariff-billing` for the 36-item fixture dataset (3 personas × 12 months)
+- DynamoDB `tariff-billing` for the fixture dataset (5 personas × 12 months + PROFILE rows)
+- AgentCore Memory for follow-up email context (short-term, same-day TTL)
 - All in AWS `us-east-1`, account `588738606436`, profile `cevo-dev25`
 
-**Freeze state:** everything you'll use in the demo is locked at `demo-v2.0` (annotated git tag) with deny-Update:* CFN stack policies + termination protection live on all 3 stacks. See §7 for the freeze ceremony record.
+**Freeze state:** everything you'll use in the demo will be locked at `demo-v3.0` (annotated git tag, cut during Phase 17 freeze ceremony) with deny-Update:* CFN stack policies + termination protection on all 3 stacks.
 
 ---
 
@@ -38,13 +49,11 @@ AWS profile:          cevo-dev25                       # shell-exported AWS_PROF
 Backend API URL:      https://y9w9qwegwe.execute-api.us-east-1.amazonaws.com/
 AgentCore Runtime:    arn:aws:bedrock-agentcore:us-east-1:588738606436:runtime/tariff_agent-O2Hai86N8V
 Bedrock model:        us.anthropic.claude-sonnet-4-6   # literal at agent/agent.py:309
-Demo git tags:        demo-v1.0 (rollback target) · demo-v2.0 (freeze target) · v2.0 (milestone)
+Demo git tags:        demo-v1.0 (v1.0 rollback) · demo-v2.0 (v2.0 rollback) · demo-v3.0 (freeze target, Phase 17)
 Python interpreter:   /opt/homebrew/bin/python3.13     # /usr/bin/python3 is 3.9.6 and cannot install iniconfig==2.3.0
-Freeze DynamoDB backup ARN:
-  arn:aws:dynamodb:us-east-1:588738606436:table/tariff-billing/backup/01777208516554-e1bee933
-  # ↑ 36-row v2.0 baseline. Live table is now 73 rows after Phase 11 (36 v2.0 +
-  #   36 new billing + 1 PROFILE sentinel). Restoring from this backup rolls the
-  #   data layer BACK to v2.0 — use only for a v1.0/v2.0 fallback demo.
+Personas:             CUST-001 (Sarah, high-usage) · CUST-002 (Marcus, mid-usage) · CUST-003 (Elena, bill-shock)
+                      CUST-004 (Solar PV) · CUST-005 (EV TOU) · CUST-006 (Hardship)
+Follow-up route:      GET /recommendations/{customer_id}/follow-up
 ```
 
 **Quick sanity before any command:**
@@ -135,22 +144,33 @@ aws sts get-caller-identity --query Account --output text   # expect 58873860643
 
 ### T-24h — Visual rehearsal + gap closure
 
-- [ ] **Visual rehearsal (Chrome DevTools, 1280×800):** open `http://localhost:4173/` in Chrome at 1280×800 with DevTools → Network. Run 2 passes (cold then warm, 30s apart) across all 3 personas plus `cust999` and `CUST-999` error cases. Record per-persona warm median from DevTools Network Duration. **Every warm median must be < 3000ms** — if not, treat as a gap against UI-02 before presenting.
-- [ ] **Close v2.0 deferred UAT/VERIFICATION items** (5 total, recorded in `STATE.md §v2.0 Close Deferrals`):
-  ```
-  /gsd-verify-work 07   # resolve 3 HUMAN-UAT scenarios + VERIFICATION
-  /gsd-verify-work 08   # resolve VERIFICATION
-  /gsd-verify-work 09   # resolve 3 HUMAN-UAT scenarios + VERIFICATION
-  ```
+- [ ] **Visual rehearsal (Chrome DevTools, 1280×800):** open `http://localhost:4173/` in Chrome at 1280×800 with DevTools → Network. Run 2 passes (cold then warm, 30s apart) across all 5 recommendation personas plus CUST-006 (hardship) plus `cust999` and `CUST-999` error cases. Record per-persona warm median from DevTools Network Duration. **Every warm median must be under the per-flow gate** (3000ms single-tool, 2500ms multi-tool for CUST-003).
+- [ ] **v3.0 surface rehearsal:**
+  - CUST-003 (Elena): expand reasoning trace, confirm 2-3 tool entries with deterministic summaries
+  - CUST-006: confirm hardship banner renders with dignity-preserving message, no tariff cards
+  - After any recommendation: click "Draft follow-up email", confirm email draft loads with subject/body/plan_reference
+  - `?narrative=off`: confirm reasoning trace, hardship banner, AND follow-up drawer all collapse to v2.0 shape
 - [ ] Confirm the narrative text for each persona looks presentable (no digit leakage, no banned-term leakage, <20/<22 word caps respected). Quick check:
   ```bash
-  for ID in CUST-001 CUST-002 CUST-003; do
+  for ID in CUST-001 CUST-002 CUST-003 CUST-004 CUST-005; do
     curl -s "$BACKEND_API_URL/recommendations/$ID" | \
       jq '.green.usage_narrative, .green.call_script, .cheapest.usage_narrative, .cheapest.call_script'
   done
   ```
+- [ ] Confirm hardship response shape:
+  ```bash
+  curl -s "$BACKEND_API_URL/recommendations/CUST-006" | jq '.kind, .reason, .call_script'
+  # Expect: "hardship", <reason string>, <call_script string>
+  ```
+- [ ] Confirm follow-up route:
+  ```bash
+  curl -s "$BACKEND_API_URL/recommendations/CUST-001"  # prime recommendation
+  curl -s "$BACKEND_API_URL/recommendations/CUST-001/follow-up" | jq '.subject, .plan_reference'
+  # Expect: non-empty subject and plan_reference
+  ```
 - [ ] Customer-specific branding / slides updated (if any)
 - [ ] Scan this runbook end-to-end
+- [ ] Review presenter artefacts: `.planning/docs/presenter/TRUST-ARCHITECTURE.md`, `NARRATIVE-TRADEOFFS.md`, `DEFERRED-ROADMAP.md`
 - [ ] **Phase 13 AGENT-01 rehearsal (CUST-003 Elena — bill-shock multi-tool flow):**
   - Run the per-flow prewarm gate: `BACKEND_API_URL="$BACKEND_API_URL" python3 scripts/prewarm.py` — exit 0 required. CUST-003 Elena warm median must be under 2500ms (AGENT-01a). CUST-001 Sarah under 3000ms (single-tool baseline). Per amendment A-01, Marcus (CUST-002) is the non-shock foil — used for cross-persona canary assertions only, not the multi-tool demo beat.
   - Verify CUST-003 returns a `reasoning_trace` array with 2–3 entries (depending on A-03 sighting-shot outcome — see Plan 07 summary). CUST-001 and CUST-002 should return `reasoning_trace: []` (single-tool flow).
@@ -214,7 +234,7 @@ export AWS_PROFILE=cevo-dev25
 export BACKEND_API_URL="https://y9w9qwegwe.execute-api.us-east-1.amazonaws.com/"
 bash scripts/demo-keepalive.sh
 # Expect: first tick prints "<UTC> CUST-001 204 Nms ok" within ~1s,
-# then every 10 minutes rotating CUST-001 → CUST-002 → CUST-003
+# then every 10 minutes rotating CUST-001 → CUST-002 → CUST-003 → CUST-004 → CUST-005
 ```
 
 - [ ] `BACKEND_API_URL` exported and matches live endpoint
@@ -223,29 +243,30 @@ bash scripts/demo-keepalive.sh
 
 ### T-10m — Pre-warm (DEMO-03)
 
-Force-warm all 3 personas through the full Bedrock path and assert all warm medians < 3000ms. See §9 for full procedure.
+Force-warm all 5 recommendation personas + follow-up route through the full Bedrock path and assert all warm medians under per-flow gate. See §9 for full procedure.
 
 ```bash
 cd ui
 BACKEND_API_URL="$BACKEND_API_URL" npm run prewarm
 cd -
-# Expect exit 0; CUST-001 (single-tool, <3000ms) + CUST-003 Elena (multi-tool, <2500ms per A-01 amendment)
-# 3 warm passes per persona + 30s settle + 6 measurement GETs + per-flow median summary.
+# Expect exit 0; CUST-001/002/004/005 (single-tool, <3000ms) + CUST-003 Elena (multi-tool, <2500ms)
+# + follow-up route for CUST-001
+# 3 warm passes per persona + 30s settle + follow-up warm + 15 measurement GETs + per-flow median summary.
 ```
 
 - [ ] Exit code 0 on first attempt
-- [ ] All 3 warm medians < 3000ms
+- [ ] All 5 warm medians under per-flow gate
 - [ ] No cold-start re-runs needed
 
 ### T-eval — Live eval gate (DEMO-03 tail)
 
 ```bash
 BACKEND_API_URL="$BACKEND_API_URL" \
-  .venv/bin/pytest tests/test_narrative_eval_live.py -m smoke 2>&1 | tail -10
-# Expect "3 passed"
+  .venv/bin/pytest tests/test_narrative_eval_live.py -m smoke 2>&1 | tail -15
+# Expect "12 passed"
 ```
 
-- [ ] `3 passed` — narrative-validator and `_narrative_source` marker-strip contract both green against live
+- [ ] `12 passed` — narrative-validator, `_narrative_source` marker-strip, AGENT-01 determinism, AGENT-02 hardship shape, WF-01 follow-up + memory isolation all green against live
 - [ ] If failed: go/no-go decision — `?narrative=off` is the presenter-grade fallback (§5)
 
 ### T-0 — Go live (2 minutes before presenting)
@@ -271,27 +292,35 @@ BACKEND_API_URL="$BACKEND_API_URL" \
 
 ## 4. Presenter cheat sheet
 
-### The three demo personas (use in this order)
+### The demo personas (recommended order)
 
-| ID | Persona | Expected Green | Expected Cheapest | Narrative angle |
-|----|---------|----------------|-------------------|-----------------|
+| ID | Persona | Expected Green | Expected Cheapest | Demo beat |
+|----|---------|----------------|-------------------|-----------|
 | CUST-001 | Sarah Chen — high usage | **$30.00/mo · $360.00/yr · EcoFlex 100** | **$55.00/mo · $660.00/yr · Value 12** | Flagship retention save — biggest delta, clearest story |
 | CUST-002 | Marcus Webb — mid usage | **$16.90/mo · $202.80/yr · EcoFlex 100** | **$30.98/mo · $371.76/yr · Value 12** | Typical customer — moderate delta, both tracks viable |
-| CUST-003 | Elena Vasquez — low usage | **$14.00/mo · $168.00/yr · EcoFlex 100** | **$25.67/mo · $308.04/yr · Value 12** | Low-usage — savings still meaningful, not rounding noise |
+| CUST-003 | Elena Vasquez — bill shock | **$14.00/mo · $168.00/yr · EcoFlex 100** | **$25.67/mo · $308.04/yr · Value 12** | **Multi-tool reasoning** — agent detects bill shock, reasoning trace visible |
+| CUST-004 | Solar PV household | **$40.02/mo · $480.24/yr · EcoFlex 100** | **$76.03/mo · $912.36/yr · Solar Feed-in (SOL)** | Solar feed-in tariff archetype — export credits move the needle |
+| CUST-005 | EV household | **$35.00/mo · $420.00/yr · EcoFlex 100** | **$84.00/mo · $1008.00/yr · EV Time-of-Use (EV-TOU)** | EV TOU tariff — off-peak charging unlocks biggest delta |
+| CUST-006 | Hardship persona | *(no recommendations)* | *(no recommendations)* | **Hardship short-circuit** — code-side guard, dignity-preserving routing |
 
 All dollar values are byte-exact across freeze. If the live API returns something different for a persona, **something is wrong** — switch to the mock fallback (§5) before continuing.
 
-### Extended persona set (v3.0 Phase 11 — seeded on the live stack, NOT in mock fallback)
+### v3.0 demo flow (recommended 5-beat sequence)
 
-These three personas ship in the live DynamoDB table (73-row seed) and round-trip through the deployed Tools Lambda with byte-exact savings. Use them if the CX story calls for tariff archetypes beyond flat-rate — solar feed-in, EV time-of-use, or hardship flagging. If you demo these, **do not fall back to `build:mock` mid-demo** — the mock dist only covers CUST-001/002/003 (see §5).
+1. **Sarah (CUST-001)** — flagship save. Show both cards, point out the narrative and call script. "The dollar values are pure Python; the narrative is LLM-generated with a banned-terms validator."
+2. **Elena (CUST-003)** — multi-tool reasoning. Expand the reasoning trace. "The agent detected a bill spike, fetched billing history, and composed the recommendation from three tool calls. Every number in the trace comes from tool output, not the LLM."
+3. **CUST-006** — hardship short-circuit. "This customer is flagged for hardship support. The system refuses to show tariff recommendations — that's a code-side guard, not a prompt instruction. The LLM never sees tariff context for this customer."
+4. **Follow-up email** — after any recommendation, click "Draft follow-up email". "The agent remembers the prior recommendation via AgentCore Memory and drafts a personalised email the operator can edit before sending."
+5. **Architecture story** — reference the presenter artefacts. "The Salesforce adapter is a committed stub — same Protocol, same tests. Swapping the data source is a provider implementation, not a rewrite." (See DOC-03.)
 
-| ID | Persona | Expected Green | Expected Cheapest | Tariff archetype | Narrative angle |
-|----|---------|----------------|-------------------|------------------|-----------------|
-| CUST-004 | Solar PV household | **$40.02/mo · $480.24/yr · EcoFlex 100** | **$76.03/mo · $912.36/yr · Solar Feed-in (SOL)** | `plan_type: solar_fit` — rate 0.23, fit_rate 0.08, green_score 80 | Export credits move the needle; Cheapest is also the Greenest-adjacent track |
-| CUST-005 | EV household | **$35.00/mo · $420.00/yr · EcoFlex 100** | **$84.00/mo · $1008.00/yr · EV Time-of-Use (EV-TOU)** | `plan_type: time_of_use` — peak 0.40, offpeak 0.08, 30/70 split | Off-peak charging behaviour unlocks the biggest delta in the portfolio |
-| CUST-006 | Hardship persona | **$12.00/mo · $144.00/yr · EcoFlex 100** | **$22.00/mo · $264.00/yr · Value 12** | Flat-rate + `hardship_flag: true` PROFILE row | Data is seeded; hardship routing is Phase 14 scope — agent today still returns both tracks. Don't claim autonomy it doesn't have yet. |
+### Follow-up email demo beat
 
-**SAV-03 still holds end-to-end** — live `aws lambda invoke` on CUST-001 on the re-frozen stack returns $30/$55 byte-exact (per 11-06-SUMMARY). The dispatcher refactor (flat-rate / TOU / solar_fit branches) did not regress v2.0 numbers.
+After showing a recommendation for any persona (CUST-001 recommended):
+1. Click "Draft follow-up email" below the cards
+2. Wait for the email draft to load (uses AgentCore Memory to recall the recommendation)
+3. Show the editable subject, body, and plan reference
+4. Point out: "The operator can edit this before sending — the system drafts, the human decides"
+5. Click "Copy to clipboard" to demonstrate the workflow endpoint
 
 ### Talking points
 
@@ -301,8 +330,20 @@ These three personas ship in the live DynamoDB table (73-row seed) and round-tri
 **Determinism framing (when someone asks 'is that really an LLM doing the math?'):**
 > "The dollar values are pure Python — a `simulate_savings` function with 29 pytest cases locked since v1.0. The LLM never sees the arithmetic. What the LLM produces is the narrative row and the call-script row. Both go through a Pydantic validator that hard-rejects digits, currency symbols, and a banned-terms list. If validation fails, we fall back to per-persona × per-card committed fallback strings we wrote by hand."
 
+**Reasoning trace framing (after showing Elena's multi-tool flow):**
+> "The reasoning trace shows exactly which tools the agent called and in what order. Every number in those summaries — the bill-shock delta, the billing history count, the savings figures — comes from tool output, not the LLM. The summaries are code-composed from pure Python formatters. This is the observability surface: the rep can see what the agent grounded on."
+
+**Hardship framing (after showing CUST-006):**
+> "When a customer is flagged for hardship support, the system refuses to present tariff recommendations. That's a code-side guard — the LLM never sees tariff plans or savings figures for this customer. Even if you removed the hardship instructions from the prompt, the guard still fires. The response is a dignity-preserving routing message, not a 404 or a 500."
+
+**Trust architecture framing (for a technical reviewer):**
+> "We have a defence-in-depth stack: pure Python arithmetic at the bottom, banned-terms regex in the middle, fallback bank as the safety net, and a URL kill switch at the top. Every layer is independently testable and independently bypassable. The trust-architecture one-pager is committed to the repo — every claim links to a pytest file or code reference." (See DOC-01.)
+
+**CRM adapter framing (for a product stakeholder):**
+> "The demo runs on DynamoDB today. The Salesforce adapter is a committed stub — same Protocol, same tests, same agent code. Swapping the data source is a provider implementation, not a rewrite." (See DOC-03.)
+
 **Freeze framing (if asked about demo-day reliability):**
-> "The environment is locked at T-48h. The 3 CloudFormation stacks have deny-Update:* policies and termination protection. Python dependencies are hash-pinned. We did a 5-step rollback drill two days ago — all 5 passed. There's a kill switch at `?narrative=off` if the LLM layer misbehaves mid-demo; the UI collapses to v1.0 shape without a redeploy."
+> "The environment is locked at T-48h. The 3 CloudFormation stacks have deny-Update:* policies and termination protection. Python dependencies are hash-pinned. We did a 5-step rollback drill. There's a kill switch at `?narrative=off` if the LLM layer misbehaves mid-demo; the UI collapses to v2.0 shape without a redeploy."
 
 ### Error paths to rehearse (show one or two if a reviewer asks)
 
@@ -310,8 +351,10 @@ These three personas ship in the live DynamoDB table (73-row seed) and round-tri
   > "That doesn't look like a customer ID. Format is CUST followed by 3–6 digits."
 - `CUST-999` → 404 alert:
   > "No customer found for CUST-999. Check the ID and try again."
+- `CUST-006` → hardship banner (not an error, but a distinct path):
+  > "This customer is flagged for specialist support. No tariff recommendations shown."
 
-Both error paths are baked into the UI and don't hit the LLM — fast, zero-cost, reliable to rehearse.
+Both error paths are baked into the UI and don't hit the LLM — fast, zero-cost, reliable to rehearse. The hardship path hits the agent but short-circuits before the LLM sees tariff context.
 
 ---
 
@@ -326,7 +369,7 @@ Both error paths are baked into the UI and don't hit the LLM — fast, zero-cost
 http://localhost:4173/?narrative=off
 ```
 
-The UI collapses to v1.0 shape — both cards retain dollars, methodology, and track metadata; the narrative and call-script rows simply disappear. Loading-state skeletons also collapse so there is no layout shift when the flag is on.
+The UI collapses to v1.0 shape — both cards retain dollars, methodology, and track metadata; the narrative and call-script rows simply disappear. Loading-state skeletons also collapse so there is no layout shift when the flag is on. **v3.0 surfaces also collapse:** reasoning trace renders null, hardship banner renders null, follow-up email drawer renders null. Single flag, single rehearsal contract (LD-7).
 
 **Symptom C — any other surprise (dollar values wrong, 5xx, blank page):** switch to mock dist:
 
@@ -480,7 +523,7 @@ done
 
 ## 8. Keep-Alive (DEMO-05) — start at T-30m
 
-The `scripts/demo-keepalive.sh` shell loop pings `/recommendations/CUST-00X` every 10 minutes, rotating through all 3 personas. It beats AgentCore's 15-minute microVM idle timeout so the first live persona lookup in the demo is warm.
+The `scripts/demo-keepalive.sh` shell loop pings `/recommendations/CUST-00X` every 10 minutes, rotating through all 5 recommendation personas. It beats AgentCore's 15-minute microVM idle timeout so the first live persona lookup in the demo is warm.
 
 ### Start it
 
@@ -490,7 +533,7 @@ export AWS_PROFILE=cevo-dev25
 export BACKEND_API_URL="https://y9w9qwegwe.execute-api.us-east-1.amazonaws.com/"
 bash scripts/demo-keepalive.sh
 # First tick within ~1s: "<UTC> CUST-001 204 Nms ok"
-# Subsequent ticks every 10 minutes, rotating CUST-001 → CUST-002 → CUST-003
+# Subsequent ticks every 10 minutes, rotating CUST-001 → CUST-002 → CUST-003 → CUST-004 → CUST-005
 ```
 
 Detach from the tmux pane (`Ctrl-b d`) but do NOT close the terminal. The script traps `SIGINT`/`SIGTERM`/`SIGHUP` and exits cleanly when you `Ctrl-C` (post-demo).
@@ -512,7 +555,7 @@ tmux kill-session -t keepalive
 
 ## 9. Pre-warm (DEMO-03) — run at T-10m
 
-`npm run prewarm` (a thin wrapper over `scripts/prewarm.py`) warms all 3 personas via Phase 7's `?prewarm=1` route, waits 30s for provisioned concurrency to settle, then runs 9 timed measurement GETs (3 per persona). It asserts every warm median is < 3000ms.
+`npm run prewarm` (a thin wrapper over `scripts/prewarm.py`) warms all 5 recommendation personas via Phase 7's `?prewarm=1` route, exercises the follow-up route for CUST-001, waits 30s for provisioned concurrency to settle, then runs 15 timed measurement GETs (3 per persona). It asserts every warm median is under the per-flow gate (3000ms single-tool, 2500ms multi-tool for CUST-003).
 
 ### Run it
 
@@ -554,22 +597,31 @@ all personas under gate — exit 0
 
 ## 10. Live eval harness (DEMO-03 tail) — run at T-eval
 
-The smoke-gated live eval harness asserts (a) the Phase 6 narrative validator rules still hold end-to-end — no digits, no currency symbols, no banned terms in any of the 12 narrative/script fields across 3 personas × 2 tracks — AND (b) the Phase 7 `_narrative_source` marker is stripped from every response body.
+The smoke-gated live eval harness asserts (a) the Phase 6 narrative validator rules still hold end-to-end — no digits, no currency symbols, no banned terms in any of the 20 narrative/script fields across 5 personas × 2 tracks — AND (b) the Phase 7 `_narrative_source` marker is stripped from every response body — AND (c) v3.0 canaries: AGENT-01 multi-tool determinism, AGENT-02 hardship refusal shape, WF-01 follow-up route + cross-customer memory isolation.
 
 ### Run it
 
 ```bash
 BACKEND_API_URL="https://y9w9qwegwe.execute-api.us-east-1.amazonaws.com/" \
-  .venv/bin/pytest tests/test_narrative_eval_live.py -m smoke 2>&1 | tail -10
+  .venv/bin/pytest tests/test_narrative_eval_live.py -m smoke 2>&1 | tail -15
 ```
 
 ### Expected output
 
 ```
-tests/test_narrative_eval_live.py::test_sarah_narrative_validator PASSED
-tests/test_narrative_eval_live.py::test_marcus_narrative_validator PASSED
-tests/test_narrative_eval_live.py::test_elena_narrative_validator PASSED
-============ 3 passed in X.XXs ============
+tests/test_narrative_eval_live.py::test_narrative_eval_live[CUST-001] PASSED
+tests/test_narrative_eval_live.py::test_narrative_eval_live[CUST-002] PASSED
+tests/test_narrative_eval_live.py::test_narrative_eval_live[CUST-003] PASSED
+tests/test_narrative_eval_live.py::test_narrative_eval_live[CUST-004] PASSED
+tests/test_narrative_eval_live.py::test_narrative_eval_live[CUST-005] PASSED
+tests/test_narrative_eval_live.py::test_agent01_latency_floor PASSED
+tests/test_narrative_eval_live.py::test_agent01_tools_actually_invoked PASSED
+tests/test_narrative_eval_live.py::test_agent01_non_shock_stays_2_tools PASSED
+tests/test_narrative_eval_live.py::test_agent02_hardship_refusal_shape PASSED
+tests/test_narrative_eval_live.py::test_agent01_multi_tool_determinism PASSED
+tests/test_narrative_eval_live.py::test_wf01_follow_up_route PASSED
+tests/test_narrative_eval_live.py::test_wf01_cross_customer_memory_isolation PASSED
+============ 12 passed in X.XXs ============
 ```
 
 ### Failure handling
@@ -641,6 +693,11 @@ After teardown:
 ---
 
 ## Cross-references
+
+**Presenter artefacts (Phase 16 DOC-01/02/03):**
+- Trust architecture: `.planning/docs/presenter/TRUST-ARCHITECTURE.md`
+- Narrative tradeoffs: `.planning/docs/presenter/NARRATIVE-TRADEOFFS.md`
+- Deferred roadmap: `.planning/docs/presenter/DEFERRED-ROADMAP.md`
 
 **Operational:**
 - Live ARNs + endpoint: `.planning/milestones/v1.0-phases/05-demo-hardening/05-DEPLOY-OUTPUTS.md`
@@ -759,4 +816,4 @@ If the email channel is more urgent (e.g., retention campaign pressure):
 
 ---
 
-*Last updated: 2026-04-30 after v3.0 Phase 13.1 (AGENT-01 Gap Closure — Latency Short-Circuit + 404 Detection) ceremony completed and re-froze CustomerTariffAgent + CustomerTariffApi stacks. Code pinned to `demo-v2.0` (freeze target) + `v2.0` (milestone close); data layer extended to 73 rows / 6 personas / 6 tariff archetypes on top. Phase 13.1 deployed prompt short-circuit (2-tool non-shock path) + UNKNOWN sentinel (404 detection defence-in-depth). Verification findings: Elena trace length 2 (expected 3), warm latency 11-14s (gates 2.5-3s). If you are reading this past demo day and see drift between what the runbook describes and what actually exists, trust `git describe --tags` and the live `aws cloudformation describe-stacks` state first, this document second.*
+*Last updated: 2026-05-04 after v3.0 Phase 16 (Presenter Artefacts + Operational Consolidation). Runbook upgraded from v2.0 to v3.0 scope: 6 personas (5 recommendation + 1 hardship), multi-tool reasoning trace, hardship short-circuit, follow-up email draft, extended prewarm (5 personas + follow-up route), extended keep-alive (5 personas), extended eval harness (12 smoke canaries). Presenter artefacts committed at `.planning/docs/presenter/`. Phase 17 freeze ceremony will cut `demo-v3.0` tag and re-apply stack policies.*

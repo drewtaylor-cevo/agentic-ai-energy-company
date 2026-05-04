@@ -68,7 +68,7 @@ def _fails_rules(value: str, max_words: int, max_chars: int):
     return None
 
 
-@pytest.mark.parametrize("customer_id", ["CUST-001", "CUST-002", "CUST-003"])
+@pytest.mark.parametrize("customer_id", ["CUST-001", "CUST-002", "CUST-003", "CUST-004", "CUST-005"])
 def test_narrative_eval_live(customer_id):
     """SC-4: live API narrative on both tracks passes Phase 6 validator rules;
     Phase 7 D-06 _narrative_source marker is absent from the response body.
@@ -246,3 +246,200 @@ def test_agent01_non_shock_stays_2_tools():
         f"{[e.get('tool') for e in trace]}; D-13.1-14 requires <= 2 "
         f"(expected shape: get_hardship_flag + simulate_savings)."
     )
+
+
+# ----------------------------------------------------------------------
+# Phase 16 DEMO-10 — new smoke canaries for v3.0 surfaces.
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.smoke
+def test_agent02_hardship_refusal_shape():
+    """DEMO-10: CUST-006 (hardship) returns kind: "hardship" with no tariff tracks.
+
+    The hardship short-circuit (AGENT-02) must return a dignity-preserving
+    routing response with no green/cheapest keys, no plan IDs, and no
+    savings figures. The response shape is a discriminated union with
+    kind: "hardship".
+    """
+    backend_api_url = os.environ["BACKEND_API_URL"].rstrip("/")
+    r = requests.get(
+        f"{backend_api_url}/recommendations/CUST-006", timeout=60
+    )
+    assert r.status_code == 200, (
+        f"CUST-006 returned {r.status_code}: {r.text}"
+    )
+    body = r.json()
+
+    # Discriminated union shape check.
+    assert body.get("kind") == "hardship", (
+        f"Expected kind='hardship', got {body.get('kind')!r}"
+    )
+    assert "green" not in body, (
+        f"Hardship response must not contain 'green' track: {sorted(body.keys())}"
+    )
+    assert "cheapest" not in body, (
+        f"Hardship response must not contain 'cheapest' track: {sorted(body.keys())}"
+    )
+
+    # Required fields present.
+    assert "customer_id" in body, "Missing customer_id in hardship response"
+    assert "reason" in body, "Missing reason in hardship response"
+    assert "call_script" in body, "Missing call_script in hardship response"
+    assert body["customer_id"] == "CUST-006"
+
+    # D-15 validators on hardship narrative fields — no digits, no banned terms.
+    for field in ("reason", "call_script"):
+        value = body[field]
+        assert not NUMERIC_REGEX.search(value), (
+            f"CUST-006 hardship {field} contains forbidden digit/currency: {value!r}"
+        )
+        m = BANNED_REGEX.search(value)
+        assert m is None, (
+            f"CUST-006 hardship {field} contains banned term {m.group()!r}: {value!r}"
+        )
+
+
+@pytest.mark.smoke
+def test_agent01_multi_tool_determinism():
+    """DEMO-10: CUST-003 (Elena, bill-shock) reasoning_trace contains deterministic
+    tool-result summaries — same tools produce consistent summary shapes across
+    two consecutive calls.
+
+    This is NOT a byte-exact test (LLM narrative varies); it asserts that the
+    reasoning_trace tool names and summary structure are stable, confirming the
+    agent is actually calling tools (not fabricating) and the deterministic
+    summary formatters in agent/reasoning/summaries.py are producing output.
+    """
+    backend_api_url = os.environ["BACKEND_API_URL"].rstrip("/")
+
+    traces = []
+    for _ in range(2):
+        r = requests.get(
+            f"{backend_api_url}/recommendations/CUST-003", timeout=60
+        )
+        assert r.status_code == 200, f"CUST-003 returned {r.status_code}: {r.text}"
+        body = r.json()
+        trace = body.get("reasoning_trace", [])
+        traces.append(trace)
+
+    # Both calls should produce a non-empty trace.
+    for i, trace in enumerate(traces):
+        assert len(trace) >= 2, (
+            f"Call {i+1}: CUST-003 reasoning_trace has {len(trace)} entries "
+            f"(expected >= 2 for multi-tool flow)"
+        )
+
+    # Tool names should be consistent across calls (same tools called).
+    tools_1 = [e.get("tool") for e in traces[0]]
+    tools_2 = [e.get("tool") for e in traces[1]]
+    assert tools_1 == tools_2, (
+        f"Tool sequence inconsistent: call 1 = {tools_1}, call 2 = {tools_2}"
+    )
+
+    # Every entry should have a non-empty summary (deterministic formatter ran).
+    for i, trace in enumerate(traces):
+        for entry in trace:
+            assert entry.get("summary"), (
+                f"Call {i+1}: tool {entry.get('tool')!r} has empty summary"
+            )
+
+    # simulate_savings must always be the last tool (REC-03 contract).
+    assert tools_1[-1] == "simulate_savings", (
+        f"Last tool should be simulate_savings, got {tools_1[-1]!r}"
+    )
+
+
+@pytest.mark.smoke
+def test_wf01_follow_up_route():
+    """DEMO-10: follow-up route returns a well-shaped FollowUpEmailResponse.
+
+    Exercises GET /recommendations/CUST-001/follow-up after a recommendation
+    lookup for the same customer. The response should contain subject, body,
+    and plan_reference fields. Internal markers (_workflow_source,
+    _narrative_source) must be stripped.
+    """
+    backend_api_url = os.environ["BACKEND_API_URL"].rstrip("/")
+
+    # Step 1: prime the recommendation (populates Memory for the follow-up).
+    r1 = requests.get(
+        f"{backend_api_url}/recommendations/CUST-001", timeout=60
+    )
+    assert r1.status_code == 200, (
+        f"CUST-001 recommendation returned {r1.status_code}: {r1.text}"
+    )
+
+    # Step 2: request the follow-up email draft.
+    r2 = requests.get(
+        f"{backend_api_url}/recommendations/CUST-001/follow-up", timeout=60
+    )
+    assert r2.status_code == 200, (
+        f"CUST-001 follow-up returned {r2.status_code}: {r2.text}"
+    )
+    body = r2.json()
+
+    # Shape check — FollowUpEmailResponse fields.
+    assert "subject" in body, f"Missing 'subject' in follow-up response: {sorted(body.keys())}"
+    assert "body" in body, f"Missing 'body' in follow-up response: {sorted(body.keys())}"
+    assert "plan_reference" in body, f"Missing 'plan_reference' in follow-up response: {sorted(body.keys())}"
+
+    # Internal markers must be stripped (parallel to _narrative_source contract).
+    assert "_workflow_source" not in body, (
+        f"_workflow_source leaked to client: {sorted(body.keys())}"
+    )
+    assert "_narrative_source" not in body, (
+        f"_narrative_source leaked to client: {sorted(body.keys())}"
+    )
+
+    # Subject and body must be non-empty strings.
+    assert isinstance(body["subject"], str) and len(body["subject"]) > 0, (
+        f"Follow-up subject is empty or not a string"
+    )
+    assert isinstance(body["body"], str) and len(body["body"]) > 0, (
+        f"Follow-up body is empty or not a string"
+    )
+
+
+@pytest.mark.smoke
+def test_wf01_cross_customer_memory_isolation():
+    """DEMO-10: cross-customer Memory isolation canary.
+
+    Lookup CUST-001 → follow-up CUST-002 → verify CUST-002's follow-up
+    contains zero tokens from CUST-001's recommendation. This is the live
+    equivalent of the Phase 15 offline isolation canary.
+
+    Checks: CUST-001's customer name (Sarah Chen) and plan-specific savings
+    figures must NOT appear in CUST-002's follow-up body.
+    """
+    backend_api_url = os.environ["BACKEND_API_URL"].rstrip("/")
+
+    # Step 1: prime CUST-001 recommendation (populates Memory).
+    r1 = requests.get(
+        f"{backend_api_url}/recommendations/CUST-001", timeout=60
+    )
+    assert r1.status_code == 200
+
+    # Step 2: prime CUST-002 recommendation (populates Memory for CUST-002).
+    r2 = requests.get(
+        f"{backend_api_url}/recommendations/CUST-002", timeout=60
+    )
+    assert r2.status_code == 200
+
+    # Step 3: request follow-up for CUST-002.
+    r3 = requests.get(
+        f"{backend_api_url}/recommendations/CUST-002/follow-up", timeout=60
+    )
+    assert r3.status_code == 200, (
+        f"CUST-002 follow-up returned {r3.status_code}: {r3.text}"
+    )
+    body = r3.json()
+    follow_up_body = body.get("body", "")
+
+    # CUST-001 tokens that must NOT appear in CUST-002's follow-up.
+    # Sarah Chen's name and her distinctive savings figures.
+    cust001_tokens = ["Sarah Chen", "$30.00", "$55.00", "$360.00", "$660.00"]
+    for token in cust001_tokens:
+        assert token not in follow_up_body, (
+            f"Cross-customer leak: CUST-001 token {token!r} found in "
+            f"CUST-002 follow-up body (Memory isolation failure)"
+        )

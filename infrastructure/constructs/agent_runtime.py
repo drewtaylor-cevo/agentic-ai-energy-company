@@ -5,6 +5,9 @@ push to a CDK-managed ECR repo, and create the AgentCore Runtime resource.
 IAM is scoped to lambda:InvokeFunction on the ToolsLambda ARN and
 bedrock:InvokeModel for Claude model access.
 
+Phase 15 WF-01: accepts optional memory_id kwarg; when provided, adds
+MEMORY_ID env var to the runtime and grants Memory API permissions.
+
 The L2 construct auto-creates the execution IAM role with ECR pull,
 CloudWatch Logs, and X-Ray permissions. We add lambda:InvokeFunction
 and bedrock:InvokeModel via add_to_role_policy().
@@ -24,6 +27,7 @@ class AgentRuntimeConstruct(Construct):
         construct_id: str,
         *,
         tools_lambda_arn: str,
+        memory_id: str = "",
     ) -> None:
         super().__init__(scope, construct_id)
 
@@ -32,15 +36,20 @@ class AgentRuntimeConstruct(Construct):
             platform=ecr_assets.Platform.LINUX_ARM64,
         )
 
+        env_vars = {
+            "TOOLS_LAMBDA_ARN": tools_lambda_arn,
+            "AWS_REGION": cdk.Stack.of(self).region,
+        }
+        # Phase 15 WF-01: inject MEMORY_ID when Memory resource is provisioned.
+        if memory_id:
+            env_vars["MEMORY_ID"] = memory_id
+
         self._runtime = agentcore.Runtime(
             self,
             "TariffAgentRuntime",
             runtime_name="tariff_agent",
             agent_runtime_artifact=artifact,
-            environment_variables={
-                "TOOLS_LAMBDA_ARN": tools_lambda_arn,
-                "AWS_REGION": cdk.Stack.of(self).region,
-            },
+            environment_variables=env_vars,
             description="Strands agent: Green + Cheapest tariff recommendations",
         )
 
@@ -72,6 +81,23 @@ class AgentRuntimeConstruct(Construct):
                 resources=[tools_lambda_arn],
             )
         )
+
+        # Phase 15 WF-01: Memory API permissions for follow-up email workflow.
+        # Grants CreateEvent (store recommendation context), ListEvents (retrieve
+        # prior turn), and RetrieveMemoryRecords (query short-term events).
+        if memory_id:
+            self._runtime.add_to_role_policy(
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "bedrock-agentcore:CreateEvent",
+                        "bedrock-agentcore:ListEvents",
+                        "bedrock-agentcore:RetrieveMemoryRecords",
+                        "bedrock-agentcore:GetMemory",
+                    ],
+                    resources=["*"],
+                )
+            )
 
     @property
     def agent_runtime_arn(self) -> str:

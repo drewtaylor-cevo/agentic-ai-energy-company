@@ -1,20 +1,21 @@
 {
   "cheapest": {
-    "call_script": "Ask about EV Drive TOU \u2014 a cost-focused plan designed for flexible, time-varied energy use.",
+    "call_script": "Bring up EV Drive TOU \u2014 a cost-led plan designed for time-of-use conscious households.",
     "plan_id": "EV-TOU",
     "plan_name": "EV Drive TOU",
     "saving_annual": 1008.0,
     "saving_monthly": 84.0,
-    "usage_narrative": "A household with time-variable consumption patterns well-suited to off-peak and flexible rate structures."
+    "usage_narrative": "Customer with time-sensitive usage patterns that align well with off-peak tariff structures."
   },
   "green": {
-    "call_script": "Let's talk about EcoFlex \u2014 a renewable-aligned plan that could be a great fit for your home.",
+    "call_script": "Ask about EcoFlex \u2014 a renewable-aligned plan well suited to your home's energy profile.",
     "plan_id": "ECO",
     "plan_name": "EcoFlex 100",
     "saving_annual": 420.0,
     "saving_monthly": 35.0,
-    "usage_narrative": "A household with consistent energy demand and a preference for renewable-aligned tariff options."
+    "usage_narrative": "Eco-aligned household with steady consumption and a preference for renewable energy options."
   },
+  "kind": "recommendation",
   "reasoning_trace": [
     {
       "summary": "hardship_flag=False",

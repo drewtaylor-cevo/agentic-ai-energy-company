@@ -3,7 +3,11 @@
 #
 # Beats AgentCore's 15-minute microVM idle timeout by exercising the
 # Phase 7 `?prewarm=1` hot path every 10 minutes, rotating through
-# the three demo personas so the session pool stays warm evenly.
+# all 5 demo personas so the session pool stays warm evenly.
+#
+# Phase 16 DEMO-09: extended from 3 personas (CUST-001/002/003) to 5
+# (adds CUST-004 Solar PV + CUST-005 EV TOU). CUST-006 excluded —
+# hardship short-circuit returns no recommendation tracks.
 #
 # Operator pattern (Phase 10 DEMO-RUNBOOK T-30m):
 #   1. Open a tmux pane.
@@ -18,13 +22,13 @@ set -euo pipefail
 
 : "${BACKEND_API_URL:?BACKEND_API_URL not set}"
 
-personas=(CUST-001 CUST-002 CUST-003)
+personas=(CUST-001 CUST-002 CUST-003 CUST-004 CUST-005)
 tick_count=0
 
 trap 'printf "[%s] keepalive stopped after %d ticks\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$tick_count"; exit 0' INT TERM HUP
 
 while true; do
-  index=$((tick_count % 3))
+  index=$((tick_count % 5))
   persona="${personas[$index]}"
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 

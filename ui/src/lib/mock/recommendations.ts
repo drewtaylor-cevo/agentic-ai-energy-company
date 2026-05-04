@@ -1,4 +1,4 @@
-import type { ReasoningTraceEntry, RecommendationResponse, HardshipResponse } from '../types';
+import type { ReasoningTraceEntry, RecommendationResponse, HardshipResponse, FollowUpEmailResponse } from '../types';
 
 // Values ported from tests/conftest.py:47-100 (mock_savings_response,
 // mock_marcus_response, mock_elena_response). These MUST stay in sync with the
@@ -123,5 +123,32 @@ export const MOCK_HARDSHIP_RESPONSES: Record<string, HardshipResponse> = {
     reason: 'This customer account is flagged for dedicated support from our specialist team.',
     routing_target: 'hardship_team',
     call_script: 'Let me connect you with our specialist support team who can best help with your account.',
+  },
+};
+
+
+// Phase 15 WF-01: follow-up email mock responses.
+// Strings MUST match agent/narrative/fallbacks.py FOLLOW_UP_FALLBACKS byte-exact.
+export const MOCK_FOLLOW_UP_RESPONSES: Record<string, FollowUpEmailResponse> = {
+  'CUST-001': {
+    kind: 'follow_up',
+    customer_id: 'CUST-001',
+    subject: 'Your tariff options from our recent conversation',
+    body: 'Thank you for speaking with us about your energy plan options. As discussed, we identified plans that could better suit your household usage pattern. Please review the options at your convenience and contact us if you would like to proceed with the plan that works for your family.',
+    plan_reference: 'EcoFlex Green',
+  },
+  'CUST-002': {
+    kind: 'follow_up',
+    customer_id: 'CUST-002',
+    subject: 'Your tariff options from our recent conversation',
+    body: 'Thank you for speaking with us about your energy plan options. We discussed plans that align well with your apartment usage profile. Please review the options at your convenience and reach out if you would like to proceed with the plan that suits your home.',
+    plan_reference: 'EcoFlex Green',
+  },
+  'CUST-003': {
+    kind: 'follow_up',
+    customer_id: 'CUST-003',
+    subject: 'Your tariff options from our recent conversation',
+    body: 'Thank you for speaking with us about your energy plan options. We identified plans that could complement your seasonal usage pattern. Please review the options at your convenience and let us know if you would like to proceed with the plan that fits your household.',
+    plan_reference: 'EcoFlex Green',
   },
 };

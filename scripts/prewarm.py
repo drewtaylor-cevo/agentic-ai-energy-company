@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
-"""Phase 13 pre-warm CLI — per-flow-gate warming + measurement against the live API.
+"""Phase 16 pre-warm CLI — per-flow-gate warming + measurement against the live API.
 
-Warms the Phase 13 demo rotation (CUST-001 single-tool + CUST-003 multi-tool)
-via the Phase 7 pre-warm query branch, settles for 30s, then fires 3 timed
-`GET /recommendations/{customer_id}` calls per persona and asserts warm median
-< per-flow gate (3000ms single-tool, 2500ms multi-tool CUST-003). Runs pre-demo
-to eliminate AgentCore / Lambda cold-start latency before the presenter walks
-on stage.
+Warms all five demo personas (CUST-001 through CUST-005) plus the follow-up
+route (WF-01) via the Phase 7 pre-warm query branch, settles for 30s, then
+fires 3 timed `GET /recommendations/{customer_id}` calls per persona and
+asserts warm median < per-flow gate (3000ms single-tool, 2500ms multi-tool).
+Runs pre-demo to eliminate AgentCore / Lambda cold-start latency before the
+presenter walks on stage.
 
-Per amendment A-01 (Phase 13) Marcus was removed from the rotation — Elena
-(the bill-shock persona) is the multi-tool target. Per amendment A-03 the
-warming loop runs THREE passes (was 2) before the 30s settle to mitigate
-Strands + Bedrock first-call variance on the 2500ms multi-tool gate.
+Phase 16 DEMO-09 extensions:
+  - CUST-002 (Marcus), CUST-004 (Solar PV), CUST-005 (EV) added to rotation
+  - Follow-up route exercised for CUST-001 after recommendation warming
+  - Per-flow gate map extended: all non-shock personas at 3000ms, CUST-003 at 2500ms
+
+Per amendment A-03 the warming loop runs THREE passes (was 2) before the 30s
+settle to mitigate Strands + Bedrock first-call variance on the 2500ms
+multi-tool gate.
 
 Usage:
     BACKEND_API_URL=https://... \\
@@ -33,20 +37,29 @@ import time
 import urllib.error
 import urllib.request
 
-# Phase 13 A-01: rotation is CUST-001 (single-tool) + CUST-003 (multi-tool).
-# Marcus was deprecated from the rotation — his fixture does not trip the
-# D-03 bill-shock gate, so he cannot exercise the multi-tool flow.
-PERSONAS = ["CUST-001", "CUST-003"]
+# Phase 16 DEMO-09: full 5-persona rotation. All personas exercise the
+# recommendation path; CUST-003 (Elena, bill-shock) is the multi-tool target.
+# CUST-006 is excluded — hardship short-circuit returns no recommendation tracks.
+PERSONAS = ["CUST-001", "CUST-002", "CUST-003", "CUST-004", "CUST-005"]
 
-# Phase 13 D-18: per-flow warm-median gate map. Exit 0 iff ALL personas
-# pass their own gate; LD-4 multi-tool target is 2500ms for CUST-003.
+# Phase 16 DEMO-09: per-flow warm-median gate map extended to all 5 personas.
+# Exit 0 iff ALL personas pass their own gate; LD-4 multi-tool target is
+# 2500ms for CUST-003 (Elena, bill-shock). All others are single/2-tool flows
+# at the 3000ms baseline gate.
 # Pitfall 1: DO NOT collapse this map back to a single scalar — that would
 # accidentally apply the CUST-001 3000ms gate to multi-tool flows and let
 # a real AGENT-01a regression slip through unnoticed.
 GATE_MS: dict[str, int] = {
     "CUST-001": 3000,  # single-tool flow (v2.0 baseline — unchanged)
+    "CUST-002": 3000,  # single-tool flow (non-shock)
     "CUST-003": 2500,  # multi-tool flow (AGENT-01a contractual target)
+    "CUST-004": 3000,  # single-tool flow (solar PV)
+    "CUST-005": 3000,  # single-tool flow (EV TOU)
 }
+
+# Phase 16 DEMO-09: follow-up route warming. After recommendation warming,
+# exercise the WF-01 follow-up route for one persona to warm the Memory path.
+FOLLOW_UP_PERSONA = "CUST-001"
 
 # Phase 13 A-03: 3 warming passes (promotion 2 → 3). Mitigates Strands +
 # Bedrock first-call variance; 2500ms CUST-003 gate has ZERO headroom
@@ -127,6 +140,25 @@ def main() -> int:
     # Step 2 — settle wait (D-02 step 2). Load-bearing per specifics line 261.
     print("(wait 30s)")
     time.sleep(SETTLE_WAIT_S)
+
+    # Step 2b — follow-up route warming (Phase 16 DEMO-09). Exercise the WF-01
+    # follow-up path for FOLLOW_UP_PERSONA to warm the Memory + agent turn-2
+    # code path. Single pass, best-effort — failure here is a warning, not a
+    # hard exit (the follow-up route is a secondary demo surface).
+    follow_up_url = f"{api_url}/recommendations/{FOLLOW_UP_PERSONA}/follow-up"
+    t0 = time.perf_counter()
+    try:
+        with urllib.request.urlopen(follow_up_url, timeout=HTTP_TIMEOUT_S) as resp:
+            status = resp.status
+            resp.read()
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        if status == 200:
+            print(f"follow-up {FOLLOW_UP_PERSONA}: {status} {elapsed_ms}ms ok")
+        else:
+            print(f"follow-up {FOLLOW_UP_PERSONA}: {status} {elapsed_ms}ms WARN (expected 200)")
+    except Exception as exc:
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        print(f"follow-up {FOLLOW_UP_PERSONA}: ERROR {elapsed_ms}ms {exc} (non-blocking)")
 
     # Step 3 — measurement pass (D-02 step 3).
     medians: dict[str, list[int]] = {persona: [] for persona in PERSONAS}

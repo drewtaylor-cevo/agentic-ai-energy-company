@@ -177,7 +177,11 @@ def test_alias_live_exists():
 
 
 def test_integration_targets_alias():
-    """D-09 + D-14: HttpLambdaIntegration IntegrationUri references the alias, not $LATEST / raw fn."""
+    """D-09 + D-14: HttpLambdaIntegration IntegrationUri references the alias, not $LATEST / raw fn.
+
+    Phase 15 WF-01: two integrations now exist (recommendation + follow-up),
+    both targeting the same alias.
+    """
     template = _synth_with_context(demo_pc=0)
     template_json = template.to_json()
 
@@ -185,11 +189,9 @@ def test_integration_targets_alias():
         r for r in template_json["Resources"].values()
         if r.get("Type") == "AWS::ApiGatewayV2::Integration"
     ]
-    assert len(integrations) == 1, (
-        f"Expected exactly one ApiGatewayV2::Integration, got {len(integrations)}"
+    assert len(integrations) == 2, (
+        f"Expected two ApiGatewayV2::Integrations (reco + follow-up), got {len(integrations)}"
     )
-    integ_uri = integrations[0]["Properties"].get("IntegrationUri")
-    assert integ_uri is not None, "Integration missing IntegrationUri"
 
     alias_logical_ids = [
         logical_id
@@ -198,13 +200,15 @@ def test_integration_targets_alias():
     ]
     assert alias_logical_ids, "No AWS::Lambda::Alias in template"
 
-    # Serialise IntegrationUri (could be str or Fn::Join/Ref/Fn::GetAtt dict)
-    # and confirm at least one alias logical ID appears somewhere in it.
+    # Both integrations must reference the alias.
     import json as _json
-    integ_uri_str = _json.dumps(integ_uri)
-    assert any(alias_id in integ_uri_str for alias_id in alias_logical_ids), (
-        f"IntegrationUri does not reference alias: {integ_uri}"
-    )
+    for integ in integrations:
+        integ_uri = integ["Properties"].get("IntegrationUri")
+        assert integ_uri is not None, "Integration missing IntegrationUri"
+        integ_uri_str = _json.dumps(integ_uri)
+        assert any(alias_id in integ_uri_str for alias_id in alias_logical_ids), (
+            f"IntegrationUri does not reference alias: {integ_uri}"
+        )
 
 
 def test_pc_present_when_demo_pc_set():

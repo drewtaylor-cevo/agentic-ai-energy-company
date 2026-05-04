@@ -10,7 +10,8 @@ It NEVER performs arithmetic — all numbers come from the tool (SAV-03).
 import json
 import os
 import logging
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Literal
 
 import boto3
 from pydantic import BaseModel, Field, ValidationError, field_validator
@@ -99,11 +100,22 @@ try:
 except ImportError:  # pragma: no cover - hit only in offline test repo layout
     from agent.hooks.four_tool_cap import FourToolCapHook
 
+# Phase 15 WF-01: Memory configuration helpers.
+# Bi-mode import: agent/memory/ is COPYed to /app/memory/ by agent/Dockerfile;
+# in the repo layout the module is agent/memory/config.py. Same precedent as
+# narrative/, reasoning/, hooks/, providers.py.
+try:
+    from memory.config import build_memory_config, build_session_manager
+except ImportError:  # pragma: no cover - hit only in offline test repo layout
+    from agent.memory.config import build_memory_config, build_session_manager
+
 logger = logging.getLogger(__name__)
 
 # --- Environment (injected by CDK) ---
 _TOOLS_LAMBDA_ARN = os.environ.get("TOOLS_LAMBDA_ARN", "")
 _REGION = os.environ.get("AWS_REGION", "us-east-1")
+# Phase 15 WF-01: Memory resource ID (empty string = Memory not provisioned).
+_MEMORY_ID = os.environ.get("MEMORY_ID", "")
 
 # --- boto3 client (module-level, reused across invocations) ---
 _lambda_client = boto3.client("lambda", region_name=_REGION)
@@ -217,6 +229,71 @@ class HardshipResponse(BaseModel):
 _HARDSHIP_DEFAULTS = {
     "reason": "This customer account is flagged for dedicated support from our specialist team.",
     "call_script": "Let me connect you with our specialist support team who can best help with your account.",
+}
+
+
+# --- Phase 15 WF-01: Follow-up email response schema ---
+
+# D-15 extended: email body allows up to 100 words (longer form than
+# usage_narrative's 20), but the same banned-terms gauntlet applies.
+FOLLOW_UP_BODY_MAX_WORDS = 100
+FOLLOW_UP_BODY_MAX_CHARS = 600
+FOLLOW_UP_SUBJECT_MAX_WORDS = 20
+FOLLOW_UP_SUBJECT_MAX_CHARS = 120
+
+
+class FollowUpEmailResponse(BaseModel):
+    """Phase 15 WF-01: draft follow-up email response.
+
+    Returned when the rep clicks "Draft follow-up email" after a recommendation.
+    The agent uses AgentCore Memory to recall the prior turn's recommendation
+    and drafts an email body the rep can edit and send.
+
+    D-15 extended: subject and body pass the banned-terms gauntlet (no digits,
+    no currency, no switch verbs, no competitor names, no environmental
+    superlatives). Body allows up to 100 words (longer form).
+    """
+    kind: Literal["follow_up"] = "follow_up"
+    customer_id: str = Field(description="Customer identifier")
+    subject: str = Field(
+        max_length=FOLLOW_UP_SUBJECT_MAX_CHARS,
+        description=(
+            "Email subject line. Maximum 20 words. NEVER contains digits, "
+            "$/£/€/%, competitor names, switch verbs, or environmental superlatives."
+        ),
+    )
+    body: str = Field(
+        max_length=FOLLOW_UP_BODY_MAX_CHARS,
+        description=(
+            "Email body text the rep can edit before sending. Maximum 100 words. "
+            "References the plan by NAME (not ID). Same forbidden-content rules."
+        ),
+    )
+    plan_reference: str = Field(
+        description="Plan name from the prior recommendation (e.g. 'EcoFlex Green')",
+    )
+
+    @field_validator("subject", mode="after")
+    @classmethod
+    def validate_subject(cls, value: str) -> str:
+        return _reject_forbidden(value, max_words=FOLLOW_UP_SUBJECT_MAX_WORDS, field_label="subject")
+
+    @field_validator("body", mode="after")
+    @classmethod
+    def validate_body(cls, value: str) -> str:
+        return _reject_forbidden(value, max_words=FOLLOW_UP_BODY_MAX_WORDS, field_label="body")
+
+
+# --- Follow-up fallback defaults (used when FALLBACKS[customer_id]["follow_up"] is missing) ---
+_FOLLOW_UP_DEFAULTS = {
+    "subject": "Your tariff options from our recent conversation",
+    "body": (
+        "Thank you for speaking with us about your energy plan options. "
+        "As discussed, we identified plans that could better suit your household "
+        "usage pattern. Please review the options at your convenience and contact "
+        "us if you would like to proceed."
+    ),
+    "plan_reference": "EcoFlex Green",
 }
 
 
@@ -761,6 +838,142 @@ _agent = Agent(
 app = BedrockAgentCoreApp()
 
 
+# --- Phase 15 WF-01: Follow-up email system prompt ---
+
+_FOLLOW_UP_SYSTEM_PROMPT = """\
+You are a call centre follow-up email assistant for an energy provider.
+
+Your ONLY job is to draft a short, professional follow-up email that the
+call-centre agent can review, edit, and send to the customer after a
+tariff recommendation conversation.
+
+CONTEXT: The customer was recently shown tariff recommendation options
+during a call. You have access to the conversation history from that call
+via Memory. Use it to personalise the email.
+
+RULES:
+1. Reference the recommended plan by NAME only (e.g. "EcoFlex Green").
+   NEVER include plan IDs (e.g. "ECO", "VAL", "SOL", "TOU").
+2. NEVER include any numbers, dollar amounts, percentages, or dates in
+   the email subject or body. The savings figures were discussed on the
+   call — the email is a qualitative follow-up, not a quote.
+3. NEVER perform arithmetic. You have no tools in this turn.
+4. Keep the tone warm, professional, and brief.
+5. The subject line should be under 20 words.
+6. The body should be under 100 words.
+7. Do NOT use switch verbs (switch, change, move, transfer, cancel).
+8. Do NOT mention competitor names or environmental superlatives.
+9. Set plan_reference to the GREEN plan name from the prior recommendation.
+"""
+
+
+def _build_follow_up_response(customer_id: str) -> dict:
+    """Build a FollowUpEmailResponse dict from fallback templates.
+
+    Code-side only — used when Memory is unavailable or the agent turn fails.
+    Uses FALLBACKS[customer_id]["follow_up"] if available, else _FOLLOW_UP_DEFAULTS.
+    Validates through FollowUpEmailResponse Pydantic model to enforce D-15.
+    """
+    fb = FALLBACKS.get(customer_id, {}).get("follow_up", {})
+    subject = fb.get("subject", _FOLLOW_UP_DEFAULTS["subject"])
+    body = fb.get("body", _FOLLOW_UP_DEFAULTS["body"])
+    plan_reference = fb.get("plan_reference", _FOLLOW_UP_DEFAULTS["plan_reference"])
+
+    response = FollowUpEmailResponse(
+        customer_id=customer_id,
+        subject=subject,
+        body=body,
+        plan_reference=plan_reference,
+    )
+    return response.model_dump()
+
+
+def draft_follow_up(payload: dict) -> dict:
+    """Handle a follow-up email draft request (Phase 15 WF-01).
+
+    Expects payload: {"customer_id": "CUST-001", "action": "follow_up"}
+    Returns: {"kind": "follow_up", "customer_id": "...", "subject": "...",
+              "body": "...", "plan_reference": "...", "_workflow_source": {...}}
+
+    Uses AgentCore Memory to recall the prior turn's recommendation context.
+    If Memory is unavailable or the agent turn fails, falls back to a
+    deterministic template from FALLBACKS (D-04 never-500).
+
+    CRITICAL: `runtimeSessionId` is NOT used here — that's the AgentCore
+    runtime session (SC-3). Memory uses its own `session_id` derived from
+    customer_id + UTC date (AP-2 distinction).
+    """
+    customer_id = payload.get("customer_id", "")
+    if not customer_id:
+        return {"error": "customer_id is required in the payload"}
+
+    logger.info("Drafting follow-up email for %s", customer_id)
+
+    workflow_source = {"subject": "model", "body": "model"}
+
+    # Attempt Memory-backed agent turn.
+    try:
+        if not _MEMORY_ID:
+            raise RuntimeError("MEMORY_ID not configured — Memory not provisioned")
+
+        # Build deterministic Memory session key (AP-2: NOT runtimeSessionId).
+        session_date = datetime.now(timezone.utc).date().isoformat()
+        memory_config = build_memory_config(_MEMORY_ID, customer_id, session_date)
+        session_manager = build_session_manager(memory_config, _REGION)
+
+        # Create a dedicated agent for the follow-up turn with Memory wired in.
+        follow_up_agent = Agent(
+            model=_model,
+            system_prompt=_FOLLOW_UP_SYSTEM_PROMPT,
+            tools=[],  # No tools in follow-up turn — narrative only
+            session_manager=session_manager,
+        )
+
+        agent_result = follow_up_agent(
+            f"Draft a follow-up email for customer {customer_id} referencing "
+            f"the tariff recommendations from our recent conversation.",
+            structured_output_model=FollowUpEmailResponse,
+        )
+
+        result = agent_result.structured_output
+        if result is None:
+            raise StructuredOutputException(
+                "structured_output is None for follow-up email"
+            )
+
+        body = result.model_dump()
+        body["_workflow_source"] = workflow_source
+        return body
+
+    except Exception as err:  # noqa: BLE001 — D-04 never-500
+        logger.warning(
+            "Follow-up agent turn failed for %s — using fallback template: %s",
+            customer_id, err,
+        )
+        workflow_source = {"subject": "fallback", "body": "fallback"}
+        try:
+            body = _build_follow_up_response(customer_id)
+            body["_workflow_source"] = workflow_source
+            return body
+        except Exception as fallback_err:  # noqa: BLE001 — D-04 absolute last resort
+            logger.error(
+                "Follow-up fallback also failed for %s: %s",
+                customer_id, fallback_err,
+            )
+            # Absolute last resort — hand-craft a minimal valid response.
+            return {
+                "kind": "follow_up",
+                "customer_id": customer_id,
+                "subject": "Your tariff options from our recent conversation",
+                "body": (
+                    "Thank you for speaking with us about your energy plan options. "
+                    "Please contact us if you would like to proceed."
+                ),
+                "plan_reference": "EcoFlex Green",
+                "_workflow_source": {"subject": "fallback", "body": "fallback"},
+            }
+
+
 @app.entrypoint
 def invoke(payload: dict) -> dict:
     """Handle an incoming AgentCore invocation.
@@ -775,6 +988,11 @@ def invoke(payload: dict) -> dict:
     customer_id = payload.get("customer_id", "")
     if not customer_id:
         return {"error": "customer_id is required in the payload"}
+
+    # Phase 15 WF-01: action dispatcher. Default is "recommend" (existing path).
+    action = payload.get("action", "recommend")
+    if action == "follow_up":
+        return draft_follow_up(payload)
 
     logger.info("Processing recommendation for %s", customer_id)
 

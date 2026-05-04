@@ -1,0 +1,28 @@
+{
+    "green": {
+        "plan_id": "ECO",
+        "plan_name": "EcoFlex 100",
+        "saving_monthly": 12.0,
+        "saving_annual": 144.0,
+        "usage_narrative": "A hardship-flagged household with moderate usage seeking a renewably aligned plan.",
+        "call_script": "Ask about EcoFlex \u2014 an eco-aligned plan that may suit your household well."
+    },
+    "cheapest": {
+        "plan_id": "VAL",
+        "plan_name": "Value 12",
+        "saving_monthly": 22.0,
+        "saving_annual": 264.0,
+        "usage_narrative": "A hardship-flagged household with moderate usage and a strong focus on cost reduction.",
+        "call_script": "Let us tell you about Value Twelve \u2014 a cost-focused plan that could ease your bills."
+    },
+    "reasoning_trace": [
+        {
+            "tool": "get_hardship_flag",
+            "summary": "hardship_flag=True"
+        },
+        {
+            "tool": "simulate_savings",
+            "summary": "Green $12.00/mo; Cheapest $22.00/mo"
+        }
+    ]
+}

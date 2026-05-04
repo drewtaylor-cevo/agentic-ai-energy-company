@@ -56,6 +56,10 @@ def test_fallbacks_contains_all_tracks_and_fields():
             if track_name == "hardship":
                 assert set(fields.keys()) == {"reason", "call_script"}, \
                     f"{customer_id}/{track_name}: hardship must have reason and call_script"
+            elif track_name == "follow_up":
+                # Phase 15 WF-01: follow-up email fallback templates.
+                assert set(fields.keys()) == {"subject", "body", "plan_reference"}, \
+                    f"{customer_id}/{track_name}: follow_up must have subject, body, and plan_reference"
             else:
                 assert set(fields.keys()) == {"usage_narrative", "call_script"}, \
                     f"{customer_id}/{track_name}: missing field"

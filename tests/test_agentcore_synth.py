@@ -45,8 +45,14 @@ def test_has_agentcore_runtime(synth_template):
 
 
 def test_has_iam_role(synth_template):
-    """Template must contain an IAM execution role for the runtime."""
-    synth_template.resource_count_is("AWS::IAM::Role", 1)
+    """Template must contain IAM execution roles (runtime + memory)."""
+    # Phase 15 WF-01: Memory construct adds a second IAM role.
+    template_json = synth_template.to_json()
+    role_count = sum(
+        1 for r in template_json.get("Resources", {}).values()
+        if r.get("Type") == "AWS::IAM::Role"
+    )
+    assert role_count >= 1, "Template must contain at least one IAM role"
 
 
 def test_has_iam_policy_with_lambda_invoke(synth_template):
@@ -106,3 +112,40 @@ def test_runtime_has_environment_variables(synth_template):
                 "Runtime must have TOOLS_LAMBDA_ARN environment variable"
             return
     pytest.fail("No AWS::BedrockAgentCore::Runtime resource found")
+
+
+# --- Phase 15 WF-01: Memory resource tests ---
+
+
+def test_has_agentcore_memory(synth_template):
+    """Template must contain an AgentCore Memory resource (Phase 15 WF-01)."""
+    synth_template.resource_count_is("AWS::BedrockAgentCore::Memory", 1)
+
+
+def test_runtime_has_memory_id_env_var(synth_template):
+    """Runtime must have MEMORY_ID environment variable configured (Phase 15 WF-01)."""
+    template_json = synth_template.to_json()
+    for resource in template_json.get("Resources", {}).values():
+        if resource.get("Type") == "AWS::BedrockAgentCore::Runtime":
+            props = resource.get("Properties", {})
+            env_vars = props.get("EnvironmentVariables", {})
+            assert "MEMORY_ID" in env_vars, \
+                "Runtime must have MEMORY_ID environment variable"
+            return
+    pytest.fail("No AWS::BedrockAgentCore::Runtime resource found")
+
+
+def test_has_iam_policy_with_memory_actions(synth_template):
+    """IAM policy must include bedrock-agentcore Memory actions (Phase 15 WF-01)."""
+    template_json = synth_template.to_json()
+    found = False
+    for resource in template_json.get("Resources", {}).values():
+        if resource.get("Type") == "AWS::IAM::Policy":
+            doc = resource["Properties"].get("PolicyDocument", {})
+            for statement in doc.get("Statement", []):
+                actions = statement.get("Action")
+                if isinstance(actions, str):
+                    actions = [actions]
+                if actions and "bedrock-agentcore:CreateEvent" in actions:
+                    found = True
+    assert found, "No IAM policy found with bedrock-agentcore:CreateEvent"

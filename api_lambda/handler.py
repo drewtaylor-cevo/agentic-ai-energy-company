@@ -52,8 +52,67 @@ def _error(status_code: int, message: str) -> dict:
     }
 
 
+def _follow_up(customer_id: str, event: dict, context) -> dict:
+    """Handle GET /recommendations/{customer_id}/follow-up (Phase 15 WF-01).
+
+    Invokes the AgentCore runtime with action="follow_up" to draft a follow-up
+    email referencing the prior recommendation via Memory.
+
+    D-11: fresh uuid4 per invocation (SC-3 preserved — runtimeSessionId is
+    NOT the Memory session_id; see agent/memory/config.py AP-2 distinction).
+    """
+    # D-11: fresh uuid4 per invocation, generated INSIDE this function.
+    session_id = str(uuid.uuid4())
+    logger.info("Follow-up invoke customer_id=%s session_id=%s", customer_id, session_id)
+
+    try:
+        response = _agentcore_client.invoke_agent_runtime(
+            agentRuntimeArn=_AGENT_RUNTIME_ARN,
+            runtimeSessionId=session_id,
+            payload=json.dumps({
+                "customer_id": customer_id,
+                "action": "follow_up",
+            }).encode(),
+        )
+        body = json.loads(response["response"].read())
+        # D-15-07: strip internal workflow marker (parallel to _narrative_source).
+        body.pop("_workflow_source", None)
+        body.pop("_narrative_source", None)
+
+        # Log workflow source for observability (same pattern as narrative_source).
+        logger.info(json.dumps({
+            "event": "follow_up_complete",
+            "customer_id": customer_id,
+        }))
+    except ReadTimeoutError:
+        logger.warning("Follow-up timeout customer_id=%s", customer_id)
+        return _error(504, "Follow-up service timed out. Please try again.")
+    except ClientError as exc:
+        error_code = exc.response.get("Error", {}).get("Code", "Unknown")
+        error_msg = exc.response.get("Error", {}).get("Message", str(exc))
+        logger.error(
+            "Follow-up ClientError customer_id=%s code=%s: %s",
+            customer_id, error_code, error_msg,
+        )
+        return _error(502, "Follow-up service error. Please try again.")
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.error("Follow-up unexpected error customer_id=%s: %s", customer_id, exc, exc_info=True)
+        return _error(500, "Internal server error.")
+
+    # Validate response shape — must be a follow_up response.
+    if body.get("kind") != "follow_up":
+        logger.warning("Follow-up unexpected shape customer_id=%s body=%s", customer_id, body)
+        return _error(502, "Follow-up service returned unexpected response.")
+
+    return {
+        "statusCode": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(body),
+    }
+
+
 def handler(event: dict, context) -> dict:
-    """API Lambda entry point — GET /recommendations/{customer_id}."""
+    """API Lambda entry point — GET /recommendations/{customer_id} and /follow-up."""
     # Extract customer_id from HTTP API v2 payload format (pathParameters).
     path_params = event.get("pathParameters") or {}
     customer_id = path_params.get("customer_id", "")
@@ -61,6 +120,12 @@ def handler(event: dict, context) -> dict:
     # D-13: fast-fail on bad format — avoids wasting a 3-5s agent invocation.
     if not _CUSTOMER_ID_PATTERN.match(customer_id):
         return _error(400, "Invalid customer ID format. Use CUST-NNN (3-6 digits).")
+
+    # Phase 15 WF-01: route follow-up requests to dedicated handler.
+    # rawPath ends with "/follow-up" for the follow-up route.
+    raw_path = event.get("rawPath", "")
+    if raw_path.endswith("/follow-up"):
+        return _follow_up(customer_id, event, context)
 
     # D-01/D-02: Prewarm branch — warm the full hot path and return 204
     # without touching the normal-path response taxonomy. D-04: NEVER 5xx.

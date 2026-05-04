@@ -40,8 +40,8 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 - [x] **Phase 11: New Personas + Tariff Archetypes** — CUST-004 (solar PV) + CUST-005 (EV) seeded, two new tariff plans (Solar Feed-in + EV TOU), TOU-dispatched savings math, hardship_flag PROFILE items (completed 2026-04-28)
 - [x] **Phase 12: CustomerDataProvider Abstraction** — `agent/providers.py` Protocol + DynamoDB impl + InMemory test double + Salesforce NotImplementedError stub; strangler-fig around existing agent tools with SAV-03 byte-exact preservation (completed 2026-04-29)
 - [x] **Phase 13: Bill-Shock Multi-Tool Flow (AGENT-01)** — action dispatcher on Tools Lambda, 2-3 tool composition per turn, 4-tool code-enforced cap, reasoning trace surfaced to UI, warm p95 < 2500ms per-flow prewarm gate (completed 2026-04-29)
-- [ ] **Phase 14: Hardship Short-Circuit (AGENT-02)** — code-side pre-LLM guard, Pydantic discriminated union `kind: recommendation | hardship`, surgical update to `api_lambda/handler.py:152`, dignity-preserving hardship narrative passing D-15 validators
-- [ ] **Phase 15: Draft Follow-Up Email via AgentCore Memory (WF-01)** — new API route, short-term Memory with `actorId=customer:{id}` + deterministic `session_id={id}-{UTC-ISO-day}`, cross-customer isolation canary, bedrock-agentcore 1.6.4 + lockfile regen
+- [x] **Phase 14: Hardship Short-Circuit (AGENT-02)** — code-side pre-LLM guard, Pydantic discriminated union `kind: recommendation | hardship`, surgical update to `api_lambda/handler.py:152`, dignity-preserving hardship narrative passing D-15 validators (completed 2026-05-03)
+- [x] **Phase 15: Draft Follow-Up Email via AgentCore Memory (WF-01)** — new API route, short-term Memory with `actorId=customer:{id}` + deterministic `session_id={id}-{UTC-ISO-day}`, cross-customer isolation canary, bedrock-agentcore 1.6.4 + lockfile regen (completed 2026-05-03)
 - [ ] **Phase 16: Presenter Artefacts + Operational Consolidation** — DOC-01/02/03 committed, `?narrative=off` kill switch extended, prewarm + keep-alive + eval harness extended to new personas and multi-tool + follow-up routes
 - [ ] **Phase 17: v3.0 Freeze Ceremony** — lift deny-Update:* policies on 3 frozen stacks, redeploy v3.0 surface, re-apply policies with byte-equality verification, fresh DynamoDB backup, `demo-v3.0` annotated tag + FREEZE-MANIFEST, 5/5 rollback drill
 
@@ -149,7 +149,13 @@ Plans:
   3. Code inspection + test confirms `runtimeSessionId = str(uuid.uuid4())` is generated INSIDE `handler()` and `follow_up()` on every invocation (SC-3 preserved), while Memory `session_id = f"{customer_id}-{datetime.now(timezone.utc).date().isoformat()}"` is a separate deterministic key — the two are never conflated.
   4. AgentCore Memory resource is provisioned with TTL in the 8–12h range and no long-term strategies (`memoryStrategies=[]`); same-session turn-1 → turn-2 retrieval works; next-calendar-day retrieval returns empty context.
   5. `requirements.txt` regeneration under `--require-hashes` succeeds with `bedrock-agentcore==1.6.4`; fresh-venv `pip install --require-hashes -r requirements.txt` + full pytest suite both green; FREEZE-MANIFEST lockfile-hash placeholder documented for Phase 17 update.
-**Plans**: TBD
+**Plans**: 6 plans
+  - [x] 15-01-PLAN.md — Dependency bump (bedrock-agentcore 1.6.4) + Memory CDK construct + agent memory module + Dockerfile + bi-mode imports
+  - [x] 15-02-PLAN.md — FollowUpEmailResponse model + agent draft_follow_up() + follow-up system prompt + fallback templates
+  - [x] 15-03-PLAN.md — API Lambda follow-up route + handler tests + CDK route addition
+  - [x] 15-04-PLAN.md — Offline agent tests (follow-up + Memory isolation canary + D-15 validators + invariant guards)
+  - [x] 15-05-PLAN.md — UI FollowUpDrawer + useFollowUp hook + mock fixtures + ?narrative=off collapse + vitest
+  - [x] 15-06-PLAN.md — Stack-policy lift ceremony + close-gates (incl. MANDATORY cross-customer isolation canary) + re-freeze (autonomous: false)
 **Invariant ownership**: SC-3 runtimeSessionId fresh-uuid4-per-invocation (non-negotiable; Memory session_id is a separate concept, documented at the call site to prevent AP-2 confusion), frozen-lockfile contract (this phase owns the one permitted dep bump — `bedrock-agentcore` 1.6.3 → 1.6.4 — with lockfile regen and freeze evidence update), `_narrative_source` marker contract extended to `_workflow_source` (strip in API Lambda, parallel pattern), `?narrative=off` kill switch extended to collapse the follow-up drawer.
 
 ### Phase 16: Presenter Artefacts + Operational Consolidation
@@ -197,8 +203,8 @@ Plans:
 | 12. CustomerDataProvider Abstraction | v3.0 | 6/6 | Complete    | 2026-04-29 |
 | 13. Bill-Shock Multi-Tool Flow (AGENT-01) | v3.0 | 9/9 | Complete   | 2026-04-29 |
 | 13.1. AGENT-01 Gap Closure | v3.0 | 5/5 | Complete   | 2026-04-30 |
-| 14. Hardship Short-Circuit (AGENT-02) | v3.0 | 0/5 | Planned | — |
-| 15. Draft Follow-Up Email via AgentCore Memory (WF-01) | v3.0 | 0/? | Not started | — |
+| 14. Hardship Short-Circuit (AGENT-02) | v3.0 | 5/5 | Complete | 2026-05-03 |
+| 15. Draft Follow-Up Email via AgentCore Memory (WF-01) | v3.0 | 6/6 | Complete | 2026-05-03 |
 | 16. Presenter Artefacts + Operational Consolidation | v3.0 | 0/? | Not started | — |
 | 17. v3.0 Freeze Ceremony | v3.0 | 0/? | Not started | — |
 

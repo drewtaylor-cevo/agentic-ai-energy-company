@@ -139,6 +139,13 @@ class BackendApiConstruct(Construct):
             integration=integ.HttpLambdaIntegration("RecoIntegration", live_alias),
         )
 
+        # Phase 15 WF-01: follow-up email route.
+        api.add_routes(
+            path="/recommendations/{customer_id}/follow-up",
+            methods=[apigwv2.HttpMethod.GET],
+            integration=integ.HttpLambdaIntegration("FollowUpIntegration", live_alias),
+        )
+
         self._api_endpoint = api.url
 
     @property

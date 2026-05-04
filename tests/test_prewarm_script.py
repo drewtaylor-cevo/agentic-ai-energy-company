@@ -61,20 +61,19 @@ def _no_real_sleeps(monkeypatch):
 def test_prewarm_happy_path_exit_0(mock_urlopen, monkeypatch, capsys):
     """D-06: all personas under gate → exit 0 + 'all personas under gate — exit 0' line.
 
-    Phase 13 A-01/A-03: 2 personas × 3 warming passes = 6 warm 204s;
-    2 personas × 3 measurement samples = 6 measurement 200s.
+    Phase 16 DEMO-09: 5 personas × 3 warming passes = 15 warm 204s;
+    1 follow-up 200; 5 personas × 3 measurement samples = 15 measurement 200s.
     """
     monkeypatch.setenv("BACKEND_API_URL", "https://mock.example")
-    # 6 prewarm 204s (CUST-001 x3 + CUST-003 x3), then 6 measurement 200s.
+    # 15 prewarm 204s, 1 follow-up 200, then 15 measurement 200s.
     mock_urlopen.side_effect = [
-        _make_urlopen_response(204) for _ in range(6)
+        _make_urlopen_response(204) for _ in range(15)
     ] + [
-        _make_urlopen_response(200, b'{"green":{},"cheapest":{}}') for _ in range(6)
+        _make_urlopen_response(200, b'{"subject":"s","body":"b","plan_reference":"p"}')  # follow-up
+    ] + [
+        _make_urlopen_response(200, b'{"green":{},"cheapest":{}}') for _ in range(15)
     ]
-    # perf_counter is called: t_start (1x), then per warm call (2x = start/stop, 6 calls),
-    # then per measurement call (2x = start/stop, 6 calls), then total at end (1x).
-    # Total: 1 + 12 + 12 + 1 = 26. Provide a generous sequence.
-    counters = iter([i * 0.1 for i in range(60)])
+    counters = iter([i * 0.1 for i in range(120)])
     monkeypatch.setattr("scripts.prewarm.time.perf_counter", lambda: next(counters))
     result = prewarm.main()
     assert result == 0, f"Expected exit 0, got {result}"
@@ -86,29 +85,40 @@ def test_prewarm_happy_path_exit_0(mock_urlopen, monkeypatch, capsys):
 def test_prewarm_gate_fail_exit_1(mock_urlopen, monkeypatch, capsys):
     """D-06: median above per-flow gate → exit 1 + 'FAIL' in that persona's summary line.
 
-    Phase 13 A-01: CUST-003 gate is 2500ms (multi-tool). Measurement medians
+    Phase 16 DEMO-09: CUST-003 gate is 2500ms (multi-tool). Measurement medians
     above 2500ms should trip the gate and exit 1.
     """
     monkeypatch.setenv("BACKEND_API_URL", "https://mock.example")
-    # 6 warm 204s + 6 measurement 200s.
+    # 15 warm 204s + 1 follow-up 200 + 15 measurement 200s.
     mock_urlopen.side_effect = [
-        _make_urlopen_response(204) for _ in range(6)
+        _make_urlopen_response(204) for _ in range(15)
     ] + [
-        _make_urlopen_response(200, b"{}") for _ in range(6)
+        _make_urlopen_response(200, b'{}')  # follow-up
+    ] + [
+        _make_urlopen_response(200, b"{}") for _ in range(15)
     ]
-    # Warm pass: t_start (0.0), then 6 warm call pairs (all fast ~100ms).
+    # Warm pass: t_start (0.0), then 15 warm call pairs (all fast ~100ms).
+    # Follow-up: 2 perf_counter calls.
     # Measurement: CUST-001 fast (~100ms) — under 3000ms gate.
-    # CUST-003 [2600, 2550, 2700]ms — median 2600 >= 2500ms gate, fails.
-    # Sequence: [t_start, warm×12, meas×12, t_end] = 26 values.
+    # CUST-002 fast. CUST-003 [2600, 2550, 2700]ms — median 2600 >= 2500ms gate, fails.
+    # CUST-004 fast. CUST-005 fast.
     counters = iter([
         0.0,                                                      # t_start
-        0.0, 0.1, 0.1, 0.2, 0.2, 0.3,                             # CUST-001 warm pass 1/2/3 (start/stop)
-        0.3, 0.4, 0.4, 0.5, 0.5, 0.6,                             # CUST-003 warm pass 1/2/3
+        # 15 warm calls (5 personas × 3 passes × start/stop)
+        *[i * 0.1 for i in range(30)],
+        # follow-up (start/stop)
+        3.0, 3.1,
         # CUST-001 measurement: 3 × ~100ms (under 3000ms gate)
-        0.6, 0.7, 0.7, 0.8, 0.8, 0.9,
+        3.1, 3.2, 3.2, 3.3, 3.3, 3.4,
+        # CUST-002 measurement: 3 × ~100ms
+        3.4, 3.5, 3.5, 3.6, 3.6, 3.7,
         # CUST-003 measurement: [2600, 2550, 2700]ms → median 2600 >= 2500ms gate → FAIL
-        0.9, 3.5, 3.5, 6.05, 6.05, 8.75,
-        10.0,                                                     # t_end
+        3.7, 6.3, 6.3, 8.85, 8.85, 11.55,
+        # CUST-004 measurement: 3 × ~100ms
+        11.55, 11.65, 11.65, 11.75, 11.75, 11.85,
+        # CUST-005 measurement: 3 × ~100ms
+        11.85, 11.95, 11.95, 12.05, 12.05, 12.15,
+        15.0,                                                     # t_end
     ])
     monkeypatch.setattr("scripts.prewarm.time.perf_counter", lambda: next(counters))
     result = prewarm.main()
@@ -153,31 +163,27 @@ def test_prewarm_missing_env_var_exit_2(monkeypatch, capsys):
 def test_prewarm_measurement_timeout_pushes_median(mock_urlopen, monkeypatch, capsys):
     """D-08: socket.timeout on a measurement call → treated as >= gate-ceiling sample → median fails gate.
 
-    Phase 13 A-01/A-03: 2 personas × 3 warming passes = 6 warm 204s. Two
-    CUST-001 measurement timeouts + one fast sample sends the median to the
+    Phase 16 DEMO-09: 5 personas × 3 warming passes = 15 warm 204s. 1 follow-up.
+    Two CUST-001 measurement timeouts + one fast sample sends the median to the
     timeout sentinel (max(GATE_MS.values()) = 3000ms), failing CUST-001's
     3000ms gate.
     """
     monkeypatch.setenv("BACKEND_API_URL", "https://mock.example")
-    # 6 warm 204s (CUST-001 x3 + CUST-003 x3), then:
+    # 15 warm 204s, 1 follow-up 200, then:
     # CUST-001 measurement: [TIMEOUT, TIMEOUT, 200ms OK] → median = 3000 (sentinel) → FAIL
-    # CUST-003 measurement: 3 x fast
+    # CUST-002 through CUST-005: 12 x fast
     mock_urlopen.side_effect = [
-        _make_urlopen_response(204),  # CUST-001 warm pass 1
-        _make_urlopen_response(204),  # CUST-001 warm pass 2
-        _make_urlopen_response(204),  # CUST-001 warm pass 3
-        _make_urlopen_response(204),  # CUST-003 warm pass 1
-        _make_urlopen_response(204),  # CUST-003 warm pass 2
-        _make_urlopen_response(204),  # CUST-003 warm pass 3
+        _make_urlopen_response(204) for _ in range(15)
+    ] + [
+        _make_urlopen_response(200, b'{}')  # follow-up
+    ] + [
         socket.timeout(),              # CUST-001 measure 1/3 → TIMEOUT
         socket.timeout(),              # CUST-001 measure 2/3 → TIMEOUT
         _make_urlopen_response(200, b"{}"),  # CUST-001 measure 3/3 → 200ms
-        _make_urlopen_response(200, b"{}"),  # CUST-003 x3 fast
-        _make_urlopen_response(200, b"{}"),
-        _make_urlopen_response(200, b"{}"),
+    ] + [
+        _make_urlopen_response(200, b"{}") for _ in range(12)  # CUST-002..005 x3 each
     ]
-    # Fast perf_counter for the non-timeout calls — provide a generous sequence.
-    counters = iter([i * 0.1 for i in range(60)])
+    counters = iter([i * 0.1 for i in range(120)])
     monkeypatch.setattr("scripts.prewarm.time.perf_counter", lambda: next(counters))
     result = prewarm.main()
     assert result == 1, f"Expected exit 1 (median pushed over gate by timeouts), got {result}"
@@ -188,50 +194,48 @@ def test_prewarm_measurement_timeout_pushes_median(mock_urlopen, monkeypatch, ca
 
 @patch("scripts.prewarm.urllib.request.urlopen")
 def test_prewarm_per_call_log_format(mock_urlopen, monkeypatch, capsys):
-    """D-04: stdout log-line format stays operator-greppable after Phase 13 A-01/A-03 changes.
+    """D-04: stdout log-line format stays operator-greppable after Phase 16 DEMO-09 changes.
 
-    Phase 13: warm lines now 'prewarm CUST-XXX pass N/3: 204 ... ok' (new pass idx);
-    measurement lines unchanged 'CUST-XXX warm N/3: ...'; summary lines per-flow
-    gate 'PASS (<3000ms)' / 'PASS (<2500ms)'.
+    Phase 16: warm lines 'prewarm CUST-XXX pass N/3: 204 ... ok' for all 5 personas;
+    measurement lines 'CUST-XXX warm N/3: ...'; summary lines per-flow
+    gate 'PASS (<3000ms)' / 'PASS (<2500ms)'; follow-up line present.
     """
     monkeypatch.setenv("BACKEND_API_URL", "https://mock.example")
-    # 6 warm 204s + 6 measurement 200s.
-    mock_urlopen.side_effect = [_make_urlopen_response(204) for _ in range(6)] + [
-        _make_urlopen_response(200, b"{}") for _ in range(6)
+    # 15 warm 204s + 1 follow-up 200 + 15 measurement 200s.
+    mock_urlopen.side_effect = [_make_urlopen_response(204) for _ in range(15)] + [
+        _make_urlopen_response(200, b'{}')  # follow-up
+    ] + [
+        _make_urlopen_response(200, b"{}") for _ in range(15)
     ]
-    counters = iter([i * 0.1 for i in range(60)])
+    counters = iter([i * 0.1 for i in range(120)])
     monkeypatch.setattr("scripts.prewarm.time.perf_counter", lambda: next(counters))
     result = prewarm.main()
     assert result == 0, f"Sanity: happy-path test; expected exit 0, got {result}"
     out = capsys.readouterr().out
-    # D-04 format — prewarm lines now include 'pass N/3' per A-03 (3-pass warming):
-    assert "prewarm CUST-001 pass 1/3:" in out, (
-        f"Missing 'prewarm CUST-001 pass 1/3:' log line; stdout:\n{out}"
+    # D-04 format — prewarm lines for all 5 personas:
+    for persona in ["CUST-001", "CUST-002", "CUST-003", "CUST-004", "CUST-005"]:
+        assert f"prewarm {persona} pass 1/3:" in out, (
+            f"Missing 'prewarm {persona} pass 1/3:' log line; stdout:\n{out}"
+        )
+        assert f"prewarm {persona} pass 3/3:" in out, (
+            f"Missing 'prewarm {persona} pass 3/3:' log line; stdout:\n{out}"
+        )
+    # Follow-up line present:
+    assert "follow-up CUST-001:" in out, (
+        f"Missing follow-up log line; stdout:\n{out}"
     )
-    assert "prewarm CUST-001 pass 3/3:" in out, (
-        f"Missing 'prewarm CUST-001 pass 3/3:' log line; stdout:\n{out}"
-    )
-    assert "prewarm CUST-003 pass 1/3:" in out, (
-        f"Missing 'prewarm CUST-003 pass 1/3:' log line; stdout:\n{out}"
-    )
-    assert "prewarm CUST-003 pass 3/3:" in out, (
-        f"Missing 'prewarm CUST-003 pass 3/3:' log line; stdout:\n{out}"
-    )
-    # CUST-002 must NOT be in the warm output (A-01 removed from rotation):
-    assert "prewarm CUST-002" not in out, (
-        f"CUST-002 should not appear in prewarm rotation (A-01); stdout:\n{out}"
-    )
-    # D-04 format — measurement line (warm N/3 + ms + 200 + ok) unchanged:
-    assert "CUST-001 warm 1/3:" in out, f"Missing 'CUST-001 warm 1/3:' line; stdout:\n{out}"
-    assert "CUST-003 warm 3/3:" in out, f"Missing 'CUST-003 warm 3/3:' line; stdout:\n{out}"
+    # D-04 format — measurement lines for all 5 personas:
+    for persona in ["CUST-001", "CUST-002", "CUST-003", "CUST-004", "CUST-005"]:
+        assert f"{persona} warm 1/3:" in out, f"Missing '{persona} warm 1/3:' line; stdout:\n{out}"
     # D-04 wait marker
     assert "(wait 30s)" in out, f"Missing '(wait 30s)' marker; stdout:\n{out}"
     # D-04 summary separator
     assert "---" in out, f"Missing '---' summary separator; stdout:\n{out}"
-    # D-04 per-persona median line + per-flow PASS token (Phase 13 D-18):
-    assert "median CUST-001:" in out, f"Missing 'median CUST-001:' summary line; stdout:\n{out}"
+    # D-04 per-persona median line + per-flow PASS token (Phase 16 DEMO-09):
+    for persona in ["CUST-001", "CUST-002", "CUST-004", "CUST-005"]:
+        assert f"median {persona}:" in out, f"Missing 'median {persona}:' summary line; stdout:\n{out}"
     assert "median CUST-003:" in out, f"Missing 'median CUST-003:' summary line; stdout:\n{out}"
-    assert "PASS (<3000ms)" in out, f"Missing 'PASS (<3000ms)' marker for CUST-001; stdout:\n{out}"
+    assert "PASS (<3000ms)" in out, f"Missing 'PASS (<3000ms)' marker; stdout:\n{out}"
     assert "PASS (<2500ms)" in out, f"Missing 'PASS (<2500ms)' marker for CUST-003; stdout:\n{out}"
 
 
@@ -254,14 +258,15 @@ def test_prewarm_median_computation(monkeypatch):
 # ----------------------------------------------------------------------
 
 
-def test_personas_rotation_is_cust001_and_cust003():
-    """A-01: Marcus (CUST-002) removed; Elena (CUST-003) added."""
+def test_personas_rotation_is_full_v3_set():
+    """Phase 16 DEMO-09: all 5 recommendation personas in rotation."""
     import importlib.util
     spec = importlib.util.spec_from_file_location("prewarm", "scripts/prewarm.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    assert module.PERSONAS == ["CUST-001", "CUST-003"]
-    assert "CUST-002" not in module.PERSONAS
+    assert module.PERSONAS == ["CUST-001", "CUST-002", "CUST-003", "CUST-004", "CUST-005"]
+    # CUST-006 excluded — hardship short-circuit returns no recommendation tracks.
+    assert "CUST-006" not in module.PERSONAS
 
 
 def test_gate_ms_is_per_flow_map_not_scalar():
@@ -272,7 +277,10 @@ def test_gate_ms_is_per_flow_map_not_scalar():
     spec.loader.exec_module(module)
     assert isinstance(module.GATE_MS, dict)
     assert module.GATE_MS["CUST-001"] == 3000
+    assert module.GATE_MS["CUST-002"] == 3000
     assert module.GATE_MS["CUST-003"] == 2500
+    assert module.GATE_MS["CUST-004"] == 3000
+    assert module.GATE_MS["CUST-005"] == 3000
     # Belt-and-braces: the old scalar is GONE.
     assert not hasattr(module, "MEDIAN_GATE_MS"), (
         "MEDIAN_GATE_MS scalar should be removed — per-flow map replaces it"

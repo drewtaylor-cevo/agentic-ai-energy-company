@@ -332,3 +332,43 @@ def poisoned_narrative_samples():
         ("A net-zero plan for the future",         "env-superlative-net-zero"),
         ("Best for the planet of the lot",         "env-superlative-planet"),
     ]
+
+
+# --- Phase 15 WF-01: Follow-up email fixtures ---
+
+
+@pytest.fixture
+def mock_follow_up_response():
+    """Phase 15 WF-01: follow-up email response shape for CUST-001.
+
+    Matches FollowUpEmailResponse.model_dump() output. D-15 validated strings.
+    """
+    return {
+        "kind": "follow_up",
+        "customer_id": "CUST-001",
+        "subject": "Your tariff options from our recent conversation",
+        "body": (
+            "Thank you for speaking with us about your energy plan options. "
+            "As discussed, we identified plans that could better suit your household "
+            "usage pattern. Please review the options at your convenience and contact "
+            "us if you would like to proceed with the plan that works for your family."
+        ),
+        "plan_reference": "EcoFlex Green",
+    }
+
+
+@pytest.fixture
+def mock_follow_up_cust002_response():
+    """Phase 15 WF-01: follow-up email response shape for CUST-002 (cross-customer canary pair)."""
+    return {
+        "kind": "follow_up",
+        "customer_id": "CUST-002",
+        "subject": "Your tariff options from our recent conversation",
+        "body": (
+            "Thank you for speaking with us about your energy plan options. "
+            "We discussed plans that align well with your apartment usage profile. "
+            "Please review the options at your convenience and reach out if you "
+            "would like to proceed with the plan that suits your home."
+        ),
+        "plan_reference": "EcoFlex Green",
+    }
