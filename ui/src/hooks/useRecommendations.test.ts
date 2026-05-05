@@ -209,19 +209,32 @@ describe('useRecommendations - API mode', () => {
   });
 });
 
-describe('useRecommendations - mock fallback (VITE_API_URL unset)', () => {
+describe('useRecommendations - mock streaming fallback (VITE_API_URL unset)', () => {
   beforeEach(() => {
-    // Empty string triggers the mock branch (hook checks `if (!apiUrl)`).
+    // Empty string triggers the mock streaming branch (hook checks `if (!apiUrl)`).
     vi.stubEnv('VITE_API_URL', '');
+    vi.useFakeTimers();
   });
 
-  it('returns mock data for known persona CUST-001', async () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('returns mock data for known persona CUST-001 after streaming completes', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const { result } = renderHook(() => useRecommendations());
 
     await act(async () => {
-      await result.current.lookup('CUST-001');
+      result.current.lookup('CUST-001');
+    });
+
+    // Initially in streaming state
+    expect(result.current.state.status).toBe('streaming');
+
+    // Advance timers to complete the mock streaming simulation
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
     });
 
     expect(result.current.state.status).toBe('success');
@@ -240,7 +253,10 @@ describe('useRecommendations - mock fallback (VITE_API_URL unset)', () => {
     const { result } = renderHook(() => useRecommendations());
 
     await act(async () => {
-      await result.current.lookup('CUST-002');
+      result.current.lookup('CUST-002');
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
     });
     expect(result.current.state.status).toBe('success');
     if (result.current.state.status === 'success') {
@@ -248,7 +264,10 @@ describe('useRecommendations - mock fallback (VITE_API_URL unset)', () => {
     }
 
     await act(async () => {
-      await result.current.lookup('CUST-003');
+      result.current.lookup('CUST-003');
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
     });
     expect(result.current.state.status).toBe('success');
     if (result.current.state.status === 'success') {
@@ -262,7 +281,10 @@ describe('useRecommendations - mock fallback (VITE_API_URL unset)', () => {
     const { result } = renderHook(() => useRecommendations());
 
     await act(async () => {
-      await result.current.lookup('CUST-999');
+      result.current.lookup('CUST-999');
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
     });
 
     expect(result.current.state.status).toBe('error');
@@ -285,5 +307,126 @@ describe('useRecommendations - mock fallback (VITE_API_URL unset)', () => {
     if (result.current.state.status === 'error') {
       expect(result.current.state.httpStatus).toBe(400);
     }
+  });
+
+  it('exposes traceSteps progressively during mock streaming', async () => {
+    const { result } = renderHook(() => useRecommendations());
+
+    await act(async () => {
+      result.current.lookup('CUST-003');
+    });
+
+    // Initially streaming with empty trace
+    expect(result.current.state.status).toBe('streaming');
+    if (result.current.state.status === 'streaming') {
+      expect(result.current.state.traceSteps).toHaveLength(0);
+    }
+
+    // After first trace step delay (~300ms)
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    if (result.current.state.status === 'streaming') {
+      expect(result.current.state.traceSteps.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+
+describe('useRecommendations - SSE streaming mode (VITE_STREAMING_URL set)', () => {
+  let MockEventSourceClass: any;
+
+  beforeEach(() => {
+    // Set VITE_STREAMING_URL to trigger the SSE delegation path.
+    vi.stubEnv('VITE_STREAMING_URL', 'https://streaming.example.com');
+    vi.stubEnv('VITE_API_URL', '');
+
+    // Class-based EventSource mock that works with `new EventSource(url)`
+    const instances: any[] = [];
+    class MockES {
+      url: string;
+      close: ReturnType<typeof vi.fn>;
+      addEventListener: ReturnType<typeof vi.fn>;
+      onerror: ((event: Event) => void) | null = null;
+      _listeners: Record<string, ((event: MessageEvent) => void)[]> = {};
+
+      constructor(url: string) {
+        this.url = url;
+        this.close = vi.fn();
+        this.addEventListener = vi.fn((type: string, handler: (event: MessageEvent) => void) => {
+          if (!this._listeners[type]) this._listeners[type] = [];
+          this._listeners[type].push(handler);
+        });
+        instances.push(this);
+      }
+
+      _emit(type: string, data: string) {
+        const handlers = this._listeners[type] ?? [];
+        const event = new MessageEvent(type, { data });
+        handlers.forEach((h: any) => h(event));
+      }
+    }
+    MockEventSourceClass = MockES;
+    (MockEventSourceClass as any).instances = instances;
+    vi.stubGlobal('EventSource', MockEventSourceClass);
+  });
+
+  it('delegates to useStreamingRecommendations when VITE_STREAMING_URL is set (Requirement 5.1)', async () => {
+    const { result } = renderHook(() => useRecommendations());
+
+    await act(async () => {
+      await result.current.lookup('CUST-001');
+    });
+
+    // Should have opened an EventSource (not called fetch)
+    expect(MockEventSourceClass.instances.length).toBe(1);
+    expect(MockEventSourceClass.instances[0].url).toBe(
+      'https://streaming.example.com/recommendations/CUST-001',
+    );
+    expect(result.current.state.status).toBe('streaming');
+  });
+
+  it('transitions to success when result event arrives via SSE', async () => {
+    const { result } = renderHook(() => useRecommendations());
+
+    await act(async () => {
+      await result.current.lookup('CUST-001');
+    });
+
+    const es = MockEventSourceClass.instances[0];
+
+    act(() => {
+      es._emit('result', JSON.stringify({
+        green: { plan_id: 'ECO', plan_name: 'EcoFlex 100', saving_monthly: 30.0, saving_annual: 360.0, usage_narrative: 'x', call_script: 'x' },
+        cheapest: { plan_id: 'VAL', plan_name: 'Value 12', saving_monthly: 55.0, saving_annual: 660.0, usage_narrative: 'x', call_script: 'x' },
+      }));
+    });
+
+    expect(result.current.state.status).toBe('success');
+    if (result.current.state.status === 'success') {
+      expect(result.current.state.data.green.plan_id).toBe('ECO');
+      expect(result.current.state.customerId).toBe('CUST-001');
+    }
+  });
+
+  it('abort on re-query closes existing EventSource in SSE mode (Requirement 5.7)', async () => {
+    const { result } = renderHook(() => useRecommendations());
+
+    await act(async () => {
+      await result.current.lookup('CUST-001');
+    });
+
+    const firstEs = MockEventSourceClass.instances[0];
+
+    await act(async () => {
+      await result.current.lookup('CUST-002');
+    });
+
+    // First EventSource should have been closed
+    expect(firstEs.close).toHaveBeenCalled();
+    // Second EventSource should be opened
+    expect(MockEventSourceClass.instances.length).toBe(2);
+    expect(MockEventSourceClass.instances[1].url).toContain('CUST-002');
   });
 });

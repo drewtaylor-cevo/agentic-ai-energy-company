@@ -26,6 +26,9 @@ export interface RecommendationResponse {
   // Phase 13 D-07 — optional: empty/omitted on single-tool turns (CUST-001/004/005).
   // PUBLIC field; NOT stripped by api_lambda/handler.py (D-12).
   reasoning_trace?: ReasoningTraceEntry[];
+  // Agentic Actions Portfolio — optional list of pending confirmable actions.
+  // Empty/omitted when action preparation fails (D-04) or no actions applicable.
+  pending_actions?: ConfirmableAction[];
 }
 
 // Phase 14 AGENT-02: hardship short-circuit response.
@@ -58,9 +61,70 @@ export function isHardshipResponse(data: ApiResponse): data is HardshipResponse 
   return (data as HardshipResponse).kind === 'hardship';
 }
 
+// SSE wire protocol event data shapes (streaming reasoning trace).
+// Matches design.md §Wire Protocol Events — trace_step and error event payloads.
+export interface TraceStepEvent {
+  tool: string;
+  summary: string;
+}
+
+export interface StreamingErrorEvent {
+  status: number;
+  message: string;
+}
+
 // Matches api_lambda/handler.py::_error body shape (lines 46-52).
 // The UI parses `response.status` first and only reads this body defensively —
 // the UI-SPEC copy is used verbatim, not the server's `error` string.
 export interface ApiError {
   error: string;
+}
+
+// Retention Queue types — mirrors design.md §Risk_Signal and GET /retention-queue response.
+// Wire format uses snake_case to match backend JSON — do NOT camelCase.
+export interface RiskSignal {
+  customer_id: string;
+  risk_score: number;
+  risk_summary: string;
+  bill_shock_detected: boolean;
+  usage_trend: 'increasing' | 'decreasing' | 'stable';
+  hardship_flag: boolean;
+}
+
+export interface RetentionQueueResponse {
+  customers_at_risk: number;
+  queue: RiskSignal[];
+}
+
+// Agentic Actions Portfolio types — mirrors design.md §Confirmable_Action.
+// Wire format uses snake_case to match backend JSON — do NOT camelCase.
+export interface ConfirmableAction {
+  action_id: string;
+  action_type: 'tariff_switch' | 'send_sms' | 'payment_plan_offer';
+  customer_id: string;
+  payload: Record<string, unknown>;
+  status: 'pending' | 'confirmed' | 'rejected';
+}
+
+// Conversational chat layer types — mirrors design.md §Data Models.
+// Wire format uses snake_case to match backend JSON — do NOT camelCase.
+
+export interface ChatRequest {
+  message: string;
+  session_id?: string;
+}
+
+export interface ChatResponse {
+  reply: string;
+  reasoning_trace: ReasoningTraceEntry[];
+  session_id: string;
+  customer_id: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  reasoning_trace?: ReasoningTraceEntry[];
+  timestamp: number;
 }

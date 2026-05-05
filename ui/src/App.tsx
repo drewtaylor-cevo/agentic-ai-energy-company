@@ -25,6 +25,7 @@
 import { useCallback } from 'react';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { useFollowUp } from '@/hooks/useFollowUp';
+import { useChat } from '@/hooks/useChat';
 import { LookupForm } from '@/components/LookupForm';
 import { PersonaChips } from '@/components/PersonaChips';
 import { RecommendationCard } from '@/components/RecommendationCard';
@@ -32,23 +33,34 @@ import { ReasoningTrace } from '@/components/ReasoningTrace';
 import { RecommendationSkeletons } from '@/components/RecommendationSkeletons';
 import { ErrorAlert } from '@/components/ErrorAlert';
 import { EmptyState } from '@/components/EmptyState';
+import { RetentionQueue } from '@/components/RetentionQueue';
 import { HardshipBanner } from '@/components/HardshipBanner';
 import { FollowUpDrawer } from '@/components/FollowUpDrawer';
+import { ChatInputBox } from '@/components/ChatInputBox';
+import { ChatThread } from '@/components/ChatThread';
 import { VersionIndicator } from '@/components/VersionIndicator';
+import { ActionCard } from '@/components/ActionCard';
+import { NARRATIVE_ENABLED } from '@/lib/flags';
 
 function App() {
   const { state, lookup } = useRecommendations();
   const { state: followUpState, fetchFollowUp, reset: resetFollowUp } = useFollowUp();
+  const customerId = (state.status === 'success' || state.status === 'streaming' || state.status === 'error' || state.status === 'hardship') ? state.customerId : '';
+  const { state: chatState, sendMessage, reset: resetChat } = useChat(customerId);
   const isLoading = state.status === 'loading';
 
   // LD-7: ?narrative=off collapses v3.0 surfaces to v2.0 shape.
   const narrativeOff = new URLSearchParams(window.location.search).get('narrative') === 'off';
 
-  // Wrap lookup to reset follow-up state on new lookup.
+  // Chat is visible when recommendations loaded and narrative is not off (Req 6.1, 7.5).
+  const chatVisible = state.status === 'success' && !narrativeOff;
+
+  // Wrap lookup to reset follow-up and chat state on new lookup (Req 6.7).
   const handleLookup = useCallback((rawId: string) => {
     resetFollowUp();
+    resetChat();
     lookup(rawId);
-  }, [lookup, resetFollowUp]);
+  }, [lookup, resetFollowUp, resetChat]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -70,9 +82,18 @@ function App() {
 
         {/* Result region — state-driven. Error replaces cards, never alongside. */}
         <section>
-          {state.status === 'idle' && <EmptyState />}
+          {state.status === 'idle' && <RetentionQueue onInvestigate={handleLookup} />}
 
           {state.status === 'loading' && <RecommendationSkeletons />}
+
+          {state.status === 'streaming' && (
+            <>
+              {/* Progressive trace rendering during streaming (Task 7.5, Req 5.2/5.6).
+                  Show received trace steps + skeleton while waiting for result. */}
+              <ReasoningTrace trace={state.traceSteps} isStreaming />
+              <RecommendationSkeletons />
+            </>
+          )}
 
           {state.status === 'error' && (
             <ErrorAlert httpStatus={state.httpStatus} customerId={state.customerId} />
@@ -86,13 +107,26 @@ function App() {
             <>
               {/* Phase 13 D-28: ReasoningTrace lives ABOVE the card grid
                   (turn-level, shared). Empty trace / ?narrative=off →
-                  component renders null. */}
-              <ReasoningTrace trace={state.data.reasoning_trace ?? []} />
+                  component renders null. Streaming trace steps take priority
+                  over batch reasoning_trace when available. */}
+              <ReasoningTrace trace={state.traceSteps.length > 0 ? state.traceSteps : (state.data.reasoning_trace ?? [])} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Card order stable: Green first, Cheapest second. */}
                 <RecommendationCard track="green" data={state.data.green} />
                 <RecommendationCard track="cheapest" data={state.data.cheapest} />
               </div>
+
+              {/* Agentic Actions Portfolio: ActionCards below recommendation cards.
+                  Hidden when ?narrative=off is active (LD-7 kill-switch — actions
+                  contain LLM-generated SMS content). Only render when pending_actions
+                  is non-empty. */}
+              {NARRATIVE_ENABLED && state.data.pending_actions && state.data.pending_actions.length > 0 && (
+                <div className="mt-8 space-y-3" data-testid="action-cards-section">
+                  {state.data.pending_actions.map((action) => (
+                    <ActionCard key={action.action_id} action={action} />
+                  ))}
+                </div>
+              )}
 
               {/* Phase 15 WF-01: Follow-up email drawer below the cards.
                   ?narrative=off → drawer renders null (LD-7). */}
@@ -100,6 +134,20 @@ function App() {
                 state={followUpState}
                 onDraft={() => fetchFollowUp(state.customerId)}
                 narrativeOff={narrativeOff}
+              />
+
+              {/* Conversational chat layer — ChatThread + ChatInputBox.
+                  Hidden when ?narrative=off is active (Req 7.5, kill-switch). */}
+              <ChatThread
+                messages={chatState.messages}
+                isProcessing={chatState.isProcessing}
+                currentTrace={chatState.currentTrace}
+                error={chatState.error}
+              />
+              <ChatInputBox
+                onSend={sendMessage}
+                disabled={chatState.isProcessing}
+                visible={chatVisible}
               />
             </>
           )}

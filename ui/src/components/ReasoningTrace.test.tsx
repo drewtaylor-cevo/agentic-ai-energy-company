@@ -102,3 +102,96 @@ describe('ReasoningTrace — ?narrative=off kill switch (LD-7, D-27)', () => {
     expect(container.firstChild).toBeNull();
   });
 });
+
+
+describe('ReasoningTrace — streaming progressive rendering (Requirements 5.2, 5.6)', () => {
+  it('renders skeleton-only state when isStreaming=true and trace is empty', async () => {
+    vi.stubGlobal('location', { search: '' } as Location);
+    vi.resetModules();
+    const { ReasoningTrace } = await import('./ReasoningTrace');
+    render(<ReasoningTrace trace={[]} isStreaming={true} />);
+
+    // Should render the streaming skeleton (not null)
+    const skeleton = screen.getByTestId('trace-streaming-skeleton');
+    expect(skeleton).toBeInTheDocument();
+  });
+
+  it('renders trace entries alongside skeleton when isStreaming=true and trace has entries', async () => {
+    vi.stubGlobal('location', { search: '' } as Location);
+    vi.resetModules();
+    const { ReasoningTrace } = await import('./ReasoningTrace');
+    const partialTrace = traceFixture(2);
+    render(<ReasoningTrace trace={partialTrace} isStreaming={true} />);
+
+    // Should show the collapsed label with "2+" step count (streaming indicator)
+    const label = screen.getByRole('button', { expanded: false });
+    expect(label).toHaveTextContent(/2\+ steps:/);
+    expect(label).toHaveTextContent(/get_hardship_flag/);
+    expect(label).toHaveTextContent(/detect_bill_shock/);
+  });
+
+  it('shows streaming indicator when collapsed and isStreaming=true', async () => {
+    vi.stubGlobal('location', { search: '' } as Location);
+    vi.resetModules();
+    const { ReasoningTrace } = await import('./ReasoningTrace');
+    render(<ReasoningTrace trace={traceFixture(2)} isStreaming={true} />);
+
+    // Collapsed streaming indicator should be visible
+    const indicator = screen.getByTestId('trace-streaming-indicator');
+    expect(indicator).toBeInTheDocument();
+    expect(screen.getByText(/Analysing…/)).toBeInTheDocument();
+  });
+
+  it('shows skeleton step in expanded list when isStreaming=true', async () => {
+    vi.stubGlobal('location', { search: '' } as Location);
+    vi.resetModules();
+    const { ReasoningTrace } = await import('./ReasoningTrace');
+    render(<ReasoningTrace trace={traceFixture(2)} isStreaming={true} />);
+
+    // Expand the disclosure
+    const disclosure = screen.getByRole('button', { expanded: false });
+    fireEvent.click(disclosure);
+
+    // Should show the existing entries plus a skeleton for the next step
+    expect(screen.getByText(/hardship_flag=False/)).toBeInTheDocument();
+    expect(screen.getByTestId('trace-step-skeleton')).toBeInTheDocument();
+  });
+
+  it('does NOT show skeleton or streaming indicator when isStreaming=false', async () => {
+    vi.stubGlobal('location', { search: '' } as Location);
+    vi.resetModules();
+    const { ReasoningTrace } = await import('./ReasoningTrace');
+    render(<ReasoningTrace trace={traceFixture(3)} isStreaming={false} />);
+
+    // No streaming indicators
+    expect(screen.queryByTestId('trace-streaming-skeleton')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('trace-streaming-indicator')).not.toBeInTheDocument();
+
+    // Step count should NOT have "+" suffix
+    const label = screen.getByRole('button', { expanded: false });
+    expect(label).toHaveTextContent(/3 steps:/);
+    expect(label.textContent).not.toMatch(/3\+ steps:/);
+  });
+
+  it('renders progressive entries as trace array grows (simulates incremental append)', async () => {
+    vi.stubGlobal('location', { search: '' } as Location);
+    vi.resetModules();
+    const { ReasoningTrace } = await import('./ReasoningTrace');
+
+    // Start with 1 entry
+    const { rerender } = render(<ReasoningTrace trace={traceFixture(1)} isStreaming={true} />);
+    let label = screen.getByRole('button', { expanded: false });
+    expect(label).toHaveTextContent(/1\+ steps:/);
+
+    // Grow to 2 entries (simulates new trace_step arriving)
+    rerender(<ReasoningTrace trace={traceFixture(2)} isStreaming={true} />);
+    label = screen.getByRole('button', { expanded: false });
+    expect(label).toHaveTextContent(/2\+ steps:/);
+
+    // Streaming completes — final render with isStreaming=false
+    rerender(<ReasoningTrace trace={traceFixture(3)} isStreaming={false} />);
+    label = screen.getByRole('button', { expanded: false });
+    expect(label).toHaveTextContent(/3 steps:/);
+    expect(screen.queryByTestId('trace-streaming-indicator')).not.toBeInTheDocument();
+  });
+});
