@@ -89,12 +89,12 @@ def test_cors_allow_all(synth_template):
 
 
 def test_cors_methods(synth_template):
-    """CORS must allow GET and OPTIONS methods (D-09)."""
+    """CORS must allow GET, POST, and OPTIONS methods (D-09)."""
     synth_template.has_resource_properties(
         "AWS::ApiGatewayV2::Api",
         {
             "CorsConfiguration": {
-                "AllowMethods": ["GET", "OPTIONS"],
+                "AllowMethods": ["GET", "POST", "OPTIONS"],
             }
         },
     )
@@ -179,8 +179,9 @@ def test_alias_live_exists():
 def test_integration_targets_alias():
     """D-09 + D-14: HttpLambdaIntegration IntegrationUri references the alias, not $LATEST / raw fn.
 
-    Phase 15 WF-01: two integrations now exist (recommendation + follow-up),
-    both targeting the same alias.
+    Phase 15 WF-01 + Agentic Actions: six integrations now exist
+    (recommendation + follow-up + chat + retention-queue + action-confirm + action-dismiss),
+    all targeting the same alias.
     """
     template = _synth_with_context(demo_pc=0)
     template_json = template.to_json()
@@ -189,8 +190,8 @@ def test_integration_targets_alias():
         r for r in template_json["Resources"].values()
         if r.get("Type") == "AWS::ApiGatewayV2::Integration"
     ]
-    assert len(integrations) == 2, (
-        f"Expected two ApiGatewayV2::Integrations (reco + follow-up), got {len(integrations)}"
+    assert len(integrations) == 6, (
+        f"Expected six ApiGatewayV2::Integrations (reco + follow-up + chat + retention-queue + confirm + dismiss), got {len(integrations)}"
     )
 
     alias_logical_ids = [
@@ -200,7 +201,7 @@ def test_integration_targets_alias():
     ]
     assert alias_logical_ids, "No AWS::Lambda::Alias in template"
 
-    # Both integrations must reference the alias.
+    # All integrations must reference the alias.
     import json as _json
     for integ in integrations:
         integ_uri = integ["Properties"].get("IntegrationUri")

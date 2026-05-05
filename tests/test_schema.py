@@ -16,7 +16,8 @@ _MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 # different shape (month="PROFILE", no billing fields) so schema tests targeting
 # billing records filter it out.
 _V2_PERSONAS = {"CUST-001", "CUST-002", "CUST-003"}
-_ALL_PERSONAS = {"CUST-001", "CUST-002", "CUST-003", "CUST-004", "CUST-005", "CUST-006"}
+_ALL_PERSONAS = {"CUST-001", "CUST-002", "CUST-003", "CUST-004", "CUST-005", "CUST-006",
+                 "CUST-007", "CUST-008", "CUST-009", "CUST-010"}
 BILLING_RECORDS = [r for r in ALL_RECORDS if r.get("month") != "PROFILE"]
 PROFILE_RECORDS = [r for r in ALL_RECORDS if r.get("month") == "PROFILE"]
 
@@ -37,7 +38,7 @@ def test_usage_kwh_is_numeric():
         assert record["usage_kwh"] > 0, "usage_kwh must be positive"
 
 
-def test_six_customers_present():
+def test_ten_customers_present():
     customer_ids = {r["customer_id"] for r in ALL_RECORDS}
     assert customer_ids == _ALL_PERSONAS
 
@@ -82,13 +83,13 @@ def test_dynamo_records_wire_format():
 
 
 def test_dynamo_records_count_matches_all_records():
-    # Phase 11: 6 personas × 12 months = 72 billing rows + 1 PROFILE row = 73 total.
-    assert len(DYNAMO_RECORDS) == len(ALL_RECORDS) == 73
+    # AGENT-03: 10 personas × 12 months = 120 billing rows + 5 PROFILE rows = 125 total.
+    assert len(DYNAMO_RECORDS) == len(ALL_RECORDS) == 125
 
 
 def test_billing_record_count():
-    # 6 personas × 12 months = 72 billing records (excludes PROFILE sentinel).
-    assert len(BILLING_RECORDS) == 72
+    # 10 personas × 12 months = 120 billing records (excludes PROFILE sentinels).
+    assert len(BILLING_RECORDS) == 120
 
 
 def test_v2_personas_on_std_plan():
@@ -103,12 +104,20 @@ def test_v2_personas_on_std_plan():
 
 
 def test_profile_row_present_for_hardship_persona():
-    # DATA-06: PROFILE sentinel-SK row carries hardship_flag for CUST-006.
-    assert len(PROFILE_RECORDS) == 1
-    profile = PROFILE_RECORDS[0]
-    assert profile["customer_id"] == "CUST-006"
-    assert profile["month"] == "PROFILE"
-    assert profile.get("hardship_flag") is True
+    # DATA-06 + AGENT-03: PROFILE sentinel-SK rows carry hardship_flag (and optionally
+    # hardship_category) for CUST-006 through CUST-010.
+    assert len(PROFILE_RECORDS) == 5
+    profile_by_id = {p["customer_id"]: p for p in PROFILE_RECORDS}
+    # CUST-006: legacy hardship (no category)
+    assert profile_by_id["CUST-006"]["month"] == "PROFILE"
+    assert profile_by_id["CUST-006"].get("hardship_flag") is True
+    # AGENT-03 typed hardship personas
+    assert profile_by_id["CUST-007"].get("hardship_category") == "payment_difficulty"
+    assert profile_by_id["CUST-008"].get("hardship_category") == "medical_equipment"
+    assert profile_by_id["CUST-009"].get("hardship_category") == "family_violence"
+    assert profile_by_id["CUST-010"].get("hardship_category") == "other"
+    for cust_id in ["CUST-007", "CUST-008", "CUST-009", "CUST-010"]:
+        assert profile_by_id[cust_id].get("hardship_flag") is True
 
 
 # ----------------------------------------------------------------------

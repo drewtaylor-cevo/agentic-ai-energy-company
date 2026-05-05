@@ -46,7 +46,10 @@ def test_call_script_fallback_passes(customer_id, track):
 
 
 def test_fallbacks_contains_all_personas():
-    assert set(FALLBACKS.keys()) == {"CUST-001", "CUST-002", "CUST-003", "CUST-006"}
+    assert set(FALLBACKS.keys()) == {
+        "CUST-001", "CUST-002", "CUST-003", "CUST-006",
+        "CUST-007", "CUST-008", "CUST-009", "CUST-010",
+    }
 
 
 def test_fallbacks_contains_all_tracks_and_fields():
@@ -54,8 +57,19 @@ def test_fallbacks_contains_all_tracks_and_fields():
         assert "green" in tracks and "cheapest" in tracks, f"{customer_id}: missing green or cheapest"
         for track_name, fields in tracks.items():
             if track_name == "hardship":
-                assert set(fields.keys()) == {"reason", "call_script"}, \
-                    f"{customer_id}/{track_name}: hardship must have reason and call_script"
+                if isinstance(fields, dict) and "reason" in fields and "call_script" in fields:
+                    # Legacy flat hardship format (CUST-006)
+                    assert set(fields.keys()) == {"reason", "call_script"}, \
+                        f"{customer_id}/{track_name}: hardship must have reason and call_script"
+                elif isinstance(fields, dict):
+                    # New category-keyed hardship format (CUST-007 through CUST-010)
+                    for cat, cat_fields in fields.items():
+                        assert isinstance(cat_fields, dict), \
+                            f"{customer_id}/{track_name}/{cat}: must be a dict"
+                        assert set(cat_fields.keys()) == {"reason", "call_script"}, \
+                            f"{customer_id}/{track_name}/{cat}: must have reason and call_script"
+                else:
+                    raise AssertionError(f"{customer_id}/{track_name}: unexpected format")
             elif track_name == "follow_up":
                 # Phase 15 WF-01: follow-up email fallback templates.
                 assert set(fields.keys()) == {"subject", "body", "plan_reference"}, \

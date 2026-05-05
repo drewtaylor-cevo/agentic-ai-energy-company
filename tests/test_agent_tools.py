@@ -182,12 +182,17 @@ def test_agent_registry_contains_all_four_tools():
     tool_names = set(registry.registry.keys()) if hasattr(registry, "registry") else set()
     expected = {
         "simulate_savings",
-        "detect_bill_shock",
+        "decompose_bill_shock",
         "get_billing_history",
         "get_hardship_flag",
+        "check_outage_status",
+        "lookup_concessions",
+        "estimate_solar_payback",
+        "propose_payment_plan",
+        "schedule_callback",
     }
     assert expected.issubset(tool_names), (
-        f"Expected 4 tools registered, got {sorted(tool_names)}"
+        f"Expected 9 tools registered, got {sorted(tool_names)}"
     )
 
 
@@ -307,7 +312,7 @@ def test_get_hardship_flag_tool_uses_correct_action(mock_client):
 
 
 def test_agent_tools_list_contains_all_four():
-    """Phase 13 D-01: _agent.tool_registry lists all 4 tools — introspection sanity."""
+    """Phase 13 D-01: _agent.tool_registry lists all tools — introspection sanity."""
     from agent.agent import _agent
 
     registry = _agent.tool_registry
@@ -316,8 +321,12 @@ def test_agent_tools_list_contains_all_four():
     except Exception:
         pytest.skip("Strands Agent tool introspection changed; revisit.")
 
-    expected = {"simulate_savings", "detect_bill_shock", "get_billing_history", "get_hardship_flag"}
-    assert expected.issubset(tool_names), f"Expected 4 tools, got {tool_names}"
+    expected = {
+        "simulate_savings", "decompose_bill_shock", "get_billing_history",
+        "get_hardship_flag", "check_outage_status", "lookup_concessions",
+        "estimate_solar_payback", "propose_payment_plan", "schedule_callback",
+    }
+    assert expected.issubset(tool_names), f"Expected 9 tools, got {tool_names}"
 
 
 def test_simulate_savings_still_uses_provider():

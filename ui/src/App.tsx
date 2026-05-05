@@ -32,7 +32,6 @@ import { RecommendationCard } from '@/components/RecommendationCard';
 import { ReasoningTrace } from '@/components/ReasoningTrace';
 import { RecommendationSkeletons } from '@/components/RecommendationSkeletons';
 import { ErrorAlert } from '@/components/ErrorAlert';
-import { EmptyState } from '@/components/EmptyState';
 import { RetentionQueue } from '@/components/RetentionQueue';
 import { HardshipBanner } from '@/components/HardshipBanner';
 import { FollowUpDrawer } from '@/components/FollowUpDrawer';

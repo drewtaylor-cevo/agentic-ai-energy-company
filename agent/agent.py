@@ -78,16 +78,28 @@ except ImportError:  # pragma: no cover - hit only in offline test repo layout
 # `agent/reasoning/`. Matches the narrative/ + providers.py precedent.
 try:
     from reasoning.summaries import (
+        summary_check_outage_status,
+        summary_decompose_bill_shock,
         summary_detect_bill_shock,
+        summary_estimate_solar_payback,
         summary_get_billing_history,
         summary_get_hardship_flag,
+        summary_lookup_concessions,
+        summary_propose_payment_plan,
+        summary_schedule_callback,
         summary_simulate_savings,
     )
 except ImportError:  # pragma: no cover - hit only in offline test repo layout
     from agent.reasoning.summaries import (
+        summary_check_outage_status,
+        summary_decompose_bill_shock,
         summary_detect_bill_shock,
+        summary_estimate_solar_payback,
         summary_get_billing_history,
         summary_get_hardship_flag,
+        summary_lookup_concessions,
+        summary_propose_payment_plan,
+        summary_schedule_callback,
         summary_simulate_savings,
     )
 
@@ -100,6 +112,24 @@ try:
 except ImportError:  # pragma: no cover - hit only in offline test repo layout
     from agent.hooks.four_tool_cap import FourToolCapHook
 
+# Streaming reasoning trace hook: emits trace_step SSE events as tools complete.
+# Bi-mode import: agent/hooks/ is COPYed to /app/hooks/ by agent/Dockerfile;
+# in the repo layout the module is agent/hooks/streaming_trace.py. Same
+# precedent as four_tool_cap.py, narrative/, reasoning/, providers.py.
+try:
+    from hooks.streaming_trace import StreamingTraceHook
+except ImportError:  # pragma: no cover - hit only in offline test repo layout
+    from agent.hooks.streaming_trace import StreamingTraceHook
+
+# Chat-specific system prompt extension (conversational mode).
+# Bi-mode import: agent/chat_prompt.py is COPYed to /app/chat_prompt.py by
+# agent/Dockerfile; in the repo layout the module is agent/chat_prompt.py.
+# Same precedent as narrative/, reasoning/, hooks/, providers.py.
+try:
+    from chat_prompt import _CHAT_SYSTEM_PROMPT
+except ImportError:  # pragma: no cover - hit only in offline test repo layout
+    from agent.chat_prompt import _CHAT_SYSTEM_PROMPT
+
 # Phase 15 WF-01: Memory configuration helpers.
 # Bi-mode import: agent/memory/ is COPYed to /app/memory/ by agent/Dockerfile;
 # in the repo layout the module is agent/memory/config.py. Same precedent as
@@ -108,6 +138,54 @@ try:
     from memory.config import build_memory_config, build_session_manager
 except ImportError:  # pragma: no cover - hit only in offline test repo layout
     from agent.memory.config import build_memory_config, build_session_manager
+
+# Phase 16 AGENT-03: Hardship category configuration registry.
+# Bi-mode import: agent/specialists/hardship_config.py is a standalone module
+# with no internal cross-package imports. We use sys.modules manipulation to
+# import it directly without triggering agent/specialists/__init__.py (which
+# would cause a circular import with hardship.py → agent.agent).
+import importlib.util as _ilu
+import sys as _sys
+import os as _os_mod
+
+def _load_hardship_config():
+    """Load hardship_config without triggering specialists/__init__.py."""
+    # Try repo layout first (offline tests / development)
+    _candidates = [
+        _os_mod.path.join(_os_mod.path.dirname(__file__), "specialists", "hardship_config.py"),
+        "/app/specialists/hardship_config.py",  # container layout
+    ]
+    for _path in _candidates:
+        if _os_mod.path.isfile(_path):
+            _spec = _ilu.spec_from_file_location("_hardship_config_direct", _path)
+            _mod = _ilu.module_from_spec(_spec)
+            _spec.loader.exec_module(_mod)
+            return _mod
+    # Fallback: try normal import (may trigger __init__.py but at least works)
+    try:
+        from specialists.hardship_config import HARDSHIP_CATEGORIES, HardshipCategory  # type: ignore[import-not-found]
+        class _ns: pass
+        _ns.HARDSHIP_CATEGORIES = HARDSHIP_CATEGORIES
+        _ns.HardshipCategory = HardshipCategory
+        return _ns
+    except ImportError:  # pragma: no cover
+        from agent.specialists.hardship_config import HARDSHIP_CATEGORIES, HardshipCategory
+        class _ns: pass
+        _ns.HARDSHIP_CATEGORIES = HARDSHIP_CATEGORIES
+        _ns.HardshipCategory = HardshipCategory
+        return _ns
+
+_hc_mod = _load_hardship_config()
+HARDSHIP_CATEGORIES = _hc_mod.HARDSHIP_CATEGORIES
+HardshipCategory = _hc_mod.HardshipCategory
+del _load_hardship_config, _hc_mod, _ilu, _os_mod
+
+# Multi-agent supervisor: specialist imports (bi-mode).
+# Bi-mode import: agent/specialists/ is COPYed to /app/specialists/ by
+# agent/Dockerfile; in the repo layout the module is agent/specialists/.
+# NOTE: Imports are deferred to _init_specialists() to avoid circular
+# imports — specialists import helpers from this module (agent.agent).
+
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +247,20 @@ class ReasoningTraceEntry(BaseModel):
     # No field validators on summary — D-11 exemption locked.
 
 
+class ConfirmableAction(BaseModel):
+    """Agentic Actions Portfolio: a single confirmable action prepared by the agent.
+
+    The agent prepares actions after producing a recommendation; the rep
+    approves with one click. Types: tariff_switch, send_sms, payment_plan_offer.
+    Numeric fields in payload come from Tools Lambda pure functions (SAV-03).
+    """
+    action_id: str = Field(description="UUID v4 identifier")
+    action_type: Literal["tariff_switch", "send_sms", "payment_plan_offer"]
+    customer_id: str = Field(description="CUST-NNN format")
+    payload: dict = Field(description="Type-specific action data")
+    status: Literal["pending", "confirmed", "rejected"]
+
+
 class RecommendationResponse(BaseModel):
     """Dual-track tariff recommendation — both tracks always present."""
     kind: str = Field(default="recommendation", description="Response type discriminator")
@@ -178,6 +270,9 @@ class RecommendationResponse(BaseModel):
     # Default empty list: single-tool turns (CUST-001/004/005) return [];
     # multi-tool turns (CUST-003) return 2-3 entries.
     reasoning_trace: list[ReasoningTraceEntry] = Field(default_factory=list)
+    # Agentic Actions Portfolio: pending actions prepared by the agent.
+    # Default empty list: action preparation is best-effort (D-04).
+    pending_actions: list[ConfirmableAction] = Field(default_factory=list)
 
 
 class HardshipResponse(BaseModel):
@@ -190,6 +285,10 @@ class HardshipResponse(BaseModel):
     """
     kind: str = Field(default="hardship", description="Response type discriminator")
     customer_id: str = Field(description="Customer identifier")
+    category: Literal["payment_difficulty", "medical_equipment", "family_violence", "other"] = Field(
+        default="other",
+        description="Hardship category determining routing and permitted actions",
+    )
     reason: str = Field(
         max_length=USAGE_NARRATIVE_MAX_CHARS,
         description=(
@@ -208,6 +307,10 @@ class HardshipResponse(BaseModel):
             "Second-person one-liner the call-centre agent reads verbatim. "
             "Maximum 22 words. Same forbidden-content rules as usage_narrative."
         ),
+    )
+    permitted_actions: list[str] = Field(
+        default_factory=list,
+        description="Actions the rep may discuss for this hardship category",
     )
 
     # D-15 validators for hardship narrative surfaces. Cannot reuse
@@ -297,23 +400,63 @@ _FOLLOW_UP_DEFAULTS = {
 }
 
 
-def _build_hardship_response(customer_id: str) -> dict:
-    """Build a HardshipResponse dict for a hardship-flagged customer.
+def _build_typed_hardship_response(customer_id: str, category: str, config: dict) -> dict:
+    """Build a typed HardshipResponse dict for a hardship-flagged customer.
+
+    Phase 16 AGENT-03: uses the category config registry to populate
+    routing_target, permitted_actions, and select the correct category-keyed
+    script from FALLBACKS.
 
     Code-side only — the LLM never sees tariff context for this customer.
-    Uses FALLBACKS[customer_id]["hardship"] if available, else _HARDSHIP_DEFAULTS.
     Validates through HardshipResponse Pydantic model to enforce D-15.
+
+    Args:
+        customer_id: CUST-NNN format
+        category: one of the four HardshipCategory values
+        config: the category config dict from HARDSHIP_CATEGORIES
     """
+    routing_target = config.get("routing_target", "hardship_team")
+    permitted_actions = config.get("permitted_actions", [])
+
+    # Script lookup: category-keyed personas (CUST-007+) have
+    # FALLBACKS[cid]["hardship"][category] = {reason, call_script}.
+    # Legacy flat format (CUST-006) has FALLBACKS[cid]["hardship"] = {reason, call_script}.
+    # If customer_id not in FALLBACKS or category not found, use _HARDSHIP_DEFAULTS.
     fb = FALLBACKS.get(customer_id, {}).get("hardship", {})
-    reason = fb.get("reason", _HARDSHIP_DEFAULTS["reason"])
-    call_script = fb.get("call_script", _HARDSHIP_DEFAULTS["call_script"])
+
+    if isinstance(fb, dict) and "reason" in fb and "call_script" in fb:
+        # Legacy flat format (CUST-006) — use directly regardless of category.
+        reason = fb["reason"]
+        call_script = fb["call_script"]
+    elif isinstance(fb, dict) and category in fb:
+        # Category-keyed format — look up by category.
+        cat_fb = fb[category]
+        reason = cat_fb.get("reason", _HARDSHIP_DEFAULTS["reason"])
+        call_script = cat_fb.get("call_script", _HARDSHIP_DEFAULTS["call_script"])
+    else:
+        # Fallback: customer not in FALLBACKS or category not in hardship dict.
+        reason = _HARDSHIP_DEFAULTS["reason"]
+        call_script = _HARDSHIP_DEFAULTS["call_script"]
 
     response = HardshipResponse(
         customer_id=customer_id,
+        category=category,
         reason=reason,
+        routing_target=routing_target,
         call_script=call_script,
+        permitted_actions=permitted_actions,
     )
     return response.model_dump()
+
+
+def _build_hardship_response(customer_id: str) -> dict:
+    """Build a HardshipResponse dict for a hardship-flagged customer.
+
+    Thin backward-compatible wrapper around _build_typed_hardship_response.
+    Defaults to category "other" for customers without a typed category.
+    Code-side only — the LLM never sees tariff context for this customer.
+    """
+    return _build_typed_hardship_response(customer_id, "other", HARDSHIP_CATEGORIES["other"])
 
 
 # --- Lenient salvage schema (retry path only — per-field fallback per D-02) ---
@@ -512,6 +655,12 @@ _TRACE_TOOLS = {
     "get_billing_history",
     "get_hardship_flag",
     "simulate_savings",
+    "check_outage_status",
+    "decompose_bill_shock",
+    "lookup_concessions",
+    "estimate_solar_payback",
+    "propose_payment_plan",
+    "schedule_callback",
 }
 
 
@@ -525,6 +674,18 @@ def _summarise_tool_result(tool_name: str, payload: Any) -> str:
         return summary_get_hardship_flag(payload)
     if tool_name == "simulate_savings":
         return summary_simulate_savings(payload)
+    if tool_name == "check_outage_status":
+        return summary_check_outage_status(payload)
+    if tool_name == "decompose_bill_shock":
+        return summary_decompose_bill_shock(payload)
+    if tool_name == "lookup_concessions":
+        return summary_lookup_concessions(payload)
+    if tool_name == "estimate_solar_payback":
+        return summary_estimate_solar_payback(payload)
+    if tool_name == "propose_payment_plan":
+        return summary_propose_payment_plan(payload)
+    if tool_name == "schedule_callback":
+        return summary_schedule_callback(payload)
     # Unknown tool: produce a generic one-liner rather than raising.
     return f"{tool_name} called"
 
@@ -614,6 +775,219 @@ def _extract_reasoning_trace(
     return entries
 
 
+# --- Action Preparation (Agentic Actions Portfolio) ---
+#
+# Post-recommendation hook: prepares confirmable actions (tariff_switch,
+# send_sms, payment_plan_offer) and queues them via Tools Lambda. D-04:
+# failures never block the primary recommendation — returns empty list.
+
+# SMS fallback message template — used when LLM-generated body fails D-15.
+_SMS_FALLBACK_TEMPLATE = (
+    "Thank you for speaking with us about your energy plan options. "
+    "Please contact us if you would like to proceed."
+)
+
+# D-15 validation for SMS body: reuses the same banned-terms logic.
+# Import NUMERIC_REGEX and BANNED_REGEX for SMS validation.
+try:
+    from narrative.banned_terms import BANNED_REGEX, NUMERIC_REGEX
+except ImportError:  # pragma: no cover
+    from agent.narrative.banned_terms import BANNED_REGEX, NUMERIC_REGEX
+
+
+def _validate_sms_body(body: str) -> bool:
+    """Validate SMS body passes D-15 rules and ≤160 chars.
+
+    Returns True if valid, False if validation fails.
+    D-15: no digits, currency symbols, %, competitor names, switch verbs.
+    """
+    if not isinstance(body, str) or not body.strip():
+        return False
+    if len(body) > 160:
+        return False
+    if NUMERIC_REGEX.search(body):
+        return False
+    if BANNED_REGEX.search(body):
+        return False
+    return True
+
+
+def _get_sms_fallback(customer_id: str) -> str:
+    """Get SMS fallback body from FALLBACKS registry or generic template.
+
+    D-15 validated by construction (FALLBACKS strings pass validator per
+    tests/test_fallbacks_pass_validator.py).
+    """
+    fb = FALLBACKS.get(customer_id, {})
+    # Use the call_script from the green track as SMS fallback — it's
+    # already D-15 validated and ≤160 chars by construction.
+    green_fb = fb.get("green", {})
+    call_script = green_fb.get("call_script", "")
+    if call_script and len(call_script) <= 160:
+        return call_script
+    return _SMS_FALLBACK_TEMPLATE
+
+
+def prepare_actions(
+    customer_id: str,
+    savings: dict,
+    bill_shock_result: dict | None = None,
+    sms_body: str | None = None,
+) -> list[dict]:
+    """Prepare confirmable actions after a recommendation is produced.
+
+    Prepares:
+      1. tariff_switch — always (uses simulate_savings output)
+      2. send_sms — always (D-15 validated body, fallback on failure)
+      3. payment_plan_offer — only when is_shock=true AND delta > $50
+
+    D-04 guard: wrapped in try/except at the call site. This function
+    itself may raise — the caller catches and returns empty list.
+
+    Args:
+        customer_id: CUST-NNN format
+        savings: simulate_savings output (green/cheapest tracks)
+        bill_shock_result: detect_bill_shock/decompose output (optional)
+        sms_body: LLM-generated SMS body (optional, validated here)
+
+    Returns:
+        list of action dicts ready for queue_action
+    """
+    actions = []
+
+    # 1. tariff_switch — always prepared (uses green track from savings)
+    green_track = savings.get("green", {})
+    tariff_switch_payload = {
+        "plan_id": green_track.get("plan_id", ""),
+        "plan_name": green_track.get("plan_name", ""),
+        "effective_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "estimated_saving_monthly": green_track.get("saving_monthly", 0.0),
+    }
+    actions.append({
+        "action_type": "tariff_switch",
+        "customer_id": customer_id,
+        "payload": tariff_switch_payload,
+    })
+
+    # 2. send_sms — always prepared (D-15 validated body)
+    validated_body = sms_body
+    if not validated_body or not _validate_sms_body(validated_body):
+        validated_body = _get_sms_fallback(customer_id)
+    # Truncate to 160 chars if needed (safety net)
+    if len(validated_body) > 160:
+        validated_body = validated_body[:160]
+    sms_payload = {
+        "message_body": validated_body,
+        "plan_name": green_track.get("plan_name", ""),
+    }
+    actions.append({
+        "action_type": "send_sms",
+        "customer_id": customer_id,
+        "payload": sms_payload,
+    })
+
+    # 3. payment_plan_offer — only when is_shock=true AND delta > $50
+    if bill_shock_result and bill_shock_result.get("is_shock") is True:
+        delta = bill_shock_result.get("total_delta_dollars",
+                                     bill_shock_result.get("delta_dollars", 0.0))
+        if delta > 50:
+            # Call propose_payment_plan via Tools Lambda for deterministic
+            # arithmetic (SAV-03). Use 6 instalments as default.
+            try:
+                import importlib
+                _handler_mod = importlib.import_module("lambda.handler")
+                from infrastructure.seed_data.tool_seed_data import BALANCE_DATA
+                outstanding = BALANCE_DATA.get(customer_id, delta)
+                pp_result = _handler_mod.propose_payment_plan_pure(
+                    customer_id, 6, outstanding
+                )
+                payment_plan_payload = {
+                    "proposed_installments": pp_result["instalment_count"],
+                    "installment_amount": pp_result["instalment_amount"],
+                    "total_owed": pp_result["outstanding_balance"],
+                }
+                actions.append({
+                    "action_type": "payment_plan_offer",
+                    "customer_id": customer_id,
+                    "payload": payment_plan_payload,
+                })
+            except Exception:  # noqa: BLE001 — D-04: payment plan failure is non-fatal
+                logger.warning(
+                    "payment_plan_offer preparation failed for %s", customer_id
+                )
+
+    return actions
+
+
+def queue_prepared_actions(
+    customer_id: str,
+    savings: dict,
+    bill_shock_result: dict | None = None,
+    sms_body: str | None = None,
+) -> list["ConfirmableAction"]:
+    """Prepare and queue actions, returning ConfirmableAction list.
+
+    D-04 guard: entire function wrapped in try/except. On ANY failure,
+    returns empty list — action preparation never blocks the primary
+    recommendation.
+
+    Args:
+        customer_id: CUST-NNN format
+        savings: simulate_savings output
+        bill_shock_result: bill shock detection result (optional)
+        sms_body: LLM-generated SMS body (optional)
+
+    Returns:
+        list of ConfirmableAction instances (may be empty on failure)
+    """
+    try:
+        action_payloads = prepare_actions(
+            customer_id, savings, bill_shock_result, sms_body
+        )
+
+        queued_actions: list[ConfirmableAction] = []
+        for action_payload in action_payloads:
+            try:
+                # Queue via Tools Lambda (or InMemoryProvider in tests)
+                resp = _lambda_client.invoke(
+                    FunctionName=_TOOLS_LAMBDA_ARN,
+                    InvocationType="RequestResponse",
+                    Payload=json.dumps({
+                        "action": "queue_action",
+                        "action_payload": action_payload,
+                    }).encode(),
+                )
+                result = json.loads(resp["Payload"].read())
+                if result.get("error"):
+                    logger.warning(
+                        "queue_action failed for %s: %s",
+                        action_payload.get("action_type"), result.get("message")
+                    )
+                    continue
+                queued_actions.append(ConfirmableAction(
+                    action_id=result["action_id"],
+                    action_type=result["action_type"],
+                    customer_id=result["customer_id"],
+                    payload=result["payload"],
+                    status=result["status"],
+                ))
+            except Exception:  # noqa: BLE001 — D-04: per-action failure is non-fatal
+                logger.warning(
+                    "Failed to queue %s action for %s",
+                    action_payload.get("action_type"), customer_id,
+                )
+                continue
+
+        return queued_actions
+
+    except Exception:  # noqa: BLE001 — D-04: action preparation never blocks recommendation
+        logger.warning(
+            "Action preparation failed entirely for %s — returning empty list",
+            customer_id,
+        )
+        return []
+
+
 # --- Tool definition ---
 
 @tool
@@ -662,6 +1036,158 @@ def detect_bill_shock(customer_id: str) -> dict:
         InvocationType="RequestResponse",
         Payload=json.dumps(
             {"action": "detect_bill_shock", "customer_id": customer_id}
+        ).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
+@tool
+def check_outage_status(suburb: str) -> dict:
+    """Check current outage status for a suburb.
+
+    Use this tool when a customer asks about power outages, supply disruptions,
+    or service interruptions in their area.
+
+    Args:
+        suburb: The suburb name to check for outages (e.g., "Marrickville", "Bondi")
+
+    Returns:
+        Dict with: suburb, has_outage (bool), outage_type ("planned"/"unplanned"/"none"),
+        affected_postcodes (list), estimated_restoration (ISO datetime or null),
+        customers_affected (int)
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps({"action": "check_outage_status", "suburb": suburb}).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
+@tool
+def decompose_bill_shock(customer_id: str) -> dict:
+    """Decompose a customer's bill shock into contributing factors.
+
+    Use this tool when a customer asks why their bill increased, or when you
+    detect a billing anomaly. Provides breakdown of rate changes, usage changes,
+    and seasonal patterns.
+
+    Args:
+        customer_id: The customer identifier (e.g., "CUST-001")
+
+    Returns:
+        Dict with: customer_id, is_shock (bool), shock_month, total_delta_dollars,
+        rate_change_component, usage_change_component, seasonal_component,
+        explanation_factors (list of strings)
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(
+            {"action": "decompose_bill_shock", "customer_id": customer_id}
+        ).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
+@tool
+def lookup_concessions(customer_id: str) -> dict:
+    """Look up eligible energy concessions and rebates for a customer.
+
+    Use this tool when a customer asks about available discounts, rebates,
+    concessions, or financial assistance programs they may be eligible for.
+
+    Args:
+        customer_id: The customer identifier (e.g., "CUST-001")
+
+    Returns:
+        Dict with: customer_id, eligible_concessions (list of concession objects
+        with name, type, annual_value, applied, description), total_annual_value
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(
+            {"action": "lookup_concessions", "customer_id": customer_id}
+        ).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
+@tool
+def estimate_solar_payback(customer_id: str) -> dict:
+    """Estimate solar PV payback period and savings for a customer.
+
+    Use this tool when a customer asks about solar panels, renewable energy
+    options, or reducing their electricity costs through solar installation.
+
+    Args:
+        customer_id: The customer identifier (e.g., "CUST-001")
+
+    Returns:
+        Dict with: customer_id, eligible (bool), avg_monthly_usage_kwh,
+        estimated_system_size_kw, estimated_daily_generation_kwh,
+        annual_savings_dollars, system_cost_dollars, payback_years,
+        recommendation ("strong_candidate"/"moderate_candidate"/"not_recommended")
+        OR if ineligible: customer_id, eligible (False), reason (string)
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(
+            {"action": "estimate_solar_payback", "customer_id": customer_id}
+        ).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
+@tool
+def propose_payment_plan(customer_id: str, instalments: int) -> dict:
+    """Propose a payment plan for a customer with outstanding balance.
+
+    Use this tool when a customer is experiencing payment difficulty or asks
+    about spreading their balance over multiple payments.
+
+    Args:
+        customer_id: The customer identifier (e.g., "CUST-006")
+        instalments: Number of instalments (2-12)
+
+    Returns:
+        Dict with: customer_id, outstanding_balance, instalment_count,
+        instalment_amount, total_payable, interest_free (bool),
+        schedule (list of {due_date, amount})
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(
+            {"action": "propose_payment_plan", "customer_id": customer_id, "instalments": instalments}
+        ).encode(),
+    )
+    return json.loads(resp["Payload"].read())
+
+
+@tool
+def schedule_callback(customer_id: str, when: str, reason: str) -> dict:
+    """Schedule a callback for a customer at a specified time.
+
+    Use this tool when a customer requests a follow-up call or when you need
+    to arrange a callback for further assistance.
+
+    Args:
+        customer_id: The customer identifier (e.g., "CUST-001")
+        when: ISO datetime string for the callback (e.g., "2025-07-20T10:00:00+10:00")
+        reason: Brief description of the callback purpose
+
+    Returns:
+        Dict with: customer_id, callback_id (deterministic UUID),
+        scheduled_time, reason, status ("confirmed")
+    """
+    resp = _lambda_client.invoke(
+        FunctionName=_TOOLS_LAMBDA_ARN,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(
+            {"action": "schedule_callback", "customer_id": customer_id, "when": when, "reason": reason}
         ).encode(),
     )
     return json.loads(resp["Payload"].read())
@@ -818,19 +1344,68 @@ _model = BedrockModel(
 # invocations). The cap mechanism is a Strands HookProvider — NOT an
 # Agent constructor iteration-cap kwarg (Strands 1.37.0 has no such
 # kwarg; Pitfall 2 prevention).
-_four_tool_cap = FourToolCapHook(budget=4)
+_four_tool_cap = FourToolCapHook(budget=8)
+
+# Streaming reasoning trace hook: emits trace_step SSE events as tools
+# complete. Per-invocation lifecycle: reset() clears callback at the top
+# of invoke(); set_callback() is injected by the streaming transport layer.
+_streaming_trace_hook = StreamingTraceHook()
 
 _agent = Agent(
     model=_model,
     system_prompt=SYSTEM_PROMPT,
     tools=[
         simulate_savings,
-        detect_bill_shock,
+        decompose_bill_shock,
         get_billing_history,
         get_hardship_flag,
+        check_outage_status,
+        lookup_concessions,
+        estimate_solar_payback,
+        propose_payment_plan,
+        schedule_callback,
     ],
-    hooks=[_four_tool_cap],
+    hooks=[_four_tool_cap, _streaming_trace_hook],
 )
+
+# --- Multi-agent supervisor: module-level specialist instances ---
+# Warm-start preserved — same instances reused across invocations (Req 6.4).
+# TariffSpecialist receives the existing _agent and _four_tool_cap (no new
+# Agent construction). HardshipSpecialist and ComplianceReviewer are code-side
+# only (no Agent, no LLM).
+#
+# Deferred import + instantiation to break circular import:
+# agent.agent → specialists → agent.agent (for helpers like
+# _build_hardship_response, _fetch_deterministic_savings, etc.).
+_tariff_specialist = None
+_hardship_specialist = None
+_compliance_reviewer = None
+_specialists_initialized = False
+
+
+def _init_specialists():
+    """Lazy-init specialist instances on first invoke() call.
+
+    Breaks the circular import: agent.agent ↔ specialists. Called once
+    at the top of invoke(); subsequent calls are a no-op (the flag
+    is already set).
+    """
+    global _tariff_specialist, _hardship_specialist, _compliance_reviewer
+    global _specialists_initialized
+    if _specialists_initialized:
+        return
+    try:
+        from specialists.tariff import TariffSpecialist  # type: ignore[import-not-found]
+        from specialists.hardship import HardshipSpecialist  # type: ignore[import-not-found]
+        from specialists.compliance import ComplianceReviewer  # type: ignore[import-not-found]
+    except ImportError:
+        from agent.specialists.tariff import TariffSpecialist
+        from agent.specialists.hardship import HardshipSpecialist
+        from agent.specialists.compliance import ComplianceReviewer
+    _tariff_specialist = TariffSpecialist(_agent, _four_tool_cap)
+    _hardship_specialist = HardshipSpecialist()
+    _compliance_reviewer = ComplianceReviewer()
+    _specialists_initialized = True
 
 
 # --- AgentCore entrypoint ---
@@ -974,16 +1549,114 @@ def draft_follow_up(payload: dict) -> dict:
             }
 
 
+def handle_chat(payload: dict) -> dict:
+    """Handle a conversational chat request (Conversational Chat Layer).
+
+    Expects payload: {"customer_id": "CUST-001", "action": "chat",
+                      "message": "Why did her bill jump?",
+                      "session_id": "...", "messages": [...]}
+    Returns: {"reply": str, "reasoning_trace": [...],
+              "session_id": str, "customer_id": str}
+
+    Uses _BASE_SYSTEM_PROMPT + _CHAT_SYSTEM_PROMPT (no NARRATIVE_PROMPT —
+    chat replies are free-text and not subject to D-15 validators).
+
+    D-04: wrapped in try/except — never raises out of handler.
+    Requirements: 4.1, 4.2, 4.6, 8.1, 8.2, 8.6, 8.7
+    """
+    customer_id = payload.get("customer_id", "")
+    message = payload.get("message", "")
+    session_id = payload.get("session_id", "")
+    session_messages = payload.get("messages", [])
+
+    try:
+        # SC-3: reset per-invocation hook state.
+        _four_tool_cap.reset()
+        _streaming_trace_hook.reset()
+
+        # Compose chat system prompt: base + chat extension (no NARRATIVE_PROMPT).
+        chat_system_prompt = _BASE_SYSTEM_PROMPT + "\n\n" + _CHAT_SYSTEM_PROMPT
+
+        # Build a chat-specific agent with the same 4 tools but no
+        # structured_output_model — reply is free-text.
+        chat_agent = Agent(
+            model=_model,
+            system_prompt=chat_system_prompt,
+            tools=[
+                simulate_savings,
+                decompose_bill_shock,
+                get_billing_history,
+                get_hardship_flag,
+                check_outage_status,
+                lookup_concessions,
+                estimate_solar_payback,
+                propose_payment_plan,
+                schedule_callback,
+            ],
+            hooks=[_four_tool_cap, _streaming_trace_hook],
+        )
+
+        # Build the message list for multi-turn context.
+        # Session messages provide prior conversation context.
+        messages_for_context = []
+        if session_messages:
+            for msg in session_messages:
+                role = msg.get("role", "")
+                content = msg.get("content", "")
+                if role and content:
+                    messages_for_context.append({"role": role, "content": [{"text": content}]})
+
+        # Invoke the agent with the rep's message as the user turn.
+        if messages_for_context:
+            # Load prior conversation into the agent's message history.
+            chat_agent.messages = messages_for_context
+
+        agent_result = chat_agent(message)
+
+        # Extract the free-text reply from the agent result.
+        reply = str(agent_result) if agent_result else ""
+
+        # Extract reasoning trace using existing helper.
+        reasoning_trace = _extract_reasoning_trace(
+            agent_result,
+            messages=chat_agent.messages if hasattr(chat_agent, "messages") else None,
+        )
+
+        return {
+            "reply": reply,
+            "reasoning_trace": [entry.model_dump() for entry in reasoning_trace],
+            "session_id": session_id,
+            "customer_id": customer_id,
+        }
+
+    except Exception as err:  # noqa: BLE001 — D-04 never-500
+        logger.warning(
+            "Chat handler failed for %s: %s", customer_id, err,
+        )
+        return {
+            "reply": "I'm sorry, I encountered an error processing your question. Please try again.",
+            "reasoning_trace": [],
+            "session_id": session_id,
+            "customer_id": customer_id,
+        }
+
+
 @app.entrypoint
 def invoke(payload: dict) -> dict:
-    """Handle an incoming AgentCore invocation.
+    """Supervisor dispatcher — routes to specialist agents.
 
-    Expects payload: {"customer_id": "CUST-001"}
-    Returns: {"green": {...}, "cheapest": {...}, "_narrative_source": {...}}
+    Expects payload: {"customer_id": "CUST-001", "action": "recommend"}
+    Returns: specialist response dict with compliance_review and supervisor_trace attached.
 
-    The `_narrative_source` marker is INTERNAL — Phase 7's API Lambda strips
-    it before returning to the client. Phase 9's eval harness uses it via
-    direct boto3 `invoke_agent_runtime` to assert which path fired per field.
+    Routing:
+      - action == "follow_up" → draft_follow_up() (existing handler)
+      - hardship flag true → HardshipSpecialist.handle()
+      - default → TariffSpecialist.handle()
+
+    Post-dispatch:
+      - ComplianceReviewer.review() signs off on every specialist response
+      - supervisor_trace attached for demo observability
+      - DEMO-07 kill-switch: narrative=off strips compliance_review + supervisor_trace
     """
     customer_id = payload.get("customer_id", "")
     if not customer_id:
@@ -993,175 +1666,59 @@ def invoke(payload: dict) -> dict:
     action = payload.get("action", "recommend")
     if action == "follow_up":
         return draft_follow_up(payload)
+    if action == "chat":
+        return handle_chat(payload)
+
+    # Lazy-init specialists on first call (breaks circular import).
+    _init_specialists()
 
     logger.info("Processing recommendation for %s", customer_id)
 
-    # Phase 14 AGENT-02: pre-LLM hardship guard. Fires BEFORE the agent
-    # sees any tariff context — code-side enforcement, not prompt-side.
-    # get_provider().get_hardship_flag() goes direct to the data layer
-    # (InMemoryProvider offline, ToolsLambdaProvider in production).
+    # SC-3: reset per-invocation hook state before any specialist runs.
+    _streaming_trace_hook.reset()
+
+    # --- Supervisor routing ---
+    supervisor_trace = {"hardship_checked": False, "compliance_reviewed": False}
+
+    # Check hardship flag (code-side, not LLM)
+    hardship = False
     try:
         hardship_result = get_provider().get_hardship_flag(customer_id)
-        if hardship_result.get("hardship") is True:
-            logger.info("Hardship flag detected for %s — short-circuiting", customer_id)
-            hardship_body = _build_hardship_response(customer_id)
-            # Attach _narrative_source marker for observability (Phase 7 contract).
-            # API Lambda strips this before returning to the client.
-            hardship_body["_narrative_source"] = {
-                "hardship": {"reason": "fallback", "call_script": "fallback"},
-            }
-            return hardship_body
-    except Exception as hardship_err:  # noqa: BLE001 — D-04 never-500
-        # If the hardship check itself fails, log and continue to the normal
-        # recommendation path. The customer gets a recommendation rather than
-        # a 500. This preserves D-04.
-        logger.warning(
-            "Hardship flag check failed for %s — proceeding to recommendation: %s",
-            customer_id, hardship_err,
-        )
+        hardship = hardship_result.get("hardship") is True
+        supervisor_trace["hardship_checked"] = True
+    except Exception:  # noqa: BLE001 — D-04 never-500
+        logger.warning("Hardship check failed — routing to TariffSpecialist")
 
-    narrative_source = {
-        "green":    {"usage_narrative": "model", "call_script": "model"},
-        "cheapest": {"usage_narrative": "model", "call_script": "model"},
-    }
+    # Dispatch to specialist
+    if hardship:
+        payload["hardship_category"] = hardship_result.get("hardship_category")
+        response = _hardship_specialist.handle(payload)
+        supervisor_trace["routed_to"] = "HardshipSpecialist"
+        supervisor_trace["routing_reason"] = "Customer hardship flag is true"
+    else:
+        response = _tariff_specialist.handle(payload)
+        supervisor_trace["routed_to"] = "TariffSpecialist"
+        supervisor_trace["routing_reason"] = "Standard recommendation request"
 
-    # A-02 (Phase 13 D-14 amended): reset per-invocation cap counter. The
-    # module-level _four_tool_cap accumulates state across invocations
-    # otherwise and silently denies tool calls to later requests (SC-3 mirror
-    # — module-level counters leak).
-    _four_tool_cap.reset()
-
-    # D-08 (Phase 13 live-regression fix): Strands 1.37's AgentResult.message
-    # is the LAST turn only; with structured_output_model= set, intermediate
-    # tool-use/tool-result turns live in the Agent's conversation history
-    # (_agent.messages), not on agent_result. Snapshot the pre-invocation
-    # length so _extract_reasoning_trace reads only THIS invocation's new
-    # messages — SC-3 mirror (cross-invocation bleed would leak prior tool
-    # uses into later reasoning traces).
-    _messages_start = len(_agent.messages)
-
-    # D-01: retry-once-then-per-field-fallback owned HERE (not Strands).
-    # Under Strands 1.37.0+ the retry is INLINE within one _agent() call
-    # (StructuredOutputTool.stream() catches ValidationError + yields tool-error
-    # back to LLM for self-correction; force-tool-use round is Strands' second
-    # attempt). Terminal failure surfaces as StructuredOutputException OR
-    # agent_result.structured_output is None — we catch both. (RESEARCH §D-06 (c))
-    agent_result = None
+    # Compliance review (deterministic code, not LLM)
     try:
-        agent_result = _agent(
-            _build_narrative_prompt(customer_id),
-            structured_output_model=RecommendationResponse,
-        )
-        # Phase 13 D-14 + D-15 (A-02 amendment): if the 4-tool cap hook
-        # cancelled the loop, route through the D-04 fallback by raising
-        # into the existing except Exception below. The partial tool-call
-        # evidence (whatever fired before the cap) is still stitched into
-        # the response via _extract_reasoning_trace in the fallback branch.
-        if agent_result.stop_reason == "cancelled":
-            raise RuntimeError("tool budget exhausted")
-        result = agent_result.structured_output
-        if result is None:
-            # End-of-turn without structured output — force round must have failed.
-            # Pitfall 4: treat identically to StructuredOutputException.
-            raise StructuredOutputException(
-                "structured_output is None after successful stop_reason"
-            )
-    except StructuredOutputException as terminal_err:
-        logger.warning(
-            "structured output exhausted — applying per-field fallback",
-            extra={"customer_id": customer_id, "reason": str(terminal_err)},
-        )
-        # D-02: per-field fallback. Under the new API, salvage reads the LAST
-        # assistant message's toolUse block (zero network cost) rather than
-        # issuing a third _agent(..., structured_output_model=_RecommendationResponseLenient) call.
-        lenient_response = _extract_lenient_from_agent_result(agent_result)
-        if lenient_response is None:
-            logger.warning(
-                "lenient salvage parse failed — using full fallback bank",
-                exc_info=False,
-            )
-        try:
-            result, narrative_source = _narrative_fallback_salvage(
-                customer_id, lenient_response, terminal_err,
-            )
-        except Exception as fallback_err:  # noqa: BLE001 - preserve D-04 contract
-            logger.warning(
-                "deterministic savings fallback failed during narrative salvage",
-                extra={"customer_id": customer_id, "reason": str(fallback_err)},
-                exc_info=True,
-            )
-            return {
-                "errorMessage": str(fallback_err),
-                "_narrative_source": narrative_source,
-                "reasoning_trace": [
-                    entry.model_dump() for entry in _extract_reasoning_trace(agent_result, _agent.messages[_messages_start:])
-                ],
-            }
-        body = result.model_dump()
-        body["_narrative_source"] = narrative_source
-        return body
-    except Exception:
-        # v1.0 tool-failure fallback: deterministic savings fetch. Narrative
-        # fields are attached from FALLBACKS so the extended-schema contract holds.
-        # D-04 never-500 guarantee — UNCHANGED from pre-migration shape.
-        logger.warning(
-            "agent invocation failed — falling back to deterministic savings helper",
-            exc_info=True,
-        )
-        try:
-            raw = _fetch_deterministic_savings(customer_id)
-        except Exception as fallback_err:  # noqa: BLE001 - preserve D-04 contract
-            logger.warning(
-                "deterministic savings fallback failed",
-                extra={"customer_id": customer_id, "reason": str(fallback_err)},
-                exc_info=True,
-            )
-            return {
-                "errorMessage": str(fallback_err),
-                "_narrative_source": narrative_source,
-                "reasoning_trace": [
-                    entry.model_dump() for entry in _extract_reasoning_trace(agent_result, _agent.messages[_messages_start:])
-                ],
-            }
-        fb = FALLBACKS.get(customer_id, {})
-        for track in ("green", "cheapest"):
-            track_fb = fb.get(track, {})
-            raw_track = raw.get(track, {})
-            if "usage_narrative" not in raw_track:
-                raw_track["usage_narrative"] = track_fb.get(
-                    "usage_narrative",
-                    "Household profile note unavailable for this customer.",
-                )
-                narrative_source[track]["usage_narrative"] = "fallback"
-            if "call_script" not in raw_track:
-                raw_track["call_script"] = track_fb.get(
-                    "call_script",
-                    "Ask about the recommended plan for this household.",
-                )
-                narrative_source[track]["call_script"] = "fallback"
-            raw[track] = raw_track
-        raw["_narrative_source"] = narrative_source
-        # Phase 14: add kind discriminator for API Lambda routing.
-        raw["kind"] = "recommendation"
-        # Phase 13 D-15 (amended A-02): stitch whatever partial trace we
-        # captured before the cap fired (or empty list if the agent never
-        # started, or the cap cancelled before any tool completed).
-        # agent_result may be None or bound to the cancelled result — the
-        # extractor tolerates both (returns [] on any failure).
-        raw["reasoning_trace"] = [
-            entry.model_dump() for entry in _extract_reasoning_trace(agent_result, _agent.messages[_messages_start:])
-        ]
-        return raw
+        review = _compliance_reviewer.review(response, {"customer_id": customer_id})
+        response["compliance_review"] = review.model_dump()
+        supervisor_trace["compliance_reviewed"] = True
+        if review.verdict == "fail":
+            logger.warning("Compliance review failed: %s", review.failures)
+    except Exception:  # noqa: BLE001 — D-04 never-500
+        logger.warning("ComplianceReviewer raised — returning response unchanged (D-04)")
 
-    # Happy path — validator passed (possibly after Strands' inline self-correction).
-    body = result.model_dump()
-    body["_narrative_source"] = narrative_source
-    # Phase 13 D-07 + D-08: attach reasoning_trace to the response body.
-    # Extractor is best-effort (returns [] on any failure — never raises).
-    body["reasoning_trace"] = [
-        entry.model_dump() for entry in _extract_reasoning_trace(agent_result, _agent.messages[_messages_start:])
-    ]
-    return body
+    # Attach supervisor trace
+    response["supervisor_trace"] = supervisor_trace
+
+    # DEMO-07 kill-switch: strip post-v2.0 surfaces when ?narrative=off
+    if payload.get("narrative") == "off":
+        response.pop("compliance_review", None)
+        response.pop("supervisor_trace", None)
+
+    return response
 
 
 if __name__ == "__main__":

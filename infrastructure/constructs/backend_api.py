@@ -18,6 +18,7 @@ from aws_cdk import aws_apigatewayv2 as apigwv2
 from aws_cdk import aws_apigatewayv2_integrations as integ
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
+from aws_cdk import aws_ssm as ssm
 from constructs import Construct
 
 
@@ -30,6 +31,7 @@ class BackendApiConstruct(Construct):
         construct_id: str,
         *,
         agent_runtime_arn: str,
+        tools_lambda_arn: str = "",
     ) -> None:
         super().__init__(scope, construct_id)
 
@@ -61,6 +63,7 @@ class BackendApiConstruct(Construct):
             memory_size=256,
             environment={
                 "AGENT_RUNTIME_ARN": agent_runtime_arn,
+                "TOOLS_LAMBDA_ARN": tools_lambda_arn,
                 "LOG_LEVEL": "INFO",
             },
             description="Phase 3: proxies GET /recommendations/{customer_id} to AgentCore",
@@ -84,6 +87,17 @@ class BackendApiConstruct(Construct):
                 ],
             )
         )
+
+        # IAM — scoped to lambda:InvokeFunction on the Tools Lambda ARN.
+        # Required for retention-queue and action confirm/dismiss endpoints.
+        if tools_lambda_arn:
+            fn.add_to_role_policy(
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["lambda:InvokeFunction"],
+                    resources=[tools_lambda_arn],
+                )
+            )
 
         # D-11 (Phase 7): read the `-c demo_pc=N` CDK context flag.
         # Absent → 0 (PC off, zero billing). Present → cast to int, validate.
@@ -126,6 +140,7 @@ class BackendApiConstruct(Construct):
                 allow_origins=["*"],
                 allow_methods=[
                     apigwv2.CorsHttpMethod.GET,
+                    apigwv2.CorsHttpMethod.POST,
                     apigwv2.CorsHttpMethod.OPTIONS,
                 ],
                 allow_headers=["Content-Type"],
@@ -146,9 +161,66 @@ class BackendApiConstruct(Construct):
             integration=integ.HttpLambdaIntegration("FollowUpIntegration", live_alias),
         )
 
+        # Conversational chat route — POST /chat/{customer_id}.
+        # Reuses the same API Lambda + AgentCore invoke permission (no new infra).
+        api.add_routes(
+            path="/chat/{customer_id}",
+            methods=[apigwv2.HttpMethod.POST],
+            integration=integ.HttpLambdaIntegration("ChatIntegration", live_alias),
+        )
+
+        # Agentic Actions Portfolio: retention queue endpoint.
+        api.add_routes(
+            path="/retention-queue",
+            methods=[apigwv2.HttpMethod.GET],
+            integration=integ.HttpLambdaIntegration("RetentionQueueIntegration", live_alias),
+        )
+
+        # Agentic Actions Portfolio: action confirm/dismiss endpoints.
+        api.add_routes(
+            path="/actions/{action_id}/confirm",
+            methods=[apigwv2.HttpMethod.POST],
+            integration=integ.HttpLambdaIntegration("ActionConfirmIntegration", live_alias),
+        )
+        api.add_routes(
+            path="/actions/{action_id}/dismiss",
+            methods=[apigwv2.HttpMethod.POST],
+            integration=integ.HttpLambdaIntegration("ActionDismissIntegration", live_alias),
+        )
+
+        # Lambda Function URL with response streaming (D-01).
+        # API Gateway HTTP API v2 does not support chunked/streaming responses
+        # from Lambda. The streaming path uses a Function URL with
+        # InvokeMode.RESPONSE_STREAM as the SSE transport. The existing API
+        # Gateway route remains for the batch path.
+        fn_url = fn.add_function_url(
+            auth_type=lambda_.FunctionUrlAuthType.NONE,
+            invoke_mode=lambda_.InvokeMode.RESPONSE_STREAM,
+            cors=lambda_.FunctionUrlCorsOptions(
+                allowed_origins=["*"],
+                allowed_methods=[lambda_.HttpMethod.GET],
+                allowed_headers=["Content-Type", "Accept"],
+            ),
+        )
+
+        # Write Function URL endpoint to SSM for cross-stack/frontend reference.
+        ssm.StringParameter(
+            self,
+            "StreamingUrlParam",
+            parameter_name="/customer-tariff/streaming-url",
+            string_value=fn_url.url,
+            description="Lambda Function URL for SSE streaming endpoint",
+        )
+
         self._api_endpoint = api.url
+        self._streaming_url = fn_url.url
 
     @property
     def api_endpoint(self) -> str:
         """API endpoint URL (includes trailing slash)."""
         return self._api_endpoint
+
+    @property
+    def streaming_url(self) -> str:
+        """Lambda Function URL for SSE streaming."""
+        return self._streaming_url

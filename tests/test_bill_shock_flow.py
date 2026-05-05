@@ -105,8 +105,8 @@ class TestDetectBillShockDispatcher:
     """
 
     def test_action_routes_to_helper(self, monkeypatch, elena_billing):
-        """Happy path: detect_bill_shock branch reuses get_billing_history +
-        detect_bill_shock_pure; Elena trips with shock_month=2025-10."""
+        """Happy path: detect_bill_shock branch now aliases to decompose_bill_shock_pure;
+        Elena trips with shock_month=2025-10 and gets richer decomposition."""
         monkeypatch.setattr(handler, "get_billing_history", lambda ev, ctx: elena_billing)
         # handler.table is consulted for a non-None guard before the helper runs.
         monkeypatch.setattr(handler, "table", object())
@@ -115,9 +115,13 @@ class TestDetectBillShockDispatcher:
         )
         assert result["is_shock"] is True
         assert result["shock_month"] == "2025-10"
+        # Backward-compat alias now returns decompose_bill_shock_pure shape
         assert set(result.keys()) == {
-            "is_shock", "delta_dollars", "shock_month",
-            "mean_dollars", "current_dollars",
+            "customer_id", "is_shock", "shock_month",
+            "total_delta_dollars", "rate_change_component",
+            "usage_change_component", "seasonal_component",
+            "contributing_factors", "explanation_sentence",
+            "explanation_factors",
         }
 
     def test_marcus_routed_returns_no_shock(self, monkeypatch, marcus_billing):
@@ -129,20 +133,23 @@ class TestDetectBillShockDispatcher:
         )
         assert result["is_shock"] is False
 
-    def test_invalid_customer_id_raises(self, monkeypatch):
+    def test_invalid_customer_id_returns_error(self, monkeypatch):
         monkeypatch.setattr(handler, "table", object())
-        with pytest.raises(ValueError):
-            dispatcher({"action": "detect_bill_shock", "customer_id": "not-a-cust"}, None)
+        result = dispatcher({"action": "detect_bill_shock", "customer_id": "not-a-cust"}, None)
+        assert result["error"] is True
+        assert "customer_id" in result["message"]
 
-    def test_missing_customer_id_raises(self, monkeypatch):
+    def test_missing_customer_id_returns_error(self, monkeypatch):
         monkeypatch.setattr(handler, "table", object())
-        with pytest.raises(ValueError):
-            dispatcher({"action": "detect_bill_shock"}, None)
+        result = dispatcher({"action": "detect_bill_shock"}, None)
+        assert result["error"] is True
+        assert "customer_id" in result["message"]
 
-    def test_non_string_customer_id_raises(self, monkeypatch):
+    def test_non_string_customer_id_returns_error(self, monkeypatch):
         monkeypatch.setattr(handler, "table", object())
-        with pytest.raises(ValueError):
-            dispatcher({"action": "detect_bill_shock", "customer_id": 123}, None)
+        result = dispatcher({"action": "detect_bill_shock", "customer_id": 123}, None)
+        assert result["error"] is True
+        assert "customer_id" in result["message"]
 
     def test_table_not_configured_raises_runtime_error(self, monkeypatch):
         """SAV-03 / D-04 companion: Tools Lambda must fail fast when TABLE_NAME
@@ -215,8 +222,8 @@ class TestFourToolCap:
 
     def test_hook_instantiates_with_defaults(self):
         from agent.hooks.four_tool_cap import FourToolCapHook
-        hook = FourToolCapHook(budget=4)
-        assert hook.budget == 4
+        hook = FourToolCapHook(budget=8)
+        assert hook.budget == 8
         assert hook.used == 0
 
     def test_hook_is_hook_provider(self):
@@ -227,7 +234,7 @@ class TestFourToolCap:
 
     def test_hook_increments_used_on_each_tool_completion(self):
         from agent.hooks.four_tool_cap import FourToolCapHook
-        hook = FourToolCapHook(budget=4)
+        hook = FourToolCapHook(budget=8)
         fake_event = MagicMock()
         hook.on_tool_complete(fake_event)
         assert hook.used == 1
@@ -263,7 +270,7 @@ class TestFourToolCap:
     def test_hook_register_hooks_subscribes_to_after_tool_call(self):
         from agent.hooks.four_tool_cap import FourToolCapHook
         from strands.hooks import AfterToolCallEvent
-        hook = FourToolCapHook(budget=4)
+        hook = FourToolCapHook(budget=8)
         registry = MagicMock()
         hook.register_hooks(registry)
         registry.add_callback.assert_called_once_with(
@@ -272,7 +279,7 @@ class TestFourToolCap:
 
     def test_hook_reset_zeros_counter(self):
         from agent.hooks.four_tool_cap import FourToolCapHook
-        hook = FourToolCapHook(budget=4)
+        hook = FourToolCapHook(budget=8)
         hook.used = 3
         hook.reset()
         assert hook.used == 0
@@ -614,7 +621,13 @@ class TestEmptyBillingStop:
         )
 
         with patch("agent.agent._agent", patched_agent):
-            response = invoke({"customer_id": "CUST-999"})
+            # Post-supervisor refactor: also patch the specialist's _agent
+            # so TariffSpecialist.handle() uses the scripted mock.
+            import agent.agent as agent_mod
+            agent_mod._init_specialists()
+            with patch.object(agent_mod._tariff_specialist, "_agent", patched_agent):
+                with patch.object(agent_mod, "_specialists_initialized", True):
+                    response = invoke({"customer_id": "CUST-999"})
 
         # Acceptance: body has NO green/cheapest keys — exactly the condition
         # api_lambda/handler.py:152 (D-12 primary heuristic) checks for 404.
@@ -627,34 +640,35 @@ class TestEmptyBillingStop:
         # D-04 never-500: response is a dict (not an exception)
         assert isinstance(response, dict)
 
-    @patch("agent.agent._agent")
-    @patch("agent.agent._lambda_client")
-    def test_unknown_customer_d04_fallback_emits_no_tracks(
-        self, mock_lambda_client, mock_agent
-    ):
+    def test_unknown_customer_d04_fallback_emits_no_tracks(self):
         """Defence-in-depth: if the LLM disobeys the STOP rule and raises,
         the existing D-04 fallback path in invoke() must STILL produce a
         body with no green/cheapest keys.
 
-        Mirror the @patch wiring from
-        TestFourToolCap::test_invoke_routes_through_d04_fallback_on_cancelled_stop_reason
-        verbatim — same @patch("agent.agent._agent") decorator, same
-        mock_agent.return_value = <mock_agent_result> inside the body,
-        same @patch("agent.agent._lambda_client") for Tools-Lambda fallback.
+        Post-supervisor refactor: patches _tariff_specialist._agent and
+        _lambda_client so the specialist's handle() uses the mock agent
+        and the fallback path uses the mock Lambda client.
         """
+        import agent.agent as agent_mod
         from agent.agent import invoke
+
+        # Ensure specialists are initialized.
+        agent_mod._init_specialists()
 
         # Mock _agent(...) returning an AgentResult that forces the
         # structured-output salvage/D-04 fallback branch.
+        mock_agent = MagicMock()
         mock_agent_result = MagicMock()
         mock_agent_result.stop_reason = "end_turn"
         mock_agent_result.message = {"content": []}
         mock_agent_result.structured_output = None
         mock_agent.return_value = mock_agent_result
+        mock_agent.messages = []
 
         # Tools Lambda fallback returns an errorMessage shape for unknown
         # customer — matches lambda/handler.py existing behaviour for
         # CUST-999 (empty billing history).
+        mock_lambda_client = MagicMock()
         mock_lambda_client.invoke.return_value = {
             "Payload": io.BytesIO(
                 json.dumps({"errorMessage": "customer not found"}).encode()
@@ -662,7 +676,11 @@ class TestEmptyBillingStop:
         }
 
         _four_tool_cap.reset()
-        response = invoke({"customer_id": "CUST-999"})
+        with patch.object(agent_mod, "_agent", mock_agent), \
+             patch.object(agent_mod, "_lambda_client", mock_lambda_client), \
+             patch.object(agent_mod._tariff_specialist, "_agent", mock_agent), \
+             patch.object(agent_mod, "_specialists_initialized", True):
+            response = invoke({"customer_id": "CUST-999"})
 
         # Same acceptance: body has NO green/cheapest keys — exact condition
         # api_lambda/handler.py:152 (D-12 primary heuristic) checks for 404.

@@ -21,10 +21,17 @@ class BackendApiStack(Stack):
             self, "/customer-tariff/agent-runtime-arn"
         )
 
+        # Read Tools Lambda ARN from SSM for retention-queue and action endpoints.
+        tools_lambda_arn = ssm.StringParameter.value_for_string_parameter(
+            self, "/customer-tariff/tools-lambda-arn"
+        )
+
         backend = BackendApiConstruct(
             self,
             "BackendApi",
             agent_runtime_arn=agent_runtime_arn,
+            tools_lambda_arn=tools_lambda_arn,
         )
 
         CfnOutput(self, "ApiEndpoint", value=backend.api_endpoint)
+        CfnOutput(self, "StreamingUrl", value=backend.streaming_url)

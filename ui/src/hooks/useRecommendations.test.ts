@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRecommendations } from './useRecommendations';
 
 // Canonical success payload — mirrors the DEMO-02 flagship numbers that the

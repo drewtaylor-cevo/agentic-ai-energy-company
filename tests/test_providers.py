@@ -71,13 +71,13 @@ def test_inmemory_provider_byte_exact_savings(customer_id, fixture_name, request
 def test_inmemory_provider_hardship_flag_cust006_is_true(inmemory_provider):
     """DATA-06 hardship row round-trips through the provider shape."""
     result = inmemory_provider.get_hardship_flag("CUST-006")
-    assert result == {"hardship": True, "customer_id": "CUST-006"}
+    assert result == {"hardship": True, "hardship_category": None, "customer_id": "CUST-006"}
 
 
 def test_inmemory_provider_hardship_flag_cust001_is_false(inmemory_provider):
     """Non-hardship persona → {hardship: False, …} (no PROFILE row for CUST-001)."""
     result = inmemory_provider.get_hardship_flag("CUST-001")
-    assert result == {"hardship": False, "customer_id": "CUST-001"}
+    assert result == {"hardship": False, "hardship_category": None, "customer_id": "CUST-001"}
 
 
 # --- Category 3: SalesforceCustomerDataProvider NotImplementedError (D-12 category 3) ---

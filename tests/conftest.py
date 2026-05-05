@@ -233,6 +233,7 @@ def mock_cust006_hardship():
     """CUST-006 hardship-flag lookup — shape returned by get_hardship_flag_pure."""
     return {
         "hardship": True,
+        "hardship_category": None,
         "customer_id": "CUST-006",
     }
 

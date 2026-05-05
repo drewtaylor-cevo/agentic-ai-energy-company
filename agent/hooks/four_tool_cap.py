@@ -25,7 +25,7 @@ class FourToolCapHook(HookProvider):
 
     Usage (in agent/agent.py):
 
-        _four_tool_cap = FourToolCapHook(budget=4)
+        _four_tool_cap = FourToolCapHook(budget=8)
         _agent = Agent(
             model=_model,
             system_prompt=SYSTEM_PROMPT,

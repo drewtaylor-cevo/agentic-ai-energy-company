@@ -61,13 +61,20 @@ def _record(
     return record
 
 
-def _profile_item(customer_id: str, hardship_flag: bool = False) -> Dict[str, Any]:
-    """D-08/D-09: PROFILE sentinel-SK row. Phase 11: only hardship_flag attribute."""
-    return {
+def _profile_item(
+    customer_id: str,
+    hardship_flag: bool = False,
+    hardship_category: Optional[str] = None,
+) -> Dict[str, Any]:
+    """D-08/D-09: PROFILE sentinel-SK row. Phase 11: hardship_flag; AGENT-03: hardship_category."""
+    item: Dict[str, Any] = {
         "customer_id": customer_id,
         "month": "PROFILE",
         "hardship_flag": hardship_flag,
     }
+    if hardship_category is not None:
+        item["hardship_category"] = hardship_category
+    return item
 
 
 # Month order follows the customer's fiscal year: Apr 2025 -> Mar 2026.
@@ -131,9 +138,39 @@ CUST006_RECORDS: List[Dict[str, Any]] = [
     _record("CUST-006", m, u) for m, u in zip(_MONTHS, _CUST006_USAGE_KWH)
 ]
 
-# Phase 11 PROFILE items (D-08/D-09) — SK="PROFILE" sentinel row. CUST-006 only this phase.
+# --- AGENT-03 Typed Hardship Personas (one per category) ---
+
+# CUST-007 Payment Difficulty — low-usage household struggling with bills; avg ~300 kWh/mo.
+_CUST007_USAGE_KWH = [280, 290, 310, 320, 330, 315, 300, 285, 275, 280, 295, 320]
+CUST007_RECORDS: List[Dict[str, Any]] = [
+    _record("CUST-007", m, u) for m, u in zip(_MONTHS, _CUST007_USAGE_KWH)
+]
+
+# CUST-008 Medical Equipment — life-support equipment user, low baseline; avg ~350 kWh/mo.
+_CUST008_USAGE_KWH = [330, 340, 355, 360, 370, 365, 350, 345, 335, 340, 355, 355]
+CUST008_RECORDS: List[Dict[str, Any]] = [
+    _record("CUST-008", m, u) for m, u in zip(_MONTHS, _CUST008_USAGE_KWH)
+]
+
+# CUST-009 Family Violence — safety-first customer, minimal usage; avg ~220 kWh/mo.
+_CUST009_USAGE_KWH = [200, 210, 225, 230, 240, 235, 220, 215, 205, 210, 220, 230]
+CUST009_RECORDS: List[Dict[str, Any]] = [
+    _record("CUST-009", m, u) for m, u in zip(_MONTHS, _CUST009_USAGE_KWH)
+]
+
+# CUST-010 Other — generic hardship, low usage; avg ~260 kWh/mo.
+_CUST010_USAGE_KWH = [240, 250, 265, 270, 280, 275, 260, 255, 245, 250, 260, 270]
+CUST010_RECORDS: List[Dict[str, Any]] = [
+    _record("CUST-010", m, u) for m, u in zip(_MONTHS, _CUST010_USAGE_KWH)
+]
+
+# PROFILE items — CUST-006 (legacy, no category) + AGENT-03 typed hardship personas.
 PROFILE_ITEMS: List[Dict[str, Any]] = [
     _profile_item("CUST-006", hardship_flag=True),
+    _profile_item("CUST-007", hardship_flag=True, hardship_category="payment_difficulty"),
+    _profile_item("CUST-008", hardship_flag=True, hardship_category="medical_equipment"),
+    _profile_item("CUST-009", hardship_flag=True, hardship_category="family_violence"),
+    _profile_item("CUST-010", hardship_flag=True, hardship_category="other"),
 ]
 
 
@@ -144,6 +181,10 @@ ALL_RECORDS: List[Dict[str, Any]] = (
     + CUST004_RECORDS
     + CUST005_RECORDS
     + CUST006_RECORDS
+    + CUST007_RECORDS
+    + CUST008_RECORDS
+    + CUST009_RECORDS
+    + CUST010_RECORDS
     + PROFILE_ITEMS
 )
 
@@ -174,6 +215,8 @@ def to_dynamo(record: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         out["offpeak_kwh"] = {"N": str(record["offpeak_kwh"])}
     if "hardship_flag" in record:
         out["hardship_flag"] = {"BOOL": bool(record["hardship_flag"])}
+    if "hardship_category" in record:
+        out["hardship_category"] = {"S": record["hardship_category"]}
     return out
 
 
@@ -208,11 +251,23 @@ assert all(r["peak_kwh"] + r["offpeak_kwh"] == r["usage_kwh"] for r in CUST005_R
     "CUST-005 peak_kwh + offpeak_kwh must equal usage_kwh"
 
 # PROFILE sentinel-SK invariants
-assert len(PROFILE_ITEMS) == 1, "Phase 11 owns exactly 1 PROFILE item (CUST-006 hardship)"
+assert len(PROFILE_ITEMS) == 5, "AGENT-03: 5 PROFILE items (CUST-006 + 4 typed hardship)"
 assert PROFILE_ITEMS[0]["customer_id"] == "CUST-006"
 assert PROFILE_ITEMS[0]["month"] == "PROFILE"
 assert PROFILE_ITEMS[0]["hardship_flag"] is True
 
-# Aggregate counts: 36 v2.0 + 36 new billing + 1 PROFILE = 73
-assert len(ALL_RECORDS) == 73, f"ALL_RECORDS must contain exactly 73 items, got {len(ALL_RECORDS)}"
-assert len(DYNAMO_RECORDS) == 73, f"DYNAMO_RECORDS must contain exactly 73 items, got {len(DYNAMO_RECORDS)}"
+# AGENT-03 typed hardship PROFILE invariants
+assert PROFILE_ITEMS[1]["hardship_category"] == "payment_difficulty"
+assert PROFILE_ITEMS[2]["hardship_category"] == "medical_equipment"
+assert PROFILE_ITEMS[3]["hardship_category"] == "family_violence"
+assert PROFILE_ITEMS[4]["hardship_category"] == "other"
+
+# AGENT-03 new persona record counts
+assert len(CUST007_RECORDS) == 12, "CUST-007 must have 12 months"
+assert len(CUST008_RECORDS) == 12, "CUST-008 must have 12 months"
+assert len(CUST009_RECORDS) == 12, "CUST-009 must have 12 months"
+assert len(CUST010_RECORDS) == 12, "CUST-010 must have 12 months"
+
+# Aggregate counts: 36 v2.0 + 36 v3.0 billing + 48 AGENT-03 billing + 5 PROFILE = 125
+assert len(ALL_RECORDS) == 125, f"ALL_RECORDS must contain exactly 125 items, got {len(ALL_RECORDS)}"
+assert len(DYNAMO_RECORDS) == 125, f"DYNAMO_RECORDS must contain exactly 125 items, got {len(DYNAMO_RECORDS)}"

@@ -142,9 +142,10 @@ class InMemoryProvider:
         """Match lambda/handler.py:143-161 get_hardship_flag_pure contract."""
         profile = self._profile_by_customer.get(customer_id)
         if profile is None:
-            return {"hardship": False, "customer_id": customer_id}
+            return {"hardship": False, "hardship_category": None, "customer_id": customer_id}
         return {
             "hardship": bool(profile.get("hardship_flag", False)),
+            "hardship_category": profile.get("hardship_category"),  # None if absent
             "customer_id": customer_id,
         }
 

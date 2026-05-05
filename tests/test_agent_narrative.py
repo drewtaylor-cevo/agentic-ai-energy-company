@@ -35,6 +35,11 @@ def _install_mock_agent(mocker, *, return_value=None, side_effect=None):
     does NOT intercept the call — the dunder lookup goes through the class.
     The safe + simple pattern is to replace the module-level binding itself
     so `_agent(...)` in invoke() routes through the MagicMock's __call__.
+
+    Post-supervisor refactor: also patches _tariff_specialist._agent so the
+    specialist's handle() method uses the mock agent. Ensures specialists
+    are initialized first, then sets _specialists_initialized to True to
+    prevent lazy init from overwriting.
     """
     mock_agent = MagicMock()
     if return_value is not None:
@@ -42,7 +47,12 @@ def _install_mock_agent(mocker, *, return_value=None, side_effect=None):
     if side_effect is not None:
         mock_agent.side_effect = side_effect
     import agent.agent as agent_mod
+    # Ensure specialists are initialized before patching.
+    agent_mod._init_specialists()
+    mocker.patch.object(agent_mod, "_specialists_initialized", True)
     mocker.patch.object(agent_mod, "_agent", mock_agent)
+    # Patch the specialist's internal _agent reference so handle() uses the mock.
+    mocker.patch.object(agent_mod._tariff_specialist, "_agent", mock_agent)
     return mock_agent
 
 

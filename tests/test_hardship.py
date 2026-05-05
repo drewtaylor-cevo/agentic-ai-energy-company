@@ -12,6 +12,7 @@ Categories:
 """
 import json
 import io
+from contextlib import contextmanager
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -21,6 +22,7 @@ from agent.narrative.banned_terms import BANNED_REGEX, NUMERIC_REGEX
 # runs BEFORE the _provider_swap autouse fixture swaps to InMemoryProvider.
 # If imported inside test functions, the module-level set_provider() would
 # overwrite the fixture's swap.
+import agent.agent as _agent_mod
 from agent.agent import (
     invoke,
     _four_tool_cap,
@@ -29,6 +31,21 @@ from agent.agent import (
     HardshipResponse,
 )
 from agent.providers import get_provider, set_provider
+
+
+@contextmanager
+def _patch_agent_callable(return_value):
+    """Patch _agent at both module level AND inside the TariffSpecialist.
+
+    Post-supervisor refactor: TariffSpecialist holds its own reference to
+    _agent (self._agent), so patching agent.agent._agent alone doesn't
+    affect the specialist's stored reference. We must patch both.
+    """
+    # Ensure specialists are initialized so we can patch the instance.
+    _agent_mod._init_specialists()
+    with patch.object(_agent_mod, "_agent", return_value=return_value):
+        with patch.object(_agent_mod._tariff_specialist, "_agent", return_value=return_value):
+            yield
 # All known plan IDs in the tariff catalog — hardship response must contain NONE.
 _PLAN_IDS = {"STD", "ECO", "VAL", "TOU", "SOL", "EV-TOU"}
 
@@ -101,7 +118,7 @@ class TestHardshipGuard:
         )
         mock_result.message = {"content": []}
 
-        with patch("agent.agent._agent", return_value=mock_result):
+        with _patch_agent_callable(mock_result):
             response = invoke({"customer_id": "CUST-001"})
 
         assert response.get("kind") == "recommendation"
@@ -139,7 +156,7 @@ class TestHardshipGuard:
         original = get_provider()
         set_provider(broken_provider)
         try:
-            with patch("agent.agent._agent", return_value=mock_result):
+            with _patch_agent_callable(mock_result):
                 response = invoke({"customer_id": "CUST-006"})
         finally:
             set_provider(original)
@@ -263,7 +280,7 @@ class TestRecommendationBranchPreserved:
         )
         mock_result.message = {"content": []}
 
-        with patch("agent.agent._agent", return_value=mock_result):
+        with _patch_agent_callable(mock_result):
             response = invoke({"customer_id": customer_id})
 
         assert response.get("kind") == "recommendation", \

@@ -258,7 +258,7 @@ describe('useChat - API mode (VITE_API_URL set)', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit & { headers: Record<string, string>; body: string }];
     expect(url).toBe('https://api.example.com/chat/CUST-001');
     expect(init.method).toBe('POST');
     expect(init.headers['Accept']).toBe('text/event-stream');
