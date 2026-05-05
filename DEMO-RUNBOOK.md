@@ -2,6 +2,8 @@
 
 Presenter-facing guide for the **v3.0 demo** (Agentic Depth & Workflow Assist). Top-to-bottom read on the day before; on demo day follow the **T-48h → T-24h → T-10m → T-0** checklist.
 
+> ⚠️ **READ FIRST (added 2026-05-05):** Sections of this runbook describe v3.0 features that exist in source but were **never deployed**. The live `demo-v3.0` deployment supports a **5-beat demo**, not the 9-beat sequence below. The CEO-tuned 5-beat script with talk tracks, latency-masking patter, T-30m pre-flight checklist, and likely-question Q&A is in **`CEO-DEMO-BRIEF.md`** at the repo root. **Read that before this runbook.** This runbook is the engineering checklist; the brief is the talk track. Section 4 has been patched with a deployment-reality matrix and ✅/🛣️ markers on every talking point.
+
 > **Prior runbooks:** v1.0 at `.planning/milestones/v1.0-phases/05-demo-hardening/DEMO-RUNBOOK.md`; v2.0 was the previous version of this file. This document supersedes both for v3.0 presentations.
 
 > **Presenter artefacts (Phase 16):** Three documents under `.planning/docs/presenter/` support the demo narrative:
@@ -431,35 +433,64 @@ BACKEND_API_URL="$BACKEND_API_URL" \
 
 ## 4. Presenter cheat sheet
 
+> **DEPLOYMENT REALITY CHECK (added 2026-05-05, evening before CEO demo):**
+>
+> Earlier sections of this runbook describe v3.0 features that exist in source but were **never deployed before freeze**. The live `demo-v3.0` deployment supports a **5-beat demo**, not the 9-beat sequence described in earlier drafts. Anything below is what's actually demonstrable on the live URL today.
+>
+> | Feature | Live status | Use in demo? |
+> |---|---|---|
+> | Recommendations CUST-001 → CUST-005 | Live, byte-exact | **Yes — core demo** |
+> | Reasoning trace (collapsed by default, 2 steps) | Live | **Yes** |
+> | Hardship short-circuit (CUST-006) | Live | **Yes** |
+> | Follow-up email | Live | **Yes** |
+> | `?narrative=off` kill switch | Live | **Yes — only if something breaks** |
+> | Portal-tile + email-nudge mockups | Static HTML | **Yes — closes the demo** |
+> | Conversational chat box (Phase 21) | Source-only — `/chat/{id}` returns 404 | **No** |
+> | Retention queue (Phase 22) | Source-only — `/retention-queue` returns 404 | **No** |
+> | Action Cards (Phase 22) | Source-only — `pending_actions: []` always | **No** |
+> | Compliance review + supervisor trace fields (Phase 18) | Source-only — fields absent from API response | **No** |
+> | Typed hardship CUST-007/008/009/010 (Phase 16 AGENT-03) | Source-only — DynamoDB returns "Customer not found" | **No — CUST-006 is the hardship beat** |
+> | Streaming SSE reasoning trace (Phase 19) | Source-only — UI bundle has no streaming wiring | **No — fall back to batch view** |
+>
+> The CEO-tuned 5-beat script with talk-tracks, latency-masking patter, and Q&A is in **`CEO-DEMO-BRIEF.md`** at the repo root. The runbook below is the engineering checklist; the brief is the talk track. Read both.
+>
+> **Latency caveat:** warm latency on the deployed stack is **11–16 seconds** per persona lookup, cold ~17s. The runbook's earlier per-flow gates (3000ms/2500ms) were aspirational targets that the deployed stack does not meet. Plan for it: pre-warm twice per persona before the meeting; fill the wait with prepared talk-track patter (see CEO brief Beat 1).
+
 ### The demo personas (recommended order)
 
 | ID | Persona | Expected Green | Expected Cheapest | Demo beat |
 |----|---------|----------------|-------------------|-----------|
 | CUST-001 | Sarah Chen — high usage | **$30.00/mo · $360.00/yr · EcoFlex 100** | **$55.00/mo · $660.00/yr · Value 12** | Flagship retention save — biggest delta, clearest story |
 | CUST-002 | Marcus Webb — mid usage | **$16.90/mo · $202.80/yr · EcoFlex 100** | **$30.98/mo · $371.76/yr · Value 12** | Typical customer — moderate delta, both tracks viable |
-| CUST-003 | Elena Vasquez — bill shock | **$14.00/mo · $168.00/yr · EcoFlex 100** | **$25.67/mo · $308.04/yr · Value 12** | **Multi-tool reasoning** — agent detects bill shock, reasoning trace visible |
+| CUST-003 | Elena Vasquez — bill shock | **$14.00/mo · $168.00/yr · EcoFlex 100** | **$25.67/mo · $308.04/yr · Value 12** | Reasoning trace beat (2-step trace, NOT 3-step — see §3 Phase 13.1 finding) |
 | CUST-004 | Solar PV household | **$40.02/mo · $480.24/yr · EcoFlex 100** | **$76.03/mo · $912.36/yr · Solar Feed-in (SOL)** | Solar feed-in tariff archetype — export credits move the needle |
 | CUST-005 | EV household | **$35.00/mo · $420.00/yr · EcoFlex 100** | **$84.00/mo · $1008.00/yr · EV Time-of-Use (EV-TOU)** | EV TOU tariff — off-peak charging unlocks biggest delta |
-| CUST-006 | Hardship persona (legacy) | *(no recommendations)* | *(no recommendations)* | **Hardship short-circuit** — code-side guard, dignity-preserving routing, defaults to category "other" |
-| CUST-007 | Hardship — payment difficulty | *(no recommendations)* | *(no recommendations)* | **Typed hardship** — payment plan flow, routing to hardship_team |
-| CUST-008 | Hardship — medical equipment | *(no recommendations)* | *(no recommendations)* | **Typed hardship** — priority services routing, life-support guarantees |
-| CUST-009 | Hardship — family violence | *(no recommendations)* | *(no recommendations)* | **Typed hardship** — safety-first isolation, zero financial terms, family_violence_team routing |
-| CUST-010 | Hardship — other | *(no recommendations)* | *(no recommendations)* | **Typed hardship** — generic category, backward-compat proof |
+| CUST-006 | Hardship persona | *(no recommendations)* | *(no recommendations)* | **Hardship short-circuit** — code-side guard, dignity-preserving routing |
+| ~~CUST-007/008/009/010~~ | ~~Typed hardship categories~~ | — | — | **NOT DEPLOYED** — return "Customer not found". Do NOT use in demo. |
 
 All dollar values are byte-exact across freeze. If the live API returns something different for a persona, **something is wrong** — switch to the mock fallback (§5) before continuing.
 
-### v3.0 demo flow (recommended 9-beat sequence)
+### Live demo flow (5-beat sequence — what the deployed system actually supports)
 
-1. **Retention Queue (idle state)** — open the tool with no customer selected. "Before the rep even picks a customer, the system shows a portfolio view — 'N customers at risk today' — ranked by a deterministic risk signal computed from bill-shock magnitude, usage trend, and hardship flags. No LLM involved in the ranking. Click any card to investigate."
-2. **Sarah (CUST-001)** — flagship save. Show both cards, point out the narrative and call script. "The dollar values are pure Python; the narrative is LLM-generated with a banned-terms validator."
-3. **Elena (CUST-003)** — multi-tool reasoning + streaming + actions. Watch the trace steps appear one by one as the agent works. "You can see the agent thinking in real time — checking the hardship flag, detecting a bill spike, computing savings. Each step streams to the UI as it completes via Server-Sent Events. Every number in those summaries comes from tool output, not the LLM." Then point out the Action Cards below the recommendations: "The agent also prepared three actions — a tariff switch, an SMS follow-up, and a payment plan offer. The rep confirms with one click. The dollar values in the payment plan come from the same deterministic engine; the SMS body is LLM-generated but validator-gated. If the SMS fails validation, a pre-approved fallback substitutes automatically."
-4. **Action Card confirm/dismiss** — click Confirm on the tariff switch card. "One click — the action transitions to confirmed. The dismiss button collapses the card. If the action expires after 24 hours, the system tells the rep it's no longer valid. No silent failures."
-5. **CUST-006** — hardship short-circuit. "This customer is flagged for hardship support. The system refuses to show tariff recommendations — that's a code-side guard, not a prompt instruction. The LLM never sees tariff context for this customer."
-6. **CUST-009** — typed hardship (family violence). "This is a family violence case. The system routes immediately to the specialist safety team — no billing discussion, no account review, no payment mention. The compliance reviewer verifies zero financial terminology in the response. The category drives the routing target, the permitted tools, and the call script — all deterministic from the customer's PROFILE row, not inferred by the LLM."
-7. **Compliance review** — after any recommendation, point out the `compliance_review` field in the response. "Every response goes through a deterministic ComplianceReviewer before it reaches the caller. Five AER NECF-aligned rules: reference-period disclosure, no upsell-to-disadvantage, hardship-flag cross-check, category tool restriction, and family violence financial isolation. It's pure Python — no LLM call, no latency cost. The `supervisor_trace` shows which specialist handled the request and why."
-8. **Follow-up email** — after any recommendation, click "Draft follow-up email". "The agent remembers the prior recommendation via AgentCore Memory and drafts a personalised email the operator can edit before sending."
-9. **Expanded tool gallery + conversational chat** — after showing Elena's recommendation, use the chat box to ask "Is there an outage near Elena's suburb?" or "What concessions is she eligible for?" Watch the agent pick the right tool from the expanded gallery. Then ask "Why did her bill jump?" — watch the reasoning trace stream in real time.
-10. **Architecture story** — reference the presenter artefacts. "The agent started as a read-only advisor. Now it prepares actions, ranks a portfolio, decomposes bill shocks into root causes, and answers free-text questions — all with the same numeric integrity guarantee. The Salesforce adapter is a committed stub — same Protocol, same tests. Swapping the data source is a provider implementation, not a rewrite." (See DOC-03.)
+1. **Sarah (CUST-001)** — flagship save. Show both cards, point out the narrative and call script. "The dollar values are pure Python; the narrative is LLM-generated with a banned-terms validator." *(~12s wait — talk through it.)*
+2. **CUST-006** — hardship short-circuit. *(Fast ~1.3s response — short-circuits before the LLM, which gives the audience a snap response after Sarah's longer wait.)* "This customer is flagged for hardship support. The system refuses to show tariff recommendations — that's a code-side guard, not a prompt instruction. The LLM never sees tariff context for this customer."
+3. **Elena (CUST-003)** — bill-shock persona + reasoning trace. Click to expand the reasoning trace. Note: the deployed stack returns a 2-step trace, not 3-step (see Phase 13.1 finding in §3). "Every number in those summary lines came from a deterministic Python function, not the language model. The operator sees exactly which tools the agent called."
+4. **Follow-up email** — after any recommendation, click "Draft follow-up email". "The agent drafts a personalised follow-up email the operator can edit before sending. Agent prepares, human approves."
+5. **Three surfaces, one platform** — switch to the portal-tile.html and email-nudge.html mockups. "Same API, same byte-exact savings, same validated narrative — driving an operator screen today, a customer self-service tile tomorrow, a proactive nudge email after that. Different audiences, different risk profiles, same engine underneath."
+
+The CEO-tuned full talk-track for these 5 beats lives in `CEO-DEMO-BRIEF.md`.
+
+### Beats that are NOT supported on the live stack (do not demo)
+
+These are described in the talking-points section below for *historical context* but their UI surface is absent from the deployed bundle and the API endpoints they depend on return 404. Use the talking points as roadmap framing if asked, not as live-demo material.
+
+- ~~Retention Queue (idle landing page)~~ — `/retention-queue` returns 404
+- ~~Action Cards (tariff switch / SMS follow-up / payment plan offer)~~ — `pending_actions: []`
+- ~~Action confirm/dismiss flow~~
+- ~~Typed hardship categories (CUST-007/008/009/010)~~ — DynamoDB rows missing
+- ~~Compliance review field~~ + ~~supervisor trace field~~ on API response
+- ~~Conversational chat box~~ — `/chat/{id}` returns 404
+- ~~Streaming SSE reasoning trace~~ — UI bundle has no streaming wiring
 
 ### Follow-up email demo beat
 
@@ -472,55 +503,57 @@ After showing a recommendation for any persona (CUST-001 recommended):
 
 ### Talking points
 
-**Equal-cards framing (early, once, deliberately):**
+> **Marker key (added 2026-05-05):** ✅ = live feature, talk track maps to what the CEO will see. 🛣️ = roadmap framing, feature is source-only and not on the live URL — use as future-state language only.
+
+**✅ Equal-cards framing (early, once, deliberately):**
 > "We deliberately present Green and Cheapest side by side, with no ranking between them. The call-centre agent picks based on what the customer cares about — environmental preference or lowest bill. The system never decides for the customer."
 
-**Determinism framing (when someone asks 'is that really an LLM doing the math?'):**
+**✅ Determinism framing (when someone asks 'is that really an LLM doing the math?'):**
 > "The dollar values are pure Python — a `simulate_savings` function with 29 pytest cases locked since v1.0. The LLM never sees the arithmetic. What the LLM produces is the narrative row and the call-script row. Both go through a Pydantic validator that hard-rejects digits, currency symbols, and a banned-terms list. If validation fails, we fall back to per-persona × per-card committed fallback strings we wrote by hand."
 
-**Reasoning trace framing (after showing Elena's multi-tool flow):**
+**✅ Reasoning trace framing (after showing Elena's multi-tool flow — note: deployed trace is 2-step, not 3-step):**
 > "The reasoning trace shows exactly which tools the agent called and in what order. Every number in those summaries — the bill-shock delta, the billing history count, the savings figures — comes from tool output, not the LLM. The summaries are code-composed from pure Python formatters. This is the observability surface: the rep can see what the agent grounded on."
 
-**Streaming framing (after showing progressive trace steps):**
+**🛣️ Streaming framing (NOT DEPLOYED — roadmap only, do not demo):**
 > "What you just saw is real-time streaming — each tool completion pushes an SSE event to the browser before the final recommendation is ready. The 2–3 second agent latency feels responsive because the screen is alive. Under the hood it's a Lambda Function URL with response streaming — same Lambda, same agent, just a different invocation mode. The batch API Gateway path is still there as a fallback. If the streaming endpoint has an issue, the UI falls back to the batch path automatically — the operator never sees a broken state."
 
-**Hardship framing (after showing CUST-006):**
+**✅ Hardship framing (after showing CUST-006):**
 > "When a customer is flagged for hardship support, the system refuses to present tariff recommendations. That's a code-side guard — the LLM never sees tariff plans or savings figures for this customer. Even if you removed the hardship instructions from the prompt, the guard still fires. The response is a dignity-preserving routing message, not a 404 or a 500."
 
-**Typed hardship framing (after showing CUST-009 family violence):**
+**🛣️ Typed hardship framing (NOT DEPLOYED — CUST-007/008/009/010 return "Customer not found"):**
 > "The hardship system isn't one-size-fits-all. Four categories — payment difficulty, medical equipment, family violence, and other — each drive distinct behaviour. A family violence customer gets immediate safety-first routing: the system connects them to the specialist safety team with zero financial terminology in any field. No mention of bills, payments, accounts, or plans. The compliance reviewer enforces this programmatically — it tokenizes the response and rejects any financial term. A medical equipment customer gets priority service guarantees. A payment difficulty customer gets flexible arrangement options. The category is stored on the customer's PROFILE row in DynamoDB — deterministic, auditable, not inferred by the LLM."
 
-**Trust architecture framing (for a technical reviewer):**
+**✅ Trust architecture framing (for a technical reviewer):**
 > "We have a defence-in-depth stack: pure Python arithmetic at the bottom, banned-terms regex in the middle, fallback bank as the safety net, a ComplianceReviewer that signs off on every response, and a URL kill switch at the top. Every layer is independently testable and independently bypassable. The trust-architecture one-pager is committed to the repo — every claim links to a pytest file or code reference." (See DOC-01.)
 
-**Multi-agent supervisor framing (for a technical reviewer):**
+**🛣️ Multi-agent supervisor framing (NOT DEPLOYED — `compliance_review` and `supervisor_trace` fields are absent from API responses):**
 > "The monolithic agent is now three specialists behind a code-side Supervisor. The Supervisor is an `if/elif` router — zero additional LLM calls. The TariffSpecialist owns the recommendation flow. The HardshipSpecialist handles vulnerable customers with typed category routing — no access to tariff tools. The ComplianceReviewer runs five AER NECF-aligned checks as pure Python — reference-period disclosure, no upsell-to-disadvantage, hardship-flag cross-check, category tool restriction, and family violence financial isolation. It adds microseconds, not seconds. Every specialist satisfies an `AgentRole` Protocol with a single `handle()` method — same pattern as the `CustomerDataProvider` from Phase 12. Adding a new specialist is a class that implements `handle()`, not a prompt rewrite."
 
-**Compliance review framing (when someone asks 'what stops a bad recommendation?'):**
+**✅/🛣️ Compliance review framing (the *narrative validator* and *hardship guard* are LIVE; the named `compliance_review` field is roadmap-only):**
 > "Three things. First, the ComplianceReviewer checks every response before it leaves the system — reference-period disclosure, no upsell-to-disadvantage, hardship-flag cross-check, category tool restriction, and family violence financial isolation. Second, the narrative validators reject any text with digits, currency, or banned terms. Third, the hardship guard is code-side — the LLM never sees tariff data for flagged customers. For family violence specifically, the compliance reviewer tokenizes the entire response and rejects any financial terminology — dollar, payment, bill, tariff, plan, cost, price, save, switch, account, balance, debt, arrears, overdue. If the ComplianceReviewer fails a response, it attaches a warning but still returns the response — the D-04 never-500 contract takes precedence over compliance gating. The `compliance_review` field is visible in the API response so the operator and the audit trail both see it."
 
-**CRM adapter framing (for a product stakeholder):**
+**🛣️ CRM adapter framing (Salesforce stub exists in source — no live demonstrable surface):**
 > "The demo runs on DynamoDB today. The Salesforce adapter is a committed stub — same Protocol, same tests, same agent code. Swapping the data source is a provider implementation, not a rewrite." (See DOC-03.)
 
-**Expanded tool gallery framing (after showing the 10-tool set):**
+**🛣️ Expanded tool gallery framing (NOT DEPLOYED — agent runtime still has the 4-tool set):**
 > "The agent started with 4 tariff-math tools. Now it has 10 — outage awareness, bill-shock decomposition with rate/usage/seasonal attribution, concession lookups, solar payback estimation, payment plan proposals, and callback scheduling. Every tool is deterministic and demo-safe — hardcoded seed data, no external API calls. The tool cap budget is 8 calls per invocation, so the agent can orchestrate multi-step workflows without hitting the ceiling. Each tool has a one-liner summary formatter that feeds the reasoning trace — code-composed, no LLM involved."
 
-**Conversational chat framing (after showing the chat box):**
+**🛣️ Conversational chat framing (NOT DEPLOYED — `/chat/{id}` returns 404, no chat UI in deployed bundle):**
 > "This is the same agent, same tools, same numeric integrity rules — but now the rep can ask anything. The LLM picks tools based on the question's intent, not a fixed script. 'Why did her bill jump?' triggers the bill-shock decomposition tool. 'What would solar save her?' triggers the solar payback estimator. The session carries context across turns so the rep can drill deeper without re-explaining. Sessions are scoped per-customer with a 15-minute TTL and 20-turn cap — no cross-customer leakage, no session accumulation."
 
-**Agentic actions framing (after showing the Action Cards):**
+**🛣️ Agentic actions framing (NOT DEPLOYED — `pending_actions: []` on every persona, no Action Cards in deployed bundle):**
 > "The agent evolved from advisor to actor. After producing a recommendation, it prepares three actions — a tariff switch, an SMS follow-up, and a payment plan offer — and queues them for the rep to approve with one click. The dollar values in the tariff switch and payment plan come from the same deterministic engine that produces the recommendation cards — the LLM never touches those numbers. The SMS body is LLM-generated but goes through the same D-15 validator that gates the narrative text. If validation fails, a pre-approved fallback substitutes automatically. Actions expire after 24 hours — no stale approvals sitting in a queue."
 
-**Retention queue framing (after showing the portfolio view):**
+**🛣️ Retention queue framing (NOT DEPLOYED — `/retention-queue` returns 404):**
 > "Before the rep picks a customer, the system shows who needs attention today. The risk signal is a weighted composite of bill-shock magnitude, usage trend direction, and hardship flag — all computed by the same deterministic Tools Lambda. No LLM involved in the ranking. Hardship customers get a score of zero — they're routed to the specialist team, not the retention queue. Click any card and you're in the full recommendation flow. This is the same system working at portfolio scale, not just on a known ID."
 
-**Bill-shock decomposition framing (after showing Elena's enriched trace):**
+**🛣️ Bill-shock decomposition framing (NOT DEPLOYED — `decompose_bill_shock` tool not in live agent):**
 > "The bill-shock tool now tells you *why* the bill spiked — not just that it did. It decomposes the delta into rate changes, usage spikes, seasonal variation, and billing-day differences. Each factor has a dollar amount and a percentage. The explanation sentence is code-composed from those factors — '$45.20 over baseline — 68% from usage spike, 32% from seasonal variation.' The rep can read that to the customer verbatim. Every number comes from the deterministic engine."
 
-**Chat safety framing (for a security reviewer):**
+**🛣️ Chat safety framing (NOT DEPLOYED — chat endpoint returns 404):**
 > "The chat endpoint validates inputs before the agent sees them — customer ID format, message length cap at 2000 characters, HTML tag stripping, rate limiting at 10 messages per minute. The agent's system prompt instructs it to decline role-play requests and never disclose tool names or system internals. If the session store fails, it degrades to stateless single-turn mode — the D-04 never-500 contract holds. The `?narrative=off` kill switch hides the entire chat UI."
 
-**Freeze framing (if asked about demo-day reliability):**
+**✅ Freeze framing (if asked about demo-day reliability):**
 > "The environment is locked at T-48h. The 3 CloudFormation stacks have deny-Update:* policies and termination protection. Python dependencies are hash-pinned. We did a 5-step rollback drill. There's a kill switch at `?narrative=off` if the LLM layer misbehaves mid-demo; the UI collapses to v2.0 shape without a redeploy."
 
 ### Error paths to rehearse (show one or two if a reviewer asks)
