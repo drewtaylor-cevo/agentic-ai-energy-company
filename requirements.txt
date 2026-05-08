@@ -56,9 +56,9 @@ aws-cdk-lib==2.251.0 \
     #   aws-cdk-aws-amplify-alpha
     #   aws-cdk-aws-bedrock-agentcore-alpha
     #   aws-cdk-aws-bedrock-alpha
-bedrock-agentcore==1.6.3 \
-    --hash=sha256:3876840713aba033232165e3cf442ee959df291e3d410b602f08baaea6aee883 \
-    --hash=sha256:88a83e214c674a20157ad658876c5a5ee1b874bae87b45e42984b23c883e7210
+bedrock-agentcore==1.6.4 \
+    --hash=sha256:7b3e12361ca432ab1cada5e191e6f3cfa9536cd5cedafc37058f670b263bdabf \
+    --hash=sha256:a20f76f23cf08f4c081704eeb85c1899340163066b1612458c93963055a5e3dd
     # via -r requirements.in
 boto3==1.42.96 \
     --hash=sha256:2f4566da2c209a98bdbfc874d813ef231c84ad24e4f815e9bc91de5f63351a24 \
@@ -499,9 +499,9 @@ python-dotenv==1.2.2 \
     --hash=sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a \
     --hash=sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3
     # via pydantic-settings
-python-multipart==0.0.26 \
-    --hash=sha256:08fadc45918cd615e26846437f50c5d6d23304da32c341f289a617127b081f17 \
-    --hash=sha256:c0b169f8c4484c13b0dcf2ef0ec3a4adb255c4b7d18d8e420477d2b1dd03f185
+python-multipart==0.0.27 \
+    --hash=sha256:6fccfad17a27334bd0193681b369f476eda3409f17381a2d65aa7df3f7275645 \
+    --hash=sha256:9870a6a8c5a20a5bf4f07c017bd1489006ff8836cff097b6933355ee2b49b602
     # via mcp
 pyyaml==6.0.3 \
     --hash=sha256:00c4bdeba853cc34e7dd471f16b4114f4162dc03e6b7afcc2128711f0eca823c \
