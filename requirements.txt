@@ -56,9 +56,9 @@ aws-cdk-lib==2.251.0 \
     #   aws-cdk-aws-amplify-alpha
     #   aws-cdk-aws-bedrock-agentcore-alpha
     #   aws-cdk-aws-bedrock-alpha
-bedrock-agentcore==1.6.3 \
-    --hash=sha256:3876840713aba033232165e3cf442ee959df291e3d410b602f08baaea6aee883 \
-    --hash=sha256:88a83e214c674a20157ad658876c5a5ee1b874bae87b45e42984b23c883e7210
+bedrock-agentcore==1.6.4 \
+    --hash=sha256:7b3e12361ca432ab1cada5e191e6f3cfa9536cd5cedafc37058f670b263bdabf \
+    --hash=sha256:a20f76f23cf08f4c081704eeb85c1899340163066b1612458c93963055a5e3dd
     # via -r requirements.in
 boto3==1.42.96 \
     --hash=sha256:2f4566da2c209a98bdbfc874d813ef231c84ad24e4f815e9bc91de5f63351a24 \
@@ -715,9 +715,9 @@ sse-starlette==3.3.4 \
     --hash=sha256:84bb06e58939a8b38d8341f1bc9792f06c2b53f48c608dd207582b664fc8f3c1 \
     --hash=sha256:aaf92fc067af8a5427192895ac028e947b484ac01edbc3caf00e7e7137c7bef1
     # via mcp
-starlette==1.0.0 \
-    --hash=sha256:6a4beaf1f81bb472fd19ea9b918b50dc3a77a6f2e190a12954b25e6ed5eea149 \
-    --hash=sha256:d3ec55e0bb321692d275455ddfd3df75fff145d009685eb40dc91fc66b03d38b
+starlette==1.0.1 \
+    --hash=sha256:512399c5f1de7fac99c88572212ded9ddeddef2fb32afa82d724000e88b38f4f \
+    --hash=sha256:7c0e69b2ee1c848bd54669d908500117a3ee13de603a21427e5c6fc1adf98dcd
     # via
     #   bedrock-agentcore
     #   mcp
